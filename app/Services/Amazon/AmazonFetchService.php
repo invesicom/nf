@@ -3,6 +3,7 @@
 namespace App\Services\Amazon;
 
 use App\Models\AsinData;
+use App\Services\AlertService;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
@@ -116,6 +117,19 @@ class AmazonFetchService
                     'status' => $status,
                     'body'   => substr($body, 0, 500), // Limit log size
                 ]);
+
+                // Check for Amazon session expired error
+                $data = json_decode($body, true);
+                if ($data && isset($data['error_code']) && $data['error_code'] === 'AMAZON_SIGNIN_REQUIRED') {
+                    app(AlertService::class)->amazonSessionExpired(
+                        $data['message'] ?? 'Amazon session has expired',
+                        [
+                            'asin' => $asin,
+                            'status_code' => $status,
+                            'error_code' => $data['error_code'],
+                        ]
+                    );
+                }
 
                 return [];
             }

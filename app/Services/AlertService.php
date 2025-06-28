@@ -1,0 +1,242 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\AlertType;
+use App\Notifications\SystemAlert;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
+
+class AlertService
+{
+    /**
+     * Send an alert notification
+     */
+    public function alert(
+        AlertType $type,
+        string $message,
+        array $context = [],
+        ?int $priority = null,
+        ?string $url = null,
+        ?string $urlTitle = null
+    ): void {
+        // Check if this alert should be throttled
+        if ($type->shouldThrottle() && $this->isThrottled($type, $context)) {
+            Log::info('Alert throttled', [
+                'type' => $type->value,
+                'message' => $message,
+                'context' => $context,
+            ]);
+            return;
+        }
+
+        // Set throttle if needed
+        if ($type->shouldThrottle()) {
+            $this->setThrottle($type, $context);
+        }
+
+        // Use default priority if not specified
+        $priority = $priority ?? $type->getDefaultPriority();
+
+        // Log the alert
+        $this->logAlert($type, $message, $context, $priority);
+
+        // Create and send notification
+        $notification = new SystemAlert($type, $message, $context, $priority, $url, $urlTitle);
+        
+        // Send to configured notification channels
+        $this->sendNotification($notification);
+    }
+
+    /**
+     * Send Amazon session expired alert
+     */
+    public function amazonSessionExpired(string $errorMessage, array $context = []): void
+    {
+        $this->alert(
+            AlertType::AMAZON_SESSION_EXPIRED,
+            "Amazon session has expired and needs re-authentication. Error: {$errorMessage}",
+            array_merge($context, ['error_code' => 'AMAZON_SIGNIN_REQUIRED']),
+            null,
+            config('app.url') . '/admin/amazon-config',
+            'Update Amazon Configuration'
+        );
+    }
+
+    /**
+     * Send OpenAI quota exceeded alert
+     */
+    public function openaiQuotaExceeded(string $errorMessage, array $context = []): void
+    {
+        $this->alert(
+            AlertType::OPENAI_QUOTA_EXCEEDED,
+            "OpenAI quota has been exceeded. Error: {$errorMessage}",
+            array_merge($context, ['error_code' => 'QUOTA_EXCEEDED']),
+            null,
+            'https://platform.openai.com/usage',
+            'Check OpenAI Usage'
+        );
+    }
+
+    /**
+     * Send OpenAI API error alert
+     */
+    public function openaiApiError(string $errorMessage, int $statusCode, array $context = []): void
+    {
+        $priority = $statusCode >= 500 ? 1 : 0; // High priority for server errors
+        
+        $this->alert(
+            AlertType::OPENAI_API_ERROR,
+            "OpenAI API error (HTTP {$statusCode}): {$errorMessage}",
+            array_merge($context, ['status_code' => $statusCode]),
+            $priority
+        );
+    }
+
+    /**
+     * Send system error alert
+     */
+    public function systemError(string $message, \Throwable $exception, array $context = []): void
+    {
+        $this->alert(
+            AlertType::SYSTEM_ERROR,
+            "System error: {$message}",
+            array_merge($context, [
+                'exception' => get_class($exception),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'trace' => $exception->getTraceAsString(),
+            ]),
+            1 // High priority
+        );
+    }
+
+    /**
+     * Send database error alert
+     */
+    public function databaseError(string $message, \Throwable $exception, array $context = []): void
+    {
+        $this->alert(
+            AlertType::DATABASE_ERROR,
+            "Database error: {$message}",
+            array_merge($context, [
+                'exception' => get_class($exception),
+                'message' => $exception->getMessage(),
+            ]),
+            2 // Emergency priority
+        );
+    }
+
+    /**
+     * Send security alert
+     */
+    public function securityAlert(string $message, array $context = []): void
+    {
+        $this->alert(
+            AlertType::SECURITY_ALERT,
+            "Security Alert: {$message}",
+            $context,
+            2 // Emergency priority
+        );
+    }
+
+    /**
+     * Check if an alert type is currently throttled
+     */
+    private function isThrottled(AlertType $type, array $context = []): bool
+    {
+        $key = $this->getThrottleKey($type, $context);
+        return Cache::has($key);
+    }
+
+    /**
+     * Set throttle for an alert type
+     */
+    private function setThrottle(AlertType $type, array $context = []): void
+    {
+        $key = $this->getThrottleKey($type, $context);
+        $duration = $type->getThrottleDuration();
+        Cache::put($key, true, now()->addMinutes($duration));
+    }
+
+    /**
+     * Generate throttle cache key
+     */
+    private function getThrottleKey(AlertType $type, array $context = []): string
+    {
+        $contextHash = md5(serialize($context));
+        return "alert_throttle:{$type->value}:{$contextHash}";
+    }
+
+    /**
+     * Log the alert
+     */
+    private function logAlert(AlertType $type, string $message, array $context, int $priority): void
+    {
+        $logLevel = match($priority) {
+            2 => 'critical',
+            1 => 'error',
+            0 => 'warning',
+            -1 => 'info',
+            -2 => 'debug',
+            default => 'warning',
+        };
+
+        Log::log($logLevel, "ALERT: {$type->getDisplayName()}", [
+            'type' => $type->value,
+            'message' => $message,
+            'priority' => $priority,
+            'context' => $context,
+        ]);
+    }
+
+    /**
+     * Send notification to configured channels
+     */
+    private function sendNotification(SystemAlert $notification): void
+    {
+        // Check if alerts are globally enabled
+        if (!config('alerts.enabled', true)) {
+            Log::info('Alerts disabled globally');
+            return;
+        }
+
+        // Check if this specific alert type is enabled
+        $alertType = $notification->getAlertType();
+        if (!config("alerts.enabled_types.{$alertType->value}", true)) {
+            Log::info("Alert type {$alertType->value} is disabled");
+            return;
+        }
+
+        // In development, only log if configured
+        if (config('alerts.development.log_only', false)) {
+            Log::info('Alert (log only mode)', [
+                'type' => $alertType->value,
+                'context' => $notification->getContext(),
+            ]);
+            return;
+        }
+
+        try {
+            // Create anonymous notifiable with Pushover routing
+            $pushoverConfig = config('services.pushover');
+            
+            if (!$pushoverConfig['token'] || !$pushoverConfig['user']) {
+                Log::warning('Pushover not configured - missing token or user key');
+                return;
+            }
+
+            // Send notification using the custom channel
+            Notification::route('pushover', $pushoverConfig)
+                ->notify($notification);
+
+        } catch (\Exception $e) {
+            Log::error('Failed to send alert notification', [
+                'error' => $e->getMessage(),
+                'notification' => get_class($notification),
+                'alert_type' => $alertType->value,
+            ]);
+        }
+    }
+} 

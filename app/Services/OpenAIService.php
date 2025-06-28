@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Services\AlertService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -92,6 +93,24 @@ class OpenAIService
                     'status' => $statusCode,
                     'body'   => $responseBody,
                 ]);
+
+                // Send alerts for specific error types
+                if ($statusCode === 429) {
+                    $errorData = json_decode($responseBody, true);
+                    $errorMessage = $errorData['error']['message'] ?? 'Rate limit exceeded';
+                    
+                    if (str_contains($errorMessage, 'quota')) {
+                        app(AlertService::class)->openaiQuotaExceeded($errorMessage, [
+                            'status_code' => $statusCode,
+                            'response_body' => substr($responseBody, 0, 500),
+                        ]);
+                    }
+                } elseif ($statusCode >= 500) {
+                    $errorMessage = $this->getErrorMessage($statusCode, $responseBody);
+                    app(AlertService::class)->openaiApiError($errorMessage, $statusCode, [
+                        'response_body' => substr($responseBody, 0, 500),
+                    ]);
+                }
 
                 // Handle specific error types with user-friendly messages
                 $errorMessage = $this->getErrorMessage($statusCode, $responseBody);
