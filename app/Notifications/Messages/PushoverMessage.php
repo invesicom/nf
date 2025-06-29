@@ -4,8 +4,8 @@ namespace App\Notifications\Messages;
 
 class PushoverMessage
 {
-    public string $token;
-    public string $user;
+    public ?string $token;
+    public ?string $user;
     public string $message;
     public ?string $title = null;
     public ?string $url = null;
@@ -15,6 +15,8 @@ class PushoverMessage
     public ?string $device = null;
     public ?int $timestamp = null;
     public bool $html = false;
+    public ?int $retry = null;
+    public ?int $expire = null;
 
     public function __construct(string $message)
     {
@@ -99,9 +101,30 @@ class PushoverMessage
     /**
      * Set emergency priority (convenience method)
      */
-    public function emergency(): self
+    public function emergency(int $retry = 30, int $expire = 3600): self
     {
-        return $this->priority(2);
+        $this->priority = 2;
+        $this->retry = $retry;
+        $this->expire = $expire;
+        return $this;
+    }
+
+    /**
+     * Set retry interval for emergency priority
+     */
+    public function retry(int $retry): self
+    {
+        $this->retry = $retry;
+        return $this;
+    }
+
+    /**
+     * Set expire time for emergency priority
+     */
+    public function expire(int $expire): self
+    {
+        $this->expire = $expire;
+        return $this;
     }
 
     /**
@@ -141,6 +164,12 @@ class PushoverMessage
 
         if ($this->html) {
             $data['html'] = 1;
+        }
+
+        // Add emergency priority parameters if needed
+        if ($this->priority === 2) {
+            $data['retry'] = $this->retry ?? 30; // Default 30 seconds
+            $data['expire'] = $this->expire ?? 3600; // Default 1 hour
         }
 
         return $data;
