@@ -45,8 +45,14 @@ class AmazonFetchService
 
         // Check if fetching failed and provide specific error message
         if (empty($reviewsData) || !isset($reviewsData['reviews'])) {
-            // Since we're not doing server-side validation, assume it's an API issue
-            throw new \Exception('Unable to fetch product reviews at this time. This could be due to an invalid product URL, network issues, or the review service being temporarily unavailable. Please verify the Amazon URL and try again.');
+            // Provide more specific error messages based on common failure scenarios
+            throw new \Exception('Unable to fetch product reviews at this time. This could be due to:
+• The product URL being invalid or the product not existing on Amazon
+• Amazon blocking our review service (temporary)
+• Network connectivity issues
+• The review service being overloaded
+
+Please try again in a few minutes. If the problem persists, verify the Amazon URL is correct and the product exists on amazon.com.');
         }
 
         // Save to database - NO OpenAI analysis yet (will be done separately)
@@ -91,79 +97,117 @@ class AmazonFetchService
             'cookie'       => $cookie,
         ];
 
-        try {
-            $startTime = microtime(true);
-            
-            $response = $this->httpClient->request('GET', $baseUrl, [
-                'query' => $query,
-                'timeout' => 45, // Increased timeout for 10 pages of data
-                'connect_timeout' => 5,
-            ]);
-            
-            $endTime = microtime(true);
-            $duration = round(($endTime - $startTime) * 1000, 2);
-            
-            $status = $response->getStatusCode();
-            $body = $response->getBody()->getContents();
+        // Try with shorter timeout first, then fallback with fewer pages
+        $attempts = [
+            ['timeout' => 30, 'max_pages' => 5, 'description' => 'quick fetch (5 pages)'],
+            ['timeout' => 45, 'max_pages' => 10, 'description' => 'full fetch (10 pages)'],
+        ];
 
-            LoggingService::log('Unwrangle API response', [
-                'status'   => $status,
-                'has_data' => !empty($body),
-                'duration_ms' => $duration,
-            ]);
-
-            if ($status !== 200) {
-                LoggingService::log('Unwrangle API non-200 response', [
-                    'status' => $status,
-                    'body'   => substr($body, 0, 500), // Limit log size
+        foreach ($attempts as $attemptIndex => $attempt) {
+            try {
+                LoggingService::log("Attempt ".($attemptIndex + 1).": {$attempt['description']}", [
+                    'asin' => $asin,
+                    'timeout' => $attempt['timeout'],
+                    'max_pages' => $attempt['max_pages']
                 ]);
 
-                // Check for Amazon session expired error
-                $data = json_decode($body, true);
-                if ($data && isset($data['error_code']) && $data['error_code'] === 'AMAZON_SIGNIN_REQUIRED') {
-                    app(AlertService::class)->amazonSessionExpired(
-                        $data['message'] ?? 'Amazon session has expired',
-                        [
-                            'asin' => $asin,
-                            'status_code' => $status,
-                            'error_code' => $data['error_code'],
-                        ]
-                    );
+                $query['max_pages'] = $attempt['max_pages'];
+                $startTime = microtime(true);
+                
+                $response = $this->httpClient->request('GET', $baseUrl, [
+                    'query' => $query,
+                    'timeout' => $attempt['timeout'],
+                    'connect_timeout' => 5,
+                ]);
+                
+                $endTime = microtime(true);
+                $duration = round(($endTime - $startTime) * 1000, 2);
+                
+                $status = $response->getStatusCode();
+                $body = $response->getBody()->getContents();
+
+                LoggingService::log('Unwrangle API response', [
+                    'attempt' => $attemptIndex + 1,
+                    'status'   => $status,
+                    'has_data' => !empty($body),
+                    'duration_ms' => $duration,
+                    'max_pages' => $attempt['max_pages']
+                ]);
+
+                if ($status !== 200) {
+                    LoggingService::log('Unwrangle API non-200 response', [
+                        'attempt' => $attemptIndex + 1,
+                        'status' => $status,
+                        'body'   => substr($body, 0, 500), // Limit log size
+                    ]);
+
+                    // Check for Amazon session expired error
+                    $data = json_decode($body, true);
+                    if ($data && isset($data['error_code']) && $data['error_code'] === 'AMAZON_SIGNIN_REQUIRED') {
+                        app(AlertService::class)->amazonSessionExpired(
+                            $data['message'] ?? 'Amazon session has expired',
+                            [
+                                'asin' => $asin,
+                                'status_code' => $status,
+                                'error_code' => $data['error_code'],
+                            ]
+                        );
+                    }
+
+                    // Try next attempt if available
+                    continue;
                 }
 
-                return [];
-            }
+                $data = json_decode($body, true);
 
-            $data = json_decode($body, true);
+                if (empty($data) || empty($data['success'])) {
+                    LoggingService::log('Unwrangle API returned error', [
+                        'attempt' => $attemptIndex + 1,
+                        'error' => $data['error'] ?? 'Unknown error',
+                    ]);
 
-            if (empty($data) || empty($data['success'])) {
-                LoggingService::log('Unwrangle API returned error', [
-                    'error' => $data['error'] ?? 'Unknown error',
+                    // Try next attempt if available
+                    continue;
+                }
+
+                $totalReviews = $data['total_results'] ?? count($data['reviews'] ?? []);
+                $description = $data['description'] ?? '';
+                $allReviews = $data['reviews'] ?? [];
+
+                // Success! Log and return results
+                LoggingService::log("Successfully retrieved ".count($allReviews)." reviews for analysis (attempt ".($attemptIndex + 1).")");
+
+                return [
+                    'reviews'       => $allReviews,
+                    'description'   => $description,
+                    'total_reviews' => $totalReviews,
+                ];
+
+            } catch (\Exception $e) {
+                $errorMessage = $e->getMessage();
+                LoggingService::log('Unwrangle API request exception', [
+                    'attempt' => $attemptIndex + 1,
+                    'error' => $errorMessage,
+                    'asin'  => $asin,
                 ]);
 
-                return [];
+                // Check if this is a timeout error
+                if (str_contains($errorMessage, 'cURL error 28') || str_contains($errorMessage, 'timed out')) {
+                    LoggingService::log("Timeout occurred on attempt ".($attemptIndex + 1).", trying next attempt if available");
+                    
+                    // Continue to next attempt if timeout
+                    continue;
+                }
+
+                // For non-timeout errors, break and return empty result
+                LoggingService::log("Non-timeout error on attempt ".($attemptIndex + 1).", stopping attempts: {$errorMessage}");
+                break;
             }
-
-            $totalReviews = $data['total_results'] ?? count($data['reviews'] ?? []);
-            $description = $data['description'] ?? '';
-            $allReviews = $data['reviews'] ?? [];
-
-            // Keep all reviews for comprehensive analysis
-            LoggingService::log('Retrieved '.count($allReviews).' reviews for analysis');
-
-            return [
-                'reviews'       => $allReviews,
-                'description'   => $description,
-                'total_reviews' => $totalReviews,
-            ];
-        } catch (\Exception $e) {
-            LoggingService::log('Unwrangle API request exception', [
-                'error' => $e->getMessage(),
-                'asin'  => $asin,
-            ]);
-
-            return [];
         }
+
+        // If we get here, all attempts failed
+        LoggingService::log('All Unwrangle API attempts failed', ['asin' => $asin]);
+        return [];
     }
 
     /**
@@ -180,8 +224,6 @@ class AmazonFetchService
         return $this->fetchReviewsOptimized($asin, $country);
     }
 
-
-
     /**
      * Validate ASIN format without hitting Amazon servers
      */
@@ -190,6 +232,4 @@ class AmazonFetchService
         // ASIN should be exactly 10 characters, alphanumeric
         return preg_match('/^[A-Z0-9]{10}$/', $asin) === 1;
     }
-
-
 }

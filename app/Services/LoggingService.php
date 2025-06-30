@@ -13,9 +13,13 @@ class LoggingService
 
     // Error types for user-friendly messages
     const ERROR_TYPES = [
-        'TIMEOUT' => [
-            'patterns' => ['cURL error 28', 'Operation timed out'],
-            'message'  => 'The request took too long to complete. Please try again.',
+        'API_TIMEOUT' => [
+            'patterns' => ['cURL error 28', 'Operation timed out', 'timed out after'],
+            'message'  => 'The review service took too long to respond. This can happen when Amazon is blocking requests or the service is overloaded. Please try again in a few minutes.',
+        ],
+        'UNWRANGLE_TIMEOUT' => [
+            'patterns' => ['Unwrangle API request exception', 'with 0 bytes received'],
+            'message'  => 'Unable to connect to the review service. This may be due to high traffic or temporary service issues. Please try again in a few minutes.',
         ],
         'PRODUCT_NOT_FOUND' => [
             'patterns' => ['Product does not exist on Amazon.com (US) site'],
@@ -26,8 +30,8 @@ class LoggingService
             'message'  => 'Data processing error occurred. Please try again.',
         ],
         'FETCHING_FAILED' => [
-            'patterns' => ['Failed to fetch reviews'],
-            'message'  => 'Unable to fetch reviews at this time. Please try again later.',
+            'patterns' => ['Unable to fetch product reviews at this time'],
+            'message'  => null, // Use the detailed message from AmazonFetchService
         ],
         'OPENAI_ERROR' => [
             'patterns' => ['OpenAI API request failed'],
