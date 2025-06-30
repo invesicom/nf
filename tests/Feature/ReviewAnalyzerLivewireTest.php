@@ -358,9 +358,20 @@ class ReviewAnalyzerLivewireTest extends TestCase
 
     public function test_start_analysis_method()
     {
+        // Mock environment check
         App::shouldReceive('environment')
            ->with(['local', 'testing'])
            ->andReturn(true);
+
+        // Mock ReviewAnalysisService to avoid real API calls
+        $mockAnalysisService = $this->createMock(ReviewAnalysisService::class);
+        $mockAnalysisService->method('checkProductExists')
+                           ->willThrowException(new \Exception('Mocked API error for testing'));
+
+        // Use the service container binding instead of App::instance
+        $this->app->bind(ReviewAnalysisService::class, function () use ($mockAnalysisService) {
+            return $mockAnalysisService;
+        });
 
         $component = Livewire::test(ReviewAnalyzer::class);
 

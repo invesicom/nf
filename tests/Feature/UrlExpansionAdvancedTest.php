@@ -15,6 +15,11 @@ class UrlExpansionAdvancedTest extends TestCase
 
     public function test_expand_url_handles_multiple_redirects()
     {
+        // Mock HTTP response to avoid real network calls
+        Http::fake([
+            'a.co/d/test123' => Http::response('', 200)
+        ]);
+
         // This test verifies the redirect handling logic exists
         // Since we can't easily mock Guzzle in feature tests, we test the structure
         $response = $this->postJson('/api/expand-url', [
@@ -34,6 +39,11 @@ class UrlExpansionAdvancedTest extends TestCase
 
     public function test_expand_url_stops_at_amazon_product_url()
     {
+        // Mock HTTP response to avoid real network calls
+        Http::fake([
+            'a.co/d/test123' => Http::response('', 200)
+        ]);
+
         // Test that the logic for detecting Amazon product URLs exists
         $response = $this->postJson('/api/expand-url', [
             'url' => 'https://a.co/d/test123'
@@ -52,6 +62,11 @@ class UrlExpansionAdvancedTest extends TestCase
 
     public function test_expand_url_stops_at_gp_product_url()
     {
+        // Mock HTTP response to avoid real network calls  
+        Http::fake([
+            'amazon.com/gp/product/B088KGQCFF' => Http::response('', 200)
+        ]);
+
         // Test that the controller handles gp/product URLs correctly
         $response = $this->postJson('/api/expand-url', [
             'url' => 'https://amazon.com/gp/product/B088KGQCFF'
@@ -106,6 +121,11 @@ class UrlExpansionAdvancedTest extends TestCase
 
     public function test_expand_url_handles_max_redirects()
     {
+        // Mock HTTP responses to avoid real network calls
+        Http::fake([
+            'a.co/d/test123' => Http::response('', 200)
+        ]);
+
         // Test that max redirects logic exists (can't easily test the exact behavior)
         $response = $this->postJson('/api/expand-url', [
             'url' => 'https://a.co/d/test123'
@@ -124,23 +144,21 @@ class UrlExpansionAdvancedTest extends TestCase
 
     public function test_expand_url_handles_network_timeout()
     {
-        // Test with a URL that will likely timeout or fail
+        // Mock a timeout response instead of trying real network calls
+        Http::fake([
+            'a.co/d/nonexistent123456789' => Http::response('Connection timeout', 408) // Use proper timeout status code
+        ]);
+
         $response = $this->postJson('/api/expand-url', [
             'url' => 'https://a.co/d/nonexistent123456789'
         ]);
 
-        // Should either succeed or fail gracefully
-        $this->assertContains($response->getStatusCode(), [200, 500]);
-        $response->assertJsonStructure([
-            'success'
+        // Should handle the timeout gracefully and return original URL
+        $response->assertStatus(200);
+        $response->assertJson([
+            'success' => true,
+            'expanded_url' => 'https://a.co/d/nonexistent123456789'
         ]);
-        
-        if ($response->getStatusCode() === 500) {
-            $response->assertJsonStructure([
-                'success',
-                'error'
-            ]);
-        }
     }
 
     public function test_expand_url_handles_http_error()
@@ -162,6 +180,13 @@ class UrlExpansionAdvancedTest extends TestCase
 
     public function test_expand_url_handles_various_redirect_codes()
     {
+        // Mock HTTP responses for all test URLs to avoid real network calls
+        Http::fake([
+            'a.co/d/test301' => Http::response('', 200),
+            'a.co/d/test302' => Http::response('', 200),
+            'amzn.to/test303' => Http::response('', 200)
+        ]);
+
         // Test that the controller can handle different types of URLs
         $testUrls = [
             'https://a.co/d/test301',
@@ -187,6 +212,17 @@ class UrlExpansionAdvancedTest extends TestCase
 
     public function test_is_amazon_short_url_with_subdomains()
     {
+        // Mock HTTP responses for all test URLs to avoid real network calls
+        Http::fake([
+            'a.co/d/test123' => Http::response('', 200),
+            'www.a.co/d/test123' => Http::response('', 200),
+            'amzn.to/test123' => Http::response('', 200),
+            'www.amzn.to/test123' => Http::response('', 200),
+            'amazon.com/dp/test' => Http::response('', 200),
+            'www.amazon.com/dp/test' => Http::response('', 200),
+            'smile.amazon.com/dp/test' => Http::response('', 200)
+        ]);
+
         $validUrls = [
             'https://a.co/d/test123',
             'https://www.a.co/d/test123',

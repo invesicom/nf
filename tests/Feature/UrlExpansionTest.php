@@ -12,6 +12,11 @@ class UrlExpansionTest extends TestCase
 
     public function test_expand_url_endpoint_exists()
     {
+        // Mock HTTP response to avoid real network calls
+        Http::fake([
+            'a.co/d/test123' => Http::response('', 200)
+        ]);
+
         $response = $this->postJson('/api/expand-url', [
             'url' => 'https://a.co/d/test123'
         ]);
@@ -45,6 +50,13 @@ class UrlExpansionTest extends TestCase
 
     public function test_expand_url_accepts_amazon_short_domains()
     {
+        // Mock HTTP responses for all test URLs to avoid real network calls
+        Http::fake([
+            'a.co/d/test123' => Http::response('', 200),
+            'amzn.to/test123' => Http::response('', 200),
+            'amazon.com/dp/B123456789' => Http::response('', 200)
+        ]);
+
         $amazonDomains = [
             'https://a.co/d/test123',
             'https://amzn.to/test123',
