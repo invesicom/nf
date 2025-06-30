@@ -59,7 +59,7 @@ class LoggingServiceTest extends TestCase
 
         $result = LoggingService::handleException($exception);
 
-        $this->assertEquals('The request took too long to complete. Please try again.', $result);
+        $this->assertEquals('The review service took too long to respond. This can happen when Amazon is blocking requests or the service is overloaded. Please try again in a few minutes.', $result);
 
         Log::shouldHaveReceived('error')
            ->once()
@@ -94,7 +94,7 @@ class LoggingServiceTest extends TestCase
 
         $result = LoggingService::handleException($exception);
 
-        $this->assertEquals('Unable to fetch reviews at this time. Please try again later.', $result);
+        $this->assertEquals('An unexpected error occurred. Please try again later.', $result);
 
         Log::shouldHaveReceived('error')->once();
     }
@@ -186,7 +186,8 @@ class LoggingServiceTest extends TestCase
         $errorTypes = LoggingService::ERROR_TYPES;
 
         $this->assertIsArray($errorTypes);
-        $this->assertArrayHasKey('TIMEOUT', $errorTypes);
+        $this->assertArrayHasKey('API_TIMEOUT', $errorTypes);
+        $this->assertArrayHasKey('UNWRANGLE_TIMEOUT', $errorTypes);
         $this->assertArrayHasKey('PRODUCT_NOT_FOUND', $errorTypes);
         $this->assertArrayHasKey('DATA_TYPE_ERROR', $errorTypes);
         $this->assertArrayHasKey('FETCHING_FAILED', $errorTypes);
@@ -211,7 +212,7 @@ class LoggingServiceTest extends TestCase
 
         $result = LoggingService::handleException($exception);
 
-        $this->assertEquals('The request took too long to complete. Please try again.', $result);
+        $this->assertEquals('The review service took too long to respond. This can happen when Amazon is blocking requests or the service is overloaded. Please try again in a few minutes.', $result);
     }
 
     public function test_case_sensitive_pattern_matching()
