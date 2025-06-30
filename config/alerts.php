@@ -41,6 +41,8 @@ return [
         'openai_quota_exceeded' => env('ALERT_OPENAI_QUOTA', true),
         'openai_api_error' => env('ALERT_OPENAI_API', true),
         'amazon_api_error' => env('ALERT_AMAZON_API', true),
+        'api_timeout' => env('ALERT_API_TIMEOUT', true),
+        'connectivity_issue' => env('ALERT_CONNECTIVITY_ISSUE', true),
         'system_error' => env('ALERT_SYSTEM_ERROR', true),
         'rate_limit_exceeded' => env('ALERT_RATE_LIMIT', true),
         'database_error' => env('ALERT_DATABASE_ERROR', true),
