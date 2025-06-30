@@ -8,6 +8,8 @@ enum AlertType: string
     case OPENAI_QUOTA_EXCEEDED = 'openai_quota_exceeded';
     case OPENAI_API_ERROR = 'openai_api_error';
     case AMAZON_API_ERROR = 'amazon_api_error';
+    case API_TIMEOUT = 'api_timeout';
+    case CONNECTIVITY_ISSUE = 'connectivity_issue';
     case SYSTEM_ERROR = 'system_error';
     case RATE_LIMIT_EXCEEDED = 'rate_limit_exceeded';
     case DATABASE_ERROR = 'database_error';
@@ -25,6 +27,8 @@ enum AlertType: string
             self::OPENAI_QUOTA_EXCEEDED => 'OpenAI Quota Exceeded',
             self::OPENAI_API_ERROR => 'OpenAI API Error',
             self::AMAZON_API_ERROR => 'Amazon API Error',
+            self::API_TIMEOUT => 'API Timeout',
+            self::CONNECTIVITY_ISSUE => 'Connectivity Issue',
             self::SYSTEM_ERROR => 'System Error',
             self::RATE_LIMIT_EXCEEDED => 'Rate Limit Exceeded',
             self::DATABASE_ERROR => 'Database Error',
@@ -45,6 +49,8 @@ enum AlertType: string
             self::SECURITY_ALERT => 2, // Emergency priority
             self::DATABASE_ERROR => 2, // Emergency priority
             self::SYSTEM_ERROR => 1, // High priority
+            self::API_TIMEOUT => 0, // Normal priority
+            self::CONNECTIVITY_ISSUE => 1, // High priority - might indicate broader issues
             self::OPENAI_API_ERROR => 0, // Normal priority
             self::AMAZON_API_ERROR => 0, // Normal priority
             self::RATE_LIMIT_EXCEEDED => 0, // Normal priority
@@ -77,6 +83,8 @@ enum AlertType: string
             self::OPENAI_QUOTA_EXCEEDED => true,
             self::RATE_LIMIT_EXCEEDED => true,
             self::PERFORMANCE_ALERT => true,
+            self::API_TIMEOUT => true,
+            self::CONNECTIVITY_ISSUE => true,
             default => false,
         };
     }
@@ -91,6 +99,8 @@ enum AlertType: string
             self::OPENAI_QUOTA_EXCEEDED => 60, // 1 hour
             self::RATE_LIMIT_EXCEEDED => 30, // 30 minutes
             self::PERFORMANCE_ALERT => 15, // 15 minutes
+            self::API_TIMEOUT => 15, // 15 minutes
+            self::CONNECTIVITY_ISSUE => 30, // 30 minutes - more serious
             default => 0,
         };
     }

@@ -142,6 +142,40 @@ class AlertService
     }
 
     /**
+     * Send API timeout alert
+     */
+    public function apiTimeout(string $service, string $asin, int $timeoutDuration, array $context = []): void
+    {
+        $this->alert(
+            AlertType::API_TIMEOUT,
+            "API timeout for {$service} after {$timeoutDuration}s (ASIN: {$asin})",
+            array_merge($context, [
+                'service' => $service,
+                'asin' => $asin,
+                'timeout_duration' => $timeoutDuration,
+                'error_type' => 'timeout'
+            ])
+        );
+    }
+
+    /**
+     * Send connectivity issue alert
+     */
+    public function connectivityIssue(string $service, string $errorType, string $errorMessage, array $context = []): void
+    {
+        $this->alert(
+            AlertType::CONNECTIVITY_ISSUE,
+            "Connectivity issue with {$service}: {$errorType} - {$errorMessage}",
+            array_merge($context, [
+                'service' => $service,
+                'error_type' => $errorType,
+                'error_message' => $errorMessage
+            ]),
+            1 // High priority
+        );
+    }
+
+    /**
      * Check if an alert type is currently throttled
      */
     private function isThrottled(AlertType $type, array $context = []): bool

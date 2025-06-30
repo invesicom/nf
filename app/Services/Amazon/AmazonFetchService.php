@@ -94,6 +94,15 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             LoggingService::log('Testing connectivity to Unwrangle API...');
             if (!$this->testApiConnectivity()) {
                 LoggingService::log('API connectivity test failed - network or DNS issues');
+                
+                // Send connectivity alert
+                app(AlertService::class)->connectivityIssue(
+                    'Unwrangle API',
+                    'CONNECTIVITY_TEST_FAILED',
+                    'Basic connectivity test to Unwrangle API failed',
+                    ['asin' => $asin]
+                );
+                
                 return [];
             }
         }
@@ -206,13 +215,39 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
 
             } catch (\Exception $e) {
                 $errorMessage = $e->getMessage();
+                $errorType = $this->categorizeError($errorMessage);
+                
                 LoggingService::log('Unwrangle API request exception', [
                     'attempt' => $attemptIndex + 1,
                     'error' => $errorMessage,
                     'asin'  => $asin,
                     'timeout_used' => $attempt['timeout'],
-                    'error_type' => $this->categorizeError($errorMessage)
+                    'error_type' => $errorType
                 ]);
+
+                // Send alerts for specific error types
+                if ($errorType === 'CONNECTION_TIMEOUT_NO_DATA') {
+                    app(AlertService::class)->apiTimeout(
+                        'Unwrangle API',
+                        $asin,
+                        $attempt['timeout'],
+                        [
+                            'attempt' => $attemptIndex + 1,
+                            'max_pages' => $attempt['max_pages'],
+                            'error_details' => $errorMessage
+                        ]
+                    );
+                } elseif (in_array($errorType, ['CONNECTION_FAILED', 'DNS_RESOLUTION_FAILED'])) {
+                    app(AlertService::class)->connectivityIssue(
+                        'Unwrangle API',
+                        $errorType,
+                        $errorMessage,
+                        [
+                            'asin' => $asin,
+                            'attempt' => $attemptIndex + 1
+                        ]
+                    );
+                }
 
                 // Check if this is a timeout error
                 if (str_contains($errorMessage, 'cURL error 28') || str_contains($errorMessage, 'timed out')) {
