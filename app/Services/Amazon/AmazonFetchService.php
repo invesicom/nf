@@ -21,9 +21,16 @@ class AmazonFetchService
     public function __construct()
     {
         $this->httpClient = new Client([
-            'timeout'     => 20,
-            'http_errors' => false,
-            'connect_timeout' => 5,
+            'timeout'         => 120, // Default longer timeout
+            'connect_timeout' => 15,  // Longer connect timeout
+            'http_errors'     => false,
+            'verify'          => false, // Skip SSL verification if needed
+            'headers'         => [
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept'     => 'application/json, text/plain, */*',
+                'Accept-Encoding' => 'gzip, deflate',
+                'Connection' => 'keep-alive',
+            ],
         ]);
     }
 
@@ -82,6 +89,15 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             'asin' => $asin,
         ]);
 
+        // Quick connectivity test (skip in testing environment)
+        if (!app()->environment('testing')) {
+            LoggingService::log('Testing connectivity to Unwrangle API...');
+            if (!$this->testApiConnectivity()) {
+                LoggingService::log('API connectivity test failed - network or DNS issues');
+                return [];
+            }
+        }
+
         $apiKey = env('UNWRANGLE_API_KEY');
         $cookie = env('UNWRANGLE_AMAZON_COOKIE');
         $baseUrl = 'https://data.unwrangle.com/api/getter/';
@@ -97,10 +113,11 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             'cookie'       => $cookie,
         ];
 
-        // Try with shorter timeout first, then fallback with fewer pages
+        // Try with progressively longer timeouts and different strategies
         $attempts = [
-            ['timeout' => 30, 'max_pages' => 5, 'description' => 'quick fetch (5 pages)'],
-            ['timeout' => 45, 'max_pages' => 10, 'description' => 'full fetch (10 pages)'],
+            ['timeout' => 60, 'max_pages' => 3, 'description' => 'quick fetch (3 pages, 60s)'],
+            ['timeout' => 90, 'max_pages' => 5, 'description' => 'medium fetch (5 pages, 90s)'],
+            ['timeout' => 120, 'max_pages' => 10, 'description' => 'full fetch (10 pages, 120s)'],
         ];
 
         foreach ($attempts as $attemptIndex => $attempt) {
@@ -108,7 +125,9 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                 LoggingService::log("Attempt ".($attemptIndex + 1).": {$attempt['description']}", [
                     'asin' => $asin,
                     'timeout' => $attempt['timeout'],
-                    'max_pages' => $attempt['max_pages']
+                    'max_pages' => $attempt['max_pages'],
+                    'url' => $baseUrl,
+                    'query_params' => array_merge($query, ['max_pages' => $attempt['max_pages']])
                 ]);
 
                 $query['max_pages'] = $attempt['max_pages'];
@@ -117,7 +136,8 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                 $response = $this->httpClient->request('GET', $baseUrl, [
                     'query' => $query,
                     'timeout' => $attempt['timeout'],
-                    'connect_timeout' => 5,
+                    'connect_timeout' => 15, // Increased connect timeout
+                    'read_timeout' => $attempt['timeout'], // Explicit read timeout
                 ]);
                 
                 $endTime = microtime(true);
@@ -130,6 +150,7 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                     'attempt' => $attemptIndex + 1,
                     'status'   => $status,
                     'has_data' => !empty($body),
+                    'body_length' => strlen($body),
                     'duration_ms' => $duration,
                     'max_pages' => $attempt['max_pages']
                 ]);
@@ -189,11 +210,13 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                     'attempt' => $attemptIndex + 1,
                     'error' => $errorMessage,
                     'asin'  => $asin,
+                    'timeout_used' => $attempt['timeout'],
+                    'error_type' => $this->categorizeError($errorMessage)
                 ]);
 
                 // Check if this is a timeout error
                 if (str_contains($errorMessage, 'cURL error 28') || str_contains($errorMessage, 'timed out')) {
-                    LoggingService::log("Timeout occurred on attempt ".($attemptIndex + 1).", trying next attempt if available");
+                    LoggingService::log("Timeout occurred on attempt ".($attemptIndex + 1)." after {$attempt['timeout']}s, trying next attempt if available");
                     
                     // Continue to next attempt if timeout
                     continue;
@@ -231,5 +254,67 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
     {
         // ASIN should be exactly 10 characters, alphanumeric
         return preg_match('/^[A-Z0-9]{10}$/', $asin) === 1;
+    }
+
+    private function categorizeError(string $errorMessage): string
+    {
+        if (str_contains($errorMessage, 'cURL error 28')) {
+            if (str_contains($errorMessage, '0 bytes received')) {
+                return 'CONNECTION_TIMEOUT_NO_DATA';
+            }
+            return 'READ_TIMEOUT';
+        }
+        
+        if (str_contains($errorMessage, 'cURL error 7')) {
+            return 'CONNECTION_FAILED';
+        }
+        
+        if (str_contains($errorMessage, 'cURL error 6')) {
+            return 'DNS_RESOLUTION_FAILED';
+        }
+        
+        if (str_contains($errorMessage, 'cURL error 35')) {
+            return 'SSL_HANDSHAKE_FAILED';
+        }
+        
+        if (str_contains($errorMessage, 'HTTP')) {
+            return 'HTTP_ERROR';
+        }
+        
+        return 'UNKNOWN_ERROR';
+    }
+
+    private function testApiConnectivity(): bool
+    {
+        try {
+            $startTime = microtime(true);
+            
+            // Simple GET request to test connectivity
+            $response = $this->httpClient->request('GET', 'https://data.unwrangle.com', [
+                'timeout' => 10,
+                'connect_timeout' => 5,
+            ]);
+            
+            $endTime = microtime(true);
+            $duration = round(($endTime - $startTime) * 1000, 2);
+            
+            LoggingService::log('API connectivity test result', [
+                'status' => $response->getStatusCode(),
+                'duration_ms' => $duration,
+                'success' => $response->getStatusCode() < 500
+            ]);
+            
+            // Consider it successful if we get any response (even 404 is fine)
+            return $response->getStatusCode() < 500;
+            
+        } catch (\Exception $e) {
+            LoggingService::log('API connectivity test failed', [
+                'error' => $e->getMessage(),
+                'error_type' => $this->categorizeError($e->getMessage())
+            ]);
+            
+            // If we can't even connect to the base domain, skip the full API attempts
+            return false;
+        }
     }
 }
