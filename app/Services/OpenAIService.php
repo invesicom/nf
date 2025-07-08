@@ -103,7 +103,7 @@ class OpenAIService
                         app(AlertService::class)->openaiQuotaExceeded($errorMessage, [
                             'status_code' => $statusCode,
                             'response_body' => substr($responseBody, 0, 500),
-                        ]);
+                ]);
                     }
                 } elseif ($statusCode >= 500) {
                     $errorMessage = $this->getErrorMessage($statusCode, $responseBody);

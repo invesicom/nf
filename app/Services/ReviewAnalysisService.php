@@ -3,20 +3,20 @@
 namespace App\Services;
 
 use App\Models\AsinData;
-use App\Services\Amazon\AmazonFetchService;
+use App\Services\Amazon\AmazonReviewServiceInterface;
+use App\Services\Amazon\AmazonReviewServiceFactory;
 
 class ReviewAnalysisService
 {
-    private AmazonFetchService $fetchService;
+    private AmazonReviewServiceInterface $fetchService;
     private ReviewService $reviewService;
     private OpenAIService $openAIService;
 
     public function __construct(
-        AmazonFetchService $fetchService,
         ReviewService $reviewService,
         OpenAIService $openAIService
     ) {
-        $this->fetchService = $fetchService;
+        $this->fetchService = AmazonReviewServiceFactory::create();
         $this->reviewService = $reviewService;
         $this->openAIService = $openAIService;
     }
@@ -280,6 +280,7 @@ class ReviewAnalysisService
                 'adjusted_rating' => round($adjustedRating, 2),
                 'grade'           => $grade,
                 'explanation'     => $explanation,
+                'total_reviews'   => $totalReviews,
                 'asin_review'     => $asinData->fresh(),
             ];
         } catch (\Exception $e) {
@@ -484,6 +485,7 @@ class ReviewAnalysisService
             'adjusted_rating' => round($adjustedRating, 2),
             'grade'           => $grade,
             'explanation'     => $explanation,
+            'total_reviews'   => $totalReviews,
             'asin_review'     => $asinData->fresh(),
         ];
     }

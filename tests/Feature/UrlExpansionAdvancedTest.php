@@ -158,7 +158,7 @@ class UrlExpansionAdvancedTest extends TestCase
         $response->assertJson([
             'success' => true,
             'expanded_url' => 'https://a.co/d/nonexistent123456789'
-        ]);
+            ]);
     }
 
     public function test_expand_url_handles_http_error()

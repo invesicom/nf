@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Http;
 /**
  * Service for fetching Amazon product reviews via Unwrangle API.
  */
-class AmazonFetchService
+class AmazonFetchService implements AmazonReviewServiceInterface
 {
     private Client $httpClient;
 
@@ -140,87 +140,101 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                 ]);
 
                 $query['max_pages'] = $attempt['max_pages'];
-                $startTime = microtime(true);
-                
-                $response = $this->httpClient->request('GET', $baseUrl, [
-                    'query' => $query,
+            $startTime = microtime(true);
+            
+            $response = $this->httpClient->request('GET', $baseUrl, [
+                'query' => $query,
                     'timeout' => $attempt['timeout'],
                     'connect_timeout' => 15, // Increased connect timeout
                     'read_timeout' => $attempt['timeout'], // Explicit read timeout
-                ]);
-                
-                $endTime = microtime(true);
-                $duration = round(($endTime - $startTime) * 1000, 2);
-                
-                $status = $response->getStatusCode();
-                $body = $response->getBody()->getContents();
+            ]);
+            
+            $endTime = microtime(true);
+            $duration = round(($endTime - $startTime) * 1000, 2);
+            
+            $status = $response->getStatusCode();
+            $body = $response->getBody()->getContents();
 
-                LoggingService::log('Unwrangle API response', [
+            LoggingService::log('Unwrangle API response', [
                     'attempt' => $attemptIndex + 1,
-                    'status'   => $status,
-                    'has_data' => !empty($body),
+                'status'   => $status,
+                'has_data' => !empty($body),
                     'body_length' => strlen($body),
-                    'duration_ms' => $duration,
+                'duration_ms' => $duration,
                     'max_pages' => $attempt['max_pages']
+            ]);
+
+            if ($status !== 200) {
+                LoggingService::log('Unwrangle API non-200 response', [
+                        'attempt' => $attemptIndex + 1,
+                    'status' => $status,
+                    'body'   => substr($body, 0, 500), // Limit log size
                 ]);
 
-                if ($status !== 200) {
-                    LoggingService::log('Unwrangle API non-200 response', [
-                        'attempt' => $attemptIndex + 1,
-                        'status' => $status,
-                        'body'   => substr($body, 0, 500), // Limit log size
-                    ]);
-
-                    // Check for Amazon session expired error
+                    // Check for Amazon session/cookie expired errors
                     $data = json_decode($body, true);
-                    if ($data && isset($data['error_code']) && $data['error_code'] === 'AMAZON_SIGNIN_REQUIRED') {
+                    if ($data && $this->isAmazonCookieExpiredError($data)) {
                         app(AlertService::class)->amazonSessionExpired(
-                            $data['message'] ?? 'Amazon session has expired',
+                            $data['message'] ?? 'Amazon session/cookie has expired',
                             [
                                 'asin' => $asin,
                                 'status_code' => $status,
-                                'error_code' => $data['error_code'],
+                                'error_code' => $data['error_code'] ?? 'UNKNOWN',
+                                'api_message' => $data['message'] ?? '',
                             ]
                         );
                     }
 
                     // Try next attempt if available
                     continue;
-                }
+            }
 
-                $data = json_decode($body, true);
+            $data = json_decode($body, true);
 
-                if (empty($data) || empty($data['success'])) {
-                    LoggingService::log('Unwrangle API returned error', [
+            if (empty($data) || empty($data['success'])) {
+                LoggingService::log('Unwrangle API returned error', [
                         'attempt' => $attemptIndex + 1,
-                        'error' => $data['error'] ?? 'Unknown error',
-                    ]);
+                    'error' => $data['error'] ?? 'Unknown error',
+                ]);
+
+                    // Check for Amazon cookie expiration even on success=false responses
+                    if ($data && $this->isAmazonCookieExpiredError($data)) {
+                        app(AlertService::class)->amazonSessionExpired(
+                            $data['message'] ?? 'Amazon session/cookie has expired',
+                            [
+                                'asin' => $asin,
+                                'status_code' => 200, // This was a 200 response with success=false
+                                'error_code' => $data['error_code'] ?? 'UNKNOWN',
+                                'api_message' => $data['message'] ?? '',
+                            ]
+                        );
+                    }
 
                     // Try next attempt if available
                     continue;
-                }
+            }
 
-                $totalReviews = $data['total_results'] ?? count($data['reviews'] ?? []);
-                $description = $data['description'] ?? '';
-                $allReviews = $data['reviews'] ?? [];
+            $totalReviews = $data['total_results'] ?? count($data['reviews'] ?? []);
+            $description = $data['description'] ?? '';
+            $allReviews = $data['reviews'] ?? [];
 
                 // Success! Log and return results
                 LoggingService::log("Successfully retrieved ".count($allReviews)." reviews for analysis (attempt ".($attemptIndex + 1).")");
 
-                return [
-                    'reviews'       => $allReviews,
-                    'description'   => $description,
-                    'total_reviews' => $totalReviews,
-                ];
+            return [
+                'reviews'       => $allReviews,
+                'description'   => $description,
+                'total_reviews' => $totalReviews,
+            ];
 
-            } catch (\Exception $e) {
+        } catch (\Exception $e) {
                 $errorMessage = $e->getMessage();
                 $errorType = $this->categorizeError($errorMessage);
                 
-                LoggingService::log('Unwrangle API request exception', [
+            LoggingService::log('Unwrangle API request exception', [
                     'attempt' => $attemptIndex + 1,
                     'error' => $errorMessage,
-                    'asin'  => $asin,
+                'asin'  => $asin,
                     'timeout_used' => $attempt['timeout'],
                     'error_type' => $errorType
                 ]);
@@ -289,6 +303,49 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
     {
         // ASIN should be exactly 10 characters, alphanumeric
         return preg_match('/^[A-Z0-9]{10}$/', $asin) === 1;
+    }
+
+    /**
+     * Check if API response indicates Amazon cookie/session expiration
+     */
+    private function isAmazonCookieExpiredError(array $data): bool
+    {
+        // Direct error code indicating sign-in required
+        if (isset($data['error_code']) && $data['error_code'] === 'AMAZON_SIGNIN_REQUIRED') {
+            return true;
+        }
+        
+        // NO_REVIEWS_FOUND with cookie-related message
+        if (isset($data['error_code']) && $data['error_code'] === 'NO_REVIEWS_FOUND') {
+            $message = $data['message'] ?? '';
+            // Check if message mentions cookie issues
+            if (str_contains(strtolower($message), 'issue with the cookie') || 
+                str_contains(strtolower($message), 'cookie')) {
+                return true;
+            }
+        }
+        
+        // Other potential cookie-related error patterns
+        if (isset($data['message'])) {
+            $message = strtolower($data['message']);
+            $cookieIndicators = [
+                'session expired',
+                'authentication failed',
+                'unauthorized access',
+                'invalid session',
+                'cookie expired',
+                'please sign in',
+                'login required'
+            ];
+            
+            foreach ($cookieIndicators as $indicator) {
+                if (str_contains($message, $indicator)) {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
     }
 
     private function categorizeError(string $errorMessage): string

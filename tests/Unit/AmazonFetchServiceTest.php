@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\AsinData;
 use App\Services\Amazon\AmazonFetchService;
+use App\Services\AlertService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Handler\MockHandler;
@@ -12,6 +13,7 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
+use Mockery;
 
 class AmazonFetchServiceTest extends TestCase
 {
@@ -198,6 +200,89 @@ class AmazonFetchServiceTest extends TestCase
 
         // Verify mock response was consumed
         $this->assertCount(0, $this->mockHandler);
+    }
+
+    public function test_detects_cookie_expiration_from_no_reviews_found_error()
+    {
+        // Use reflection to access the private method for testing
+        $service = new AmazonFetchService();
+        $reflectionClass = new \ReflectionClass($service);
+        $method = $reflectionClass->getMethod('isAmazonCookieExpiredError');
+        $method->setAccessible(true);
+
+        // Test data that matches the actual error from the logs
+        $errorData = [
+            'success' => false,
+            'platform' => 'amazon_reviews',
+            'message' => 'No reviews found for this product after multiple attempts. The product may not have any reviews or there may be an issue with the cookie.',
+            'error_code' => 'NO_REVIEWS_FOUND'
+        ];
+
+        // Verify that our detection method correctly identifies this as a cookie issue
+        $result = $method->invoke($service, $errorData);
+        $this->assertTrue($result, 'Should detect cookie expiration from NO_REVIEWS_FOUND error with cookie message');
+    }
+
+    public function test_detects_amazon_signin_required_error()
+    {
+        $service = new AmazonFetchService();
+
+        $reflectionClass = new \ReflectionClass($service);
+        $method = $reflectionClass->getMethod('isAmazonCookieExpiredError');
+        $method->setAccessible(true);
+
+        $errorData = [
+            'success' => false,
+            'error_code' => 'AMAZON_SIGNIN_REQUIRED',
+            'message' => 'Amazon sign-in is required'
+        ];
+
+        $result = $method->invoke($service, $errorData);
+        $this->assertTrue($result, 'Should detect AMAZON_SIGNIN_REQUIRED as cookie expiration');
+    }
+
+    public function test_detects_session_expired_messages()
+    {
+        $service = new AmazonFetchService();
+
+        $reflectionClass = new \ReflectionClass($service);
+        $method = $reflectionClass->getMethod('isAmazonCookieExpiredError');
+        $method->setAccessible(true);
+
+        $testCases = [
+            ['message' => 'Session expired, please sign in again'],
+            ['message' => 'Authentication failed - cookie expired'],
+            ['message' => 'Unauthorized access detected'],
+            ['message' => 'Invalid session token'],
+            ['message' => 'Login required to access this resource'],
+        ];
+
+        foreach ($testCases as $testCase) {
+            $result = $method->invoke($service, $testCase);
+            $this->assertTrue($result, "Should detect cookie expiration from message: {$testCase['message']}");
+        }
+    }
+
+    public function test_does_not_detect_non_cookie_errors()
+    {
+        $service = new AmazonFetchService();
+
+        $reflectionClass = new \ReflectionClass($service);
+        $method = $reflectionClass->getMethod('isAmazonCookieExpiredError');
+        $method->setAccessible(true);
+
+        $testCases = [
+            ['error_code' => 'NO_REVIEWS_FOUND', 'message' => 'Product has no reviews available'],
+            ['error_code' => 'PRODUCT_NOT_FOUND', 'message' => 'Product does not exist'],
+            ['error_code' => 'RATE_LIMITED', 'message' => 'Too many requests'],
+            ['message' => 'Network timeout occurred'],
+            ['message' => 'Server error occurred'],
+        ];
+
+        foreach ($testCases as $testCase) {
+            $result = $method->invoke($service, $testCase);
+            $this->assertFalse($result, "Should NOT detect cookie expiration from: " . json_encode($testCase));
+        }
     }
 
     protected function tearDown(): void
