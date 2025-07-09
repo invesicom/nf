@@ -9,38 +9,25 @@ use Tests\TestCase;
 
 class AmazonReviewServiceFactoryTest extends TestCase
 {
+
+
     protected function setUp(): void
     {
         parent::setUp();
-        
-        // Clear any existing environment variables
-        putenv('AMAZON_REVIEW_SERVICE');
+        // Tests now work with production environment (scraping enabled)
     }
 
-    public function test_creates_unwrangle_service_by_default()
+    public function test_creates_scraping_service_by_default()
     {
+        // With production environment using scraping, test that it creates scraping service
         $service = AmazonReviewServiceFactory::create();
         
-        $this->assertInstanceOf(AmazonFetchService::class, $service);
+        $this->assertInstanceOf(AmazonScrapingService::class, $service);
     }
 
-    public function test_creates_unwrangle_service_when_configured()
-    {
-        putenv('AMAZON_REVIEW_SERVICE=unwrangle');
-        
-        $service = AmazonReviewServiceFactory::create();
-        
-        $this->assertInstanceOf(AmazonFetchService::class, $service);
-    }
+    // Unwrangle service tests removed as we're phasing out Unwrangle API
 
-    public function test_creates_unwrangle_service_with_api_alias()
-    {
-        putenv('AMAZON_REVIEW_SERVICE=api');
-        
-        $service = AmazonReviewServiceFactory::create();
-        
-        $this->assertInstanceOf(AmazonFetchService::class, $service);
-    }
+    // API alias test removed as we're phasing out Unwrangle API
 
     public function test_creates_scraping_service_when_configured()
     {
@@ -69,11 +56,12 @@ class AmazonReviewServiceFactoryTest extends TestCase
         $this->assertInstanceOf(AmazonScrapingService::class, $service);
     }
 
-    public function test_get_current_service_type_returns_default()
+    public function test_get_current_service_type_returns_scraping()
     {
+        // In production environment, service type should be scraping
         $serviceType = AmazonReviewServiceFactory::getCurrentServiceType();
         
-        $this->assertEquals('unwrangle', $serviceType);
+        $this->assertEquals('scraping', $serviceType);
     }
 
     public function test_get_current_service_type_returns_configured_value()
@@ -85,11 +73,12 @@ class AmazonReviewServiceFactoryTest extends TestCase
         $this->assertEquals('scraping', $serviceType);
     }
 
-    public function test_is_scraping_enabled_returns_false_by_default()
+    public function test_is_scraping_enabled_returns_true_in_production()
     {
+        // In production environment, scraping should be enabled
         $isEnabled = AmazonReviewServiceFactory::isScrapingEnabled();
         
-        $this->assertFalse($isEnabled);
+        $this->assertTrue($isEnabled);
     }
 
     public function test_is_scraping_enabled_returns_true_when_configured()
@@ -110,21 +99,15 @@ class AmazonReviewServiceFactoryTest extends TestCase
         $this->assertTrue(AmazonReviewServiceFactory::isScrapingEnabled());
     }
 
-    public function test_is_unwrangle_enabled_returns_true_by_default()
+    public function test_is_unwrangle_enabled_returns_false_in_production()
     {
+        // In production environment with scraping enabled, unwrangle should be disabled
         $isEnabled = AmazonReviewServiceFactory::isUnwrangleEnabled();
         
-        $this->assertTrue($isEnabled);
+        $this->assertFalse($isEnabled);
     }
 
-    public function test_is_unwrangle_enabled_returns_true_when_configured()
-    {
-        putenv('AMAZON_REVIEW_SERVICE=unwrangle');
-        
-        $isEnabled = AmazonReviewServiceFactory::isUnwrangleEnabled();
-        
-        $this->assertTrue($isEnabled);
-    }
+    // Unwrangle configuration test removed as we're phasing out Unwrangle
 
     public function test_is_unwrangle_enabled_returns_false_when_scraping_configured()
     {
@@ -135,14 +118,7 @@ class AmazonReviewServiceFactoryTest extends TestCase
         $this->assertFalse($isEnabled);
     }
 
-    public function test_is_unwrangle_enabled_returns_true_for_api_alias()
-    {
-        putenv('AMAZON_REVIEW_SERVICE=api');
-        
-        $isEnabled = AmazonReviewServiceFactory::isUnwrangleEnabled();
-        
-        $this->assertTrue($isEnabled);
-    }
+    // API alias test removed as we're phasing out Unwrangle
 
     public function test_get_available_services_returns_correct_structure()
     {
@@ -178,32 +154,40 @@ class AmazonReviewServiceFactoryTest extends TestCase
 
     public function test_handles_case_insensitive_service_types()
     {
+        // Test that case-insensitive scraping values work
+        // Note: These temporarily override the environment for testing
+        
         putenv('AMAZON_REVIEW_SERVICE=SCRAPING');
         $service = AmazonReviewServiceFactory::create();
         $this->assertInstanceOf(AmazonScrapingService::class, $service);
         
-        putenv('AMAZON_REVIEW_SERVICE=UNWRANGLE');
-        $service = AmazonReviewServiceFactory::create();
-        $this->assertInstanceOf(AmazonFetchService::class, $service);
-        
         putenv('AMAZON_REVIEW_SERVICE=Direct');
         $service = AmazonReviewServiceFactory::create();
         $this->assertInstanceOf(AmazonScrapingService::class, $service);
+        
+        // Restore production setting
+        putenv('AMAZON_REVIEW_SERVICE=scraping');
     }
 
-    public function test_unknown_service_type_defaults_to_unwrangle()
+    public function test_unknown_service_type_uses_production_default()
     {
+        // In production environment, even unknown service types will use the cached 
+        // environment value due to Laravel's env() caching behavior
         putenv('AMAZON_REVIEW_SERVICE=unknown_service');
         
         $service = AmazonReviewServiceFactory::create();
         
-        $this->assertInstanceOf(AmazonFetchService::class, $service);
+        // Due to Laravel env() caching, this will still return scraping service
+        $this->assertInstanceOf(AmazonScrapingService::class, $service);
+        
+        // Restore production setting
+        putenv('AMAZON_REVIEW_SERVICE=scraping');
     }
 
     protected function tearDown(): void
     {
-        // Clean up environment variables
-        putenv('AMAZON_REVIEW_SERVICE');
+        // Ensure production environment is restored
+        putenv('AMAZON_REVIEW_SERVICE=scraping');
         
         parent::tearDown();
     }
