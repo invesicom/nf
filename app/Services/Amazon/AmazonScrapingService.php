@@ -21,12 +21,15 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     private Client $httpClient;
     private CookieJar $cookieJar;
     private array $headers;
+    private ProxyManager $proxyManager;
+    private ?array $currentProxyConfig = null;
 
     /**
      * Initialize the service with HTTP client configuration.
      */
     public function __construct()
     {
+        $this->proxyManager = new ProxyManager();
         $this->cookieJar = new CookieJar();
         $this->setupCookies();
         
@@ -46,7 +49,15 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'Sec-GPC' => '1',
         ];
 
-        $this->httpClient = new Client([
+        $this->initializeHttpClient();
+    }
+    
+    /**
+     * Initialize HTTP client with proxy configuration.
+     */
+    private function initializeHttpClient(): void
+    {
+        $clientConfig = [
             'timeout' => 30,
             'connect_timeout' => 15,
             'http_errors' => false,
@@ -59,7 +70,33 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                 'referer' => true,
                 'track_redirects' => true,
             ],
-        ]);
+        ];
+        
+        // Add proxy configuration if available
+        $this->currentProxyConfig = $this->proxyManager->getProxyConfig();
+        if ($this->currentProxyConfig) {
+            $clientConfig['proxy'] = $this->currentProxyConfig['proxy'];
+            $clientConfig['timeout'] = $this->currentProxyConfig['timeout'];
+            
+            // Add specific proxy settings for Amazon
+            $clientConfig['curl'] = [
+                CURLOPT_PROXYTYPE => CURLPROXY_HTTP,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 5,
+                CURLOPT_ENCODING => '', // Accept all supported encodings
+            ];
+            
+            LoggingService::log('Using proxy for Amazon scraping', [
+                'type' => $this->currentProxyConfig['type'],
+                'provider' => $this->currentProxyConfig['provider'] ?? 'custom',
+                'country' => $this->currentProxyConfig['country'],
+                'session_id' => $this->currentProxyConfig['session_id'] ?? 'none'
+            ]);
+        } else {
+            LoggingService::log('No proxy configured - using direct connection');
+        }
+        
+        $this->httpClient = new Client($clientConfig);
     }
 
     /**
@@ -306,16 +343,16 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
     {
         $allReviews = [];
         
-        // Try different Amazon review URL patterns
+        // Try different Amazon review URL patterns, prioritizing the most reliable
         $urlPatterns = [
-            "https://www.amazon.com/product-reviews/{$asin}",
+            "https://www.amazon.com/gp/product/{$asin}/reviews", // Most reliable
             "https://www.amazon.com/dp/product-reviews/{$asin}",
-            "https://www.amazon.com/gp/product/{$asin}/reviews",
+            "https://www.amazon.com/product-reviews/{$asin}",
         ];
         
         $workingBaseUrl = null;
         
-        // Test which URL pattern works
+        // Test which URL pattern works and has substantial content
         foreach ($urlPatterns as $pattern) {
             try {
                 $testResponse = $this->httpClient->get($pattern, [
@@ -324,11 +361,26 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                     ])
                 ]);
                 
-                if ($testResponse->getStatusCode() === 200) {
+                $statusCode = $testResponse->getStatusCode();
+                $contentLength = strlen($testResponse->getBody()->getContents());
+                
+                // URL should return 200 and have substantial content (likely contains reviews)
+                if ($statusCode === 200 && $contentLength > 2000) {
                     $workingBaseUrl = $pattern;
-                    LoggingService::log("Found working reviews URL pattern: {$pattern}", ['asin' => $asin]);
+                    LoggingService::log("Found working reviews URL pattern: {$pattern}", [
+                        'asin' => $asin,
+                        'status' => $statusCode,
+                        'content_length' => $contentLength
+                    ]);
                     break;
                 }
+                
+                LoggingService::log("URL pattern insufficient: {$pattern}", [
+                    'asin' => $asin,
+                    'status' => $statusCode,
+                    'content_length' => $contentLength
+                ]);
+                
             } catch (\Exception $e) {
                 LoggingService::log("URL pattern failed: {$pattern}", [
                     'asin' => $asin,
@@ -348,51 +400,102 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             
             $url = $workingBaseUrl . "?pageNumber={$page}&sortBy=recent";
             
-            try {
-                $response = $this->httpClient->get($url, [
-                    'headers' => array_merge($this->headers, [
-                        'Referer' => $page === 1 ? "https://www.amazon.com/dp/{$asin}" : $workingBaseUrl,
-                    ])
-                ]);
-
-                $statusCode = $response->getStatusCode();
-                $html = $response->getBody()->getContents();
-
-                if ($statusCode !== 200) {
-                    LoggingService::log("Reviews page {$page} returned non-200 status", [
-                        'status' => $statusCode,
-                        'asin' => $asin
+            $retryCount = 0;
+            $maxRetries = 3;
+            
+            while ($retryCount < $maxRetries) {
+                try {
+                    $response = $this->httpClient->get($url, [
+                        'headers' => array_merge($this->headers, [
+                            'Referer' => $page === 1 ? "https://www.amazon.com/dp/{$asin}" : $workingBaseUrl,
+                        ])
                     ]);
-                    break;
+
+                    $statusCode = $response->getStatusCode();
+                    $html = $response->getBody()->getContents();
+
+                    if ($statusCode === 200 && !empty($html)) {
+                        // Success - report to proxy manager
+                        if ($this->currentProxyConfig) {
+                            $this->proxyManager->reportSuccess($this->currentProxyConfig);
+                        }
+                        
+                        // Parse reviews from this page
+                        $pageReviews = $this->parseReviewsFromHtml($html, $asin);
+                        
+                        if (empty($pageReviews)) {
+                            LoggingService::log("No reviews found on page {$page}, stopping", ['asin' => $asin]);
+                            break 2; // Break out of both loops
+                        }
+
+                        $allReviews = array_merge($allReviews, $pageReviews);
+                        
+                        LoggingService::log("Extracted " . count($pageReviews) . " reviews from page {$page}");
+                        break; // Success, exit retry loop
+                        
+                    } else {
+                        // Handle non-200 status or empty response
+                        LoggingService::log("Reviews page {$page} returned non-200 status or empty response", [
+                            'status' => $statusCode,
+                            'asin' => $asin,
+                            'content_length' => strlen($html),
+                            'retry' => $retryCount + 1
+                        ]);
+                        
+                        // Check if this looks like blocking
+                        if ($statusCode === 503 || $statusCode === 429 || strpos($html, 'blocked') !== false) {
+                            $this->handleBlocking($asin, $statusCode, $html);
+                            
+                            // If we have a session-based proxy, rotate session and reinitialize client
+                            if ($this->currentProxyConfig && 
+                                isset($this->currentProxyConfig['session_id']) && 
+                                $this->currentProxyConfig['session_id']) {
+                                
+                                LoggingService::log('Rotating proxy session due to blocking', [
+                                    'asin' => $asin,
+                                    'status' => $statusCode,
+                                    'retry' => $retryCount + 1
+                                ]);
+                                
+                                $this->proxyManager->rotateSession();
+                                $this->initializeHttpClient(); // Reinitialize with new session
+                            }
+                            
+                            $retryCount++;
+                            continue;
+                        }
+                        
+                        break 2; // Non-retryable error, exit both loops
+                    }
+
+                } catch (\Exception $e) {
+                    LoggingService::log("Failed to scrape reviews page {$page}", [
+                        'asin' => $asin,
+                        'error' => $e->getMessage(),
+                        'retry' => $retryCount + 1
+                    ]);
+                    
+                    // Report failure to proxy manager
+                    if ($this->currentProxyConfig) {
+                        $this->proxyManager->reportFailure($this->currentProxyConfig, $e->getMessage());
+                    }
+                    
+                    $retryCount++;
+                    if ($retryCount < $maxRetries) {
+                        // Rotate proxy and retry
+                        $this->rotateProxyAndReconnect();
+                        usleep(1000000); // 1 second delay before retry
+                    }
                 }
-
-                if (empty($html)) {
-                    LoggingService::log("Empty response from reviews page {$page}", ['asin' => $asin]);
-                    break;
-                }
-
-                // Parse reviews from this page
-                $pageReviews = $this->parseReviewsFromHtml($html, $asin);
-                
-                if (empty($pageReviews)) {
-                    LoggingService::log("No reviews found on page {$page}, stopping", ['asin' => $asin]);
-                    break;
-                }
-
-                $allReviews = array_merge($allReviews, $pageReviews);
-                
-                LoggingService::log("Extracted " . count($pageReviews) . " reviews from page {$page}");
-
-                // Add delay between requests to avoid rate limiting
-                usleep(500000); // 0.5 second delay
-
-            } catch (\Exception $e) {
-                LoggingService::log("Failed to scrape reviews page {$page}", [
-                    'asin' => $asin,
-                    'error' => $e->getMessage()
-                ]);
+            }
+            
+            if ($retryCount >= $maxRetries) {
+                LoggingService::log("Max retries reached for page {$page}, stopping", ['asin' => $asin]);
                 break;
             }
+
+            // Add delay between requests to avoid rate limiting
+            usleep(rand(500000, 1500000)); // Random delay between 0.5-1.5 seconds
         }
 
         return $allReviews;
@@ -422,15 +525,29 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                     $nodes = $crawler->filter($selector);
                     if ($nodes->count() > 0) {
                         $reviewNodes = $nodes;
+                        LoggingService::log('Found review nodes with selector', [
+                            'asin' => $asin,
+                            'selector' => $selector,
+                            'count' => $nodes->count()
+                        ]);
                         break;
                     }
                 } catch (\Exception $e) {
-                    // Continue to next selector
+                    LoggingService::log('Selector failed', [
+                        'asin' => $asin,
+                        'selector' => $selector,
+                        'error' => $e->getMessage()
+                    ]);
                 }
             }
 
             if (!$reviewNodes || $reviewNodes->count() === 0) {
-                LoggingService::log('No review nodes found in HTML', ['asin' => $asin]);
+                LoggingService::log('No review nodes found in HTML', [
+                    'asin' => $asin,
+                    'html_length' => strlen($html),
+                    'selectors_tried' => $reviewSelectors,
+                    'html_sample' => substr($html, 0, 500) . '...'
+                ]);
                 return [];
             }
 
@@ -510,6 +627,8 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
 
             // Extract review text
             $textSelectors = [
+                '[data-hook="review-body"] [data-hook="review-collapsed"] span',
+                '[data-hook="review-body"] .reviewText span',
                 '[data-hook="review-body"] span',
                 '.review-text',
                 '.cr-original-review-item .review-text'
@@ -616,5 +735,65 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             ]);
             return false;
         }
+    }
+    
+    /**
+     * Handle blocking detection and response.
+     */
+    private function handleBlocking(string $asin, int $statusCode, string $html): void
+    {
+        LoggingService::log('Potential blocking detected', [
+            'asin' => $asin,
+            'status_code' => $statusCode,
+            'content_length' => strlen($html),
+            'proxy_type' => $this->currentProxyConfig['type'] ?? 'direct'
+        ]);
+        
+        // Check for specific blocking indicators
+        $blockingIndicators = [
+            'blocked',
+            'captcha',
+            'unusual traffic',
+            'automated requests',
+            'try again later',
+            'service unavailable',
+            'rate limit'
+        ];
+        
+        $htmlLower = strtolower($html);
+        foreach ($blockingIndicators as $indicator) {
+            if (strpos($htmlLower, $indicator) !== false) {
+                LoggingService::log("Blocking indicator found: {$indicator}", ['asin' => $asin]);
+                
+                // Rotate proxy and session
+                $this->rotateProxyAndReconnect();
+                break;
+            }
+        }
+    }
+    
+    /**
+     * Rotate proxy and reconnect HTTP client.
+     */
+    private function rotateProxyAndReconnect(): void
+    {
+        LoggingService::log('Rotating proxy due to blocking/failure');
+        
+        // Rotate session if supported
+        $this->proxyManager->rotateSession();
+        
+        // Reinitialize HTTP client with new proxy
+        $this->initializeHttpClient();
+        
+        // Add extra delay after rotation
+        usleep(2000000); // 2 second delay
+    }
+    
+    /**
+     * Get proxy statistics for monitoring.
+     */
+    public function getProxyStats(): array
+    {
+        return $this->proxyManager->getProxyStats();
     }
 } 
