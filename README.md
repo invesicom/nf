@@ -1,6 +1,6 @@
 # Null Fake
 
-A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. The service fetches reviews via the Unwrangle API, analyzes them with OpenAI, and provides authenticity scores.
+A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. The service fetches reviews via direct Amazon scraping with bandwidth optimization, analyzes them with OpenAI, and provides authenticity scores.
 
 # Visit [nullfake.com](https://nullfake.com) to try it out.
 # Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot-to-null-fake-navigating-the-evolving-landscape-of-fake-reviews/)
@@ -9,17 +9,19 @@ A Laravel application that analyzes Amazon product reviews to detect fake review
 
 1. User submits an Amazon product URL and completes a captcha
 2. Null Fake retrieves the ASIN and country from the URL
-3. Database check: If a review analysis for the given ASIN and country exists in the database (and is less than 30 days old), the cached OpenAI analysis is returned instantly. If not, the service fetches reviews using the Unwrangle API, analyzes them with OpenAI, and saves the entire interaction to the database for future requests
+3. Database check: If a review analysis for the given ASIN and country exists in the database (and is less than 30 days old), the cached OpenAI analysis is returned instantly. If not, the service fetches reviews using direct Amazon scraping with proxy support, analyzes them with OpenAI, and saves the entire interaction to the database for future requests
 4. Results are displayed to the user, including a fake review percentage, grade, explanation, and ratings
 
 ## Features
 
-- Amazon review fetching via Unwrangle API
+- Amazon review fetching via direct scraping with proxy support
+- Bandwidth optimization with resource blocking and smart caching
 - Product validation before analysis
 - AI analysis using OpenAI to detect fake reviews
 - Database caching for fast repeat lookups
 - Captcha protection (reCAPTCHA and hCaptcha support)
 - Real-time progress tracking during analysis
+- Comprehensive alerting and monitoring system
 
 ## Database Schema
 
@@ -27,7 +29,7 @@ The `asin_data` table stores:
 - `asin` - Amazon Standard Identification Number
 - `country` - Country code (e.g., 'us', 'ca')
 - `product_description` - Product description from Amazon
-- `reviews` - JSON array of fetched reviews from Unwrangle API
+- `reviews` - JSON array of fetched reviews from Amazon scraping
 - `openai_result` - JSON of full OpenAI analysis with detailed scores
 
 The model calculates:
@@ -40,7 +42,7 @@ The model calculates:
 ## Technology Stack
 
 - Laravel 12 with Livewire 3
-- Unwrangle API for Amazon review data
+- Direct Amazon scraping with proxy support and bandwidth optimization
 - OpenAI GPT-4 for review authenticity analysis
 - MySQL/PostgreSQL with JSON columns
 - reCAPTCHA/hCaptcha integration
