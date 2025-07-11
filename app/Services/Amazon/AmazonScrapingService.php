@@ -211,10 +211,6 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                 'reason' => 'matches_blocked_pattern'
             ]);
             
-            // Track blocked resources for monitoring
-            $blockedCount = Cache::get('blocked_resources_count', 0);
-            Cache::put('blocked_resources_count', $blockedCount + 1, 86400);
-            
             return null;
         }
         
@@ -311,25 +307,12 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
      */
     private function logBandwidthUsage(string $url, int $bytes): void
     {
-        $dailyKey = 'bandwidth_usage_' . date('Y-m-d');
-        $currentUsage = Cache::get($dailyKey, 0);
-        $newUsage = $currentUsage + $bytes;
-        
-        Cache::put($dailyKey, $newUsage, 86400); // Store for 24 hours
-        
+        // Simple logging without alerts or limits - let the proxy service handle monitoring
         LoggingService::log('Bandwidth usage logged', [
             'url' => parse_url($url, PHP_URL_HOST) . parse_url($url, PHP_URL_PATH),
             'bytes' => $bytes,
-            'bytes_formatted' => $this->formatBytes($bytes),
-            'daily_total' => $newUsage,
-            'daily_total_formatted' => $this->formatBytes($newUsage)
+            'bytes_formatted' => $this->formatBytes($bytes)
         ]);
-        
-        // Alert if daily usage exceeds threshold
-        $dailyLimit = 500 * 1024 * 1024; // 500MB daily limit
-        if ($newUsage > $dailyLimit) {
-            app(AlertService::class)->bandwidthLimitExceeded($newUsage, $dailyLimit);
-        }
     }
 
     /**
@@ -352,33 +335,8 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
      */
     private function shouldUseDirectConnection(string $url): bool
     {
-        // Check daily bandwidth usage
-        $today = date('Y-m-d');
-        $todayUsage = Cache::get("bandwidth_usage_{$today}", 0);
-        $dailyLimit = 500 * 1024 * 1024; // 500MB
-        
-        // If we're over 80% of daily limit, use direct connection for non-critical requests
-        if ($todayUsage > ($dailyLimit * 0.8)) {
-            // These are non-critical requests that can go direct
-            $nonCriticalPatterns = [
-                '/\/gp\/product\/.*\/reviews.*pageNumber=[2-9]/', // Review pages 2+
-                '/\/gp\/product\/.*\/reviews.*pageNumber=\d{2,}/', // Review pages 10+
-                '/\/dp\/.*(?!\/reviews)/', // Product pages (less critical than reviews)
-            ];
-            
-            foreach ($nonCriticalPatterns as $pattern) {
-                if (preg_match($pattern, $url)) {
-                    LoggingService::log('Using direct connection for non-critical request', [
-                        'url' => parse_url($url, PHP_URL_PATH),
-                        'reason' => 'bandwidth_limit_approaching',
-                        'daily_usage' => $this->formatBytes($todayUsage),
-                        'limit_percentage' => round(($todayUsage / $dailyLimit) * 100, 1) . '%'
-                    ]);
-                    return true;
-                }
-            }
-        }
-        
+        // Removed bandwidth-based direct connection logic
+        // Let the proxy service handle its own bandwidth management
         return false;
     }
 
@@ -596,10 +554,6 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                 'cache_key' => $cacheKey,
                 'bandwidth_saved' => 'yes'
             ]);
-            
-            // Track cache hits for monitoring
-            $cacheHits = Cache::get('cache_hits_count', 0);
-            Cache::put('cache_hits_count', $cacheHits + 1, 86400);
             
             return $cachedData;
         }

@@ -21,7 +21,7 @@ A Laravel application that analyzes Amazon product reviews to detect fake review
 - Database caching for fast repeat lookups
 - Captcha protection (reCAPTCHA and hCaptcha support)
 - Real-time progress tracking during analysis
-- Comprehensive alerting and monitoring system
+- Comprehensive alerting system for API errors and issues
 
 ## Database Schema
 

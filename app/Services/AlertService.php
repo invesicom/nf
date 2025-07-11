@@ -176,30 +176,6 @@ class AlertService
     }
 
     /**
-     * Send bandwidth limit exceeded alert
-     */
-    public function bandwidthLimitExceeded(int $currentUsage, int $dailyLimit): void
-    {
-        $usageFormatted = $this->formatBytes($currentUsage);
-        $limitFormatted = $this->formatBytes($dailyLimit);
-        $percentUsed = round(($currentUsage / $dailyLimit) * 100, 1);
-        
-        $this->alert(
-            AlertType::API_TIMEOUT, // Reusing existing alert type for now
-            "Daily bandwidth limit exceeded: {$usageFormatted} / {$limitFormatted} ({$percentUsed}%)",
-            [
-                'current_usage' => $currentUsage,
-                'daily_limit' => $dailyLimit,
-                'usage_formatted' => $usageFormatted,
-                'limit_formatted' => $limitFormatted,
-                'percent_used' => $percentUsed,
-                'service' => 'proxy_bandwidth'
-            ],
-            1 // High priority
-        );
-    }
-
-    /**
      * Format bytes for human-readable display
      */
     private function formatBytes(int $bytes): string
