@@ -44,7 +44,8 @@ class NewsletterSignup extends Component
             // Validate email
             $this->validate();
 
-            // reCAPTCHA v3 validation (skip in local/testing)
+            // reCAPTCHA v3 validation (DISABLED for newsletter)
+            /*
             if (!app()->environment(['local', 'testing'])) {
                 if (empty($this->g_recaptcha_response)) {
                     $this->setErrorMessage('Please wait for security verification to complete, then try again.');
@@ -61,6 +62,7 @@ class NewsletterSignup extends Component
                     return;
                 }
             }
+            */
 
             // Subscribe via service
             $newsletterService = app(NewsletterService::class);
@@ -82,9 +84,6 @@ class NewsletterSignup extends Component
                 } else {
                     $this->setErrorMessage($result['message'] ?? 'Failed to subscribe. Please try again later.');
                 }
-                
-                // Reset reCAPTCHA on error
-                $this->dispatch('resetRecaptcha');
             }
 
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -97,7 +96,6 @@ class NewsletterSignup extends Component
             ]);
 
             $this->setErrorMessage('An unexpected error occurred. Please try again later.');
-            $this->dispatch('resetRecaptcha');
         } finally {
             $this->loading = false;
         }
