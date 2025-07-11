@@ -40,13 +40,11 @@ class NewsletterService
 
             $data = array_merge([
                 'EMAIL' => $email,
-                'REQUIRE_CONFIRMATION' => false, // Set to true if you want double opt-in
+                'FORCE_SUBSCRIBE' => 'yes', // Force subscription without confirmation
             ], $additionalData);
 
             $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                ])
+                ->asForm() // Use form encoding instead of JSON
                 ->post("{$this->baseUrl}/api/subscribe/{$this->listId}?access_token={$this->apiToken}", $data);
 
             if ($response->successful()) {
@@ -114,9 +112,7 @@ class NewsletterService
             $this->validateConfiguration();
 
             $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'Content-Type' => 'application/json',
-                ])
+                ->asForm() // Use form encoding instead of JSON
                 ->post("{$this->baseUrl}/api/unsubscribe/{$this->listId}?access_token={$this->apiToken}", [
                     'EMAIL' => $email
                 ]);
