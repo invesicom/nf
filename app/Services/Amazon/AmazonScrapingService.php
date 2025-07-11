@@ -63,7 +63,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'http_errors' => false,
             'verify' => false,
             'cookies' => $this->cookieJar,
-            'headers' => $this->headers,
+            'headers' => $this->getBandwidthOptimizedHeaders(),
             'allow_redirects' => [
                 'max' => 5,
                 'strict' => false,
@@ -78,25 +78,345 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             $clientConfig['proxy'] = $this->currentProxyConfig['proxy'];
             $clientConfig['timeout'] = $this->currentProxyConfig['timeout'];
             
-            // Add specific proxy settings for Amazon
+            // Add specific proxy settings for Amazon with bandwidth optimization
             $clientConfig['curl'] = [
                 CURLOPT_PROXYTYPE => CURLPROXY_HTTP,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS => 5,
-                CURLOPT_ENCODING => '', // Accept all supported encodings
+                CURLOPT_ENCODING => 'gzip, deflate', // Force compression
+                CURLOPT_MAXFILESIZE => 2 * 1024 * 1024, // 2MB limit per request
+                CURLOPT_BUFFERSIZE => 16384, // 16KB buffer for faster processing
             ];
             
-            LoggingService::log('Using proxy for Amazon scraping', [
+            LoggingService::log('Using proxy for Amazon scraping with bandwidth optimization', [
                 'type' => $this->currentProxyConfig['type'],
                 'provider' => $this->currentProxyConfig['provider'] ?? 'custom',
                 'country' => $this->currentProxyConfig['country'],
-                'session_id' => $this->currentProxyConfig['session_id'] ?? 'none'
+                'session_id' => $this->currentProxyConfig['session_id'] ?? 'none',
+                'max_file_size' => '2MB',
+                'compression' => 'gzip, deflate'
             ]);
         } else {
             LoggingService::log('No proxy configured - using direct connection');
         }
         
         $this->httpClient = new Client($clientConfig);
+    }
+
+    /**
+     * Get bandwidth-optimized headers that block unnecessary content.
+     */
+    private function getBandwidthOptimizedHeaders(): array
+    {
+        return [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', // Reduced priorities for non-HTML
+            'Accept-Language' => 'en-US,en;q=0.9',
+            'Accept-Encoding' => 'gzip, deflate, br', // Force compression
+            'Connection' => 'keep-alive',
+            'Upgrade-Insecure-Requests' => '1',
+            'Sec-Fetch-Dest' => 'document',
+            'Sec-Fetch-Mode' => 'navigate',
+            'Sec-Fetch-Site' => 'same-origin',
+            'Sec-Fetch-User' => '?1',
+            'Cache-Control' => 'max-age=0',
+            'DNT' => '1',
+            'Sec-GPC' => '1',
+            // Bandwidth optimization headers
+            'Save-Data' => '1', // Request reduced data usage
+            'Viewport-Width' => '1024', // Optimize for smaller viewport
+            'DPR' => '1', // Device pixel ratio = 1 (no high-DPI images)
+        ];
+    }
+
+    /**
+     * Check if a URL should be blocked to save bandwidth.
+     */
+    private function shouldBlockUrl(string $url): bool
+    {
+        // Block common resource-heavy URLs that we don't need for review scraping
+        $blockedPatterns = [
+            // Images and media
+            '/\.(jpg|jpeg|png|gif|webp|svg|ico|bmp)(\?.*)?$/i',
+            '/\.(mp4|mp3|avi|mov|wmv|flv|webm)(\?.*)?$/i',
+            
+            // CSS and styling (we don't need visual styling)
+            '/\.(css)(\?.*)?$/i',
+            '/\/css\//',
+            '/\/styles\//',
+            
+            // JavaScript (we don't need interactive features)
+            '/\.(js)(\?.*)?$/i',
+            '/\/js\//',
+            '/\/javascript\//',
+            
+            // Fonts
+            '/\.(woff|woff2|ttf|eot|otf)(\?.*)?$/i',
+            '/\/fonts\//',
+            
+            // Analytics and tracking
+            '/google-analytics/',
+            '/googletagmanager/',
+            '/facebook\.net/',
+            '/doubleclick\.net/',
+            '/amazon-adsystem/',
+            '/assoc-amazon/',
+            '/analytics/',
+            '/tracking/',
+            '/metrics/',
+            '/telemetry/',
+            
+            // Ads and recommendations
+            '/\/ads\//',
+            '/\/advertising\//',
+            '/\/recommendations\//',
+            '/\/sponsored\//',
+            
+            // Amazon-specific heavy resources
+            '/\/gp\/video\//',
+            '/\/gp\/music\//',
+            '/\/gp\/photos\//',
+            '/\/gp\/kindle\//',
+            '/\/api\//',
+            '/\/ajax\//',
+            '/\/widget\//',
+            '/\/personalization\//',
+            
+            // Third-party resources
+            '/twitter\.com/',
+            '/instagram\.com/',
+            '/youtube\.com/',
+            '/facebook\.com/',
+            '/pinterest\.com/',
+        ];
+        
+        foreach ($blockedPatterns as $pattern) {
+            if (preg_match($pattern, $url)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Make a bandwidth-optimized request with compression and size limits.
+     */
+    private function makeOptimizedRequest(string $url, array $options = []): ?\Psr\Http\Message\ResponseInterface
+    {
+        // Check if we should block this URL entirely
+        if ($this->shouldBlockUrl($url)) {
+            LoggingService::log('Blocked resource to save bandwidth', [
+                'url' => $url,
+                'reason' => 'matches_blocked_pattern'
+            ]);
+            
+            // Track blocked resources for monitoring
+            $blockedCount = Cache::get('blocked_resources_count', 0);
+            Cache::put('blocked_resources_count', $blockedCount + 1, 86400);
+            
+            return null;
+        }
+        
+        // Check if we should use direct connection for non-critical requests
+        $useDirectConnection = $this->shouldUseDirectConnection($url);
+        
+        if ($useDirectConnection) {
+            return $this->makeDirectRequest($url, $options);
+        }
+        
+        // Add bandwidth optimization options
+        $optimizedOptions = array_merge($options, [
+            'headers' => array_merge($options['headers'] ?? [], [
+                'Accept-Encoding' => 'gzip, deflate, br', // Force compression
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8', // Prioritize HTML
+            ]),
+            'stream' => false, // Don't stream large responses
+            'timeout' => 30, // Reasonable timeout
+            'read_timeout' => 30, // Prevent hanging on large responses
+            'curl' => [
+                CURLOPT_ENCODING => 'gzip, deflate', // Force compression at curl level
+                CURLOPT_MAXFILESIZE => 3 * 1024 * 1024, // 3MB hard limit
+                CURLOPT_BUFFERSIZE => 16384, // 16KB buffer for faster processing
+                CURLOPT_NOPROGRESS => false, // Enable progress tracking
+                CURLOPT_PROGRESSFUNCTION => function($resource, $download_size, $downloaded, $upload_size, $uploaded) {
+                    // Abort if response is getting too large
+                    if ($downloaded > 3 * 1024 * 1024) { // 3MB limit
+                        LoggingService::log('Aborting request - response too large', [
+                            'downloaded' => $this->formatBytes($downloaded),
+                            'limit' => '3MB'
+                        ]);
+                        return 1; // Abort
+                    }
+                    return 0; // Continue
+                },
+            ],
+        ]);
+        
+        try {
+            $startTime = microtime(true);
+            $response = $this->httpClient->get($url, $optimizedOptions);
+            $endTime = microtime(true);
+            
+            $responseTime = ($endTime - $startTime) * 1000; // Convert to milliseconds
+            $body = $response->getBody()->getContents();
+            $contentLength = strlen($body);
+            
+            // Check if response is too large
+            $maxSize = 3 * 1024 * 1024; // 3MB
+            if ($contentLength > $maxSize) {
+                LoggingService::log('Response too large, truncating', [
+                    'url' => parse_url($url, PHP_URL_HOST) . parse_url($url, PHP_URL_PATH),
+                    'original_size' => $this->formatBytes($contentLength),
+                    'max_size' => $this->formatBytes($maxSize),
+                    'truncated' => 'yes'
+                ]);
+                
+                // Truncate response to max size
+                $body = substr($body, 0, $maxSize);
+                $contentLength = strlen($body);
+            }
+            
+            // Check compression ratio
+            $originalSize = $response->getHeader('Content-Length')[0] ?? $contentLength;
+            $compressionRatio = $originalSize > 0 ? (($originalSize - $contentLength) / $originalSize) * 100 : 0;
+            
+            LoggingService::log('Optimized request completed', [
+                'url' => parse_url($url, PHP_URL_HOST) . parse_url($url, PHP_URL_PATH),
+                'response_time_ms' => round($responseTime, 2),
+                'content_length' => $this->formatBytes($contentLength),
+                'compression_ratio' => round($compressionRatio, 1) . '%',
+                'status' => $response->getStatusCode()
+            ]);
+            
+            // Log bandwidth usage
+            $this->logBandwidthUsage($url, $contentLength);
+            
+            // Create a new response with the potentially truncated body
+            $response = $response->withBody(\GuzzleHttp\Psr7\Utils::streamFor($body));
+            
+            return $response;
+            
+        } catch (\Exception $e) {
+            LoggingService::log('Optimized request failed', [
+                'url' => $url,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+    /**
+     * Log bandwidth usage for monitoring.
+     */
+    private function logBandwidthUsage(string $url, int $bytes): void
+    {
+        $dailyKey = 'bandwidth_usage_' . date('Y-m-d');
+        $currentUsage = Cache::get($dailyKey, 0);
+        $newUsage = $currentUsage + $bytes;
+        
+        Cache::put($dailyKey, $newUsage, 86400); // Store for 24 hours
+        
+        LoggingService::log('Bandwidth usage logged', [
+            'url' => parse_url($url, PHP_URL_HOST) . parse_url($url, PHP_URL_PATH),
+            'bytes' => $bytes,
+            'bytes_formatted' => $this->formatBytes($bytes),
+            'daily_total' => $newUsage,
+            'daily_total_formatted' => $this->formatBytes($newUsage)
+        ]);
+        
+        // Alert if daily usage exceeds threshold
+        $dailyLimit = 500 * 1024 * 1024; // 500MB daily limit
+        if ($newUsage > $dailyLimit) {
+            app(AlertService::class)->bandwidthLimitExceeded($newUsage, $dailyLimit);
+        }
+    }
+
+    /**
+     * Format bytes for human-readable display.
+     */
+    private function formatBytes(int $bytes): string
+    {
+        $units = ['B', 'KB', 'MB', 'GB'];
+        $bytes = max($bytes, 0);
+        $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+        $pow = min($pow, count($units) - 1);
+        
+        $bytes /= pow(1024, $pow);
+        
+        return round($bytes, 2) . ' ' . $units[$pow];
+    }
+
+    /**
+     * Check if we should use direct connection for non-critical requests.
+     */
+    private function shouldUseDirectConnection(string $url): bool
+    {
+        // Check daily bandwidth usage
+        $today = date('Y-m-d');
+        $todayUsage = Cache::get("bandwidth_usage_{$today}", 0);
+        $dailyLimit = 500 * 1024 * 1024; // 500MB
+        
+        // If we're over 80% of daily limit, use direct connection for non-critical requests
+        if ($todayUsage > ($dailyLimit * 0.8)) {
+            // These are non-critical requests that can go direct
+            $nonCriticalPatterns = [
+                '/\/gp\/product\/.*\/reviews.*pageNumber=[2-9]/', // Review pages 2+
+                '/\/gp\/product\/.*\/reviews.*pageNumber=\d{2,}/', // Review pages 10+
+                '/\/dp\/.*(?!\/reviews)/', // Product pages (less critical than reviews)
+            ];
+            
+            foreach ($nonCriticalPatterns as $pattern) {
+                if (preg_match($pattern, $url)) {
+                    LoggingService::log('Using direct connection for non-critical request', [
+                        'url' => parse_url($url, PHP_URL_PATH),
+                        'reason' => 'bandwidth_limit_approaching',
+                        'daily_usage' => $this->formatBytes($todayUsage),
+                        'limit_percentage' => round(($todayUsage / $dailyLimit) * 100, 1) . '%'
+                    ]);
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Make a direct request without proxy (for non-critical requests).
+     */
+    private function makeDirectRequest(string $url, array $options = []): ?\Psr\Http\Message\ResponseInterface
+    {
+        try {
+            // Create a temporary direct client
+            $directClient = new Client([
+                'timeout' => 30,
+                'connect_timeout' => 15,
+                'http_errors' => false,
+                'verify' => false,
+                'cookies' => $this->cookieJar, // Still use cookies
+                'headers' => $this->getBandwidthOptimizedHeaders(),
+            ]);
+            
+            $response = $directClient->get($url, $options);
+            
+            LoggingService::log('Direct request completed', [
+                'url' => parse_url($url, PHP_URL_PATH),
+                'status' => $response->getStatusCode(),
+                'bandwidth_saved' => 'proxy_bypassed'
+            ]);
+            
+            return $response;
+            
+        } catch (\Exception $e) {
+            LoggingService::log('Direct request failed, falling back to proxy', [
+                'url' => parse_url($url, PHP_URL_PATH),
+                'error' => $e->getMessage()
+            ]);
+            
+            // Fall back to proxy request
+            return null;
+        }
     }
 
     /**
@@ -260,22 +580,56 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
     }
 
     /**
-     * Scrape the main product page for basic information.
+     * Scrape the main product page for basic information with smart caching.
      */
     private function scrapeProductPage(string $asin, string $country): array
     {
         $url = "https://www.amazon.com/dp/{$asin}";
         
+        // Check cache first (product pages don't change often)
+        $cacheKey = "product_page_{$asin}_{$country}";
+        $cachedData = Cache::get($cacheKey);
+        
+        if ($cachedData) {
+            LoggingService::log('Using cached product page data', [
+                'asin' => $asin,
+                'cache_key' => $cacheKey,
+                'bandwidth_saved' => 'yes'
+            ]);
+            
+            // Track cache hits for monitoring
+            $cacheHits = Cache::get('cache_hits_count', 0);
+            Cache::put('cache_hits_count', $cacheHits + 1, 86400);
+            
+            return $cachedData;
+        }
+        
         LoggingService::log('Scraping product page: ' . $url);
         
         try {
-            $response = $this->httpClient->get($url, [
-                'headers' => array_merge($this->headers, [
+            $response = $this->makeOptimizedRequest($url, [
+                'headers' => array_merge($this->getBandwidthOptimizedHeaders(), [
                     'Referer' => 'https://www.amazon.com/',
+                    'If-Modified-Since' => gmdate('D, d M Y H:i:s T', strtotime('-6 hours')), // Only get if modified in last 6 hours
                 ])
             ]);
 
+            if (!$response) {
+                LoggingService::log('Product page request was blocked for bandwidth optimization', ['asin' => $asin]);
+                return [];
+            }
+
             $statusCode = $response->getStatusCode();
+            
+            // Handle 304 Not Modified - use cached data if available
+            if ($statusCode === 304) {
+                LoggingService::log('Product page not modified, using cached data', [
+                    'asin' => $asin,
+                    'bandwidth_saved' => 'yes'
+                ]);
+                return $cachedData ?? [];
+            }
+            
             $html = $response->getBody()->getContents();
 
             if ($statusCode !== 200) {
@@ -322,10 +676,20 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                 $description = "Product {$asin}";
             }
 
-            return [
+            $result = [
                 'description' => $description,
                 'asin' => $asin,
             ];
+            
+            // Cache the result for 6 hours (product titles rarely change)
+            Cache::put($cacheKey, $result, 6 * 60 * 60);
+            
+            LoggingService::log('Cached product page data', [
+                'asin' => $asin,
+                'cache_duration' => '6 hours'
+            ]);
+
+            return $result;
 
         } catch (\Exception $e) {
             LoggingService::log('Failed to scrape product page', [
@@ -355,11 +719,16 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
         // Test which URL pattern works and has substantial content
         foreach ($urlPatterns as $pattern) {
             try {
-                $testResponse = $this->httpClient->get($pattern, [
-                    'headers' => array_merge($this->headers, [
+                $testResponse = $this->makeOptimizedRequest($pattern, [
+                    'headers' => array_merge($this->getBandwidthOptimizedHeaders(), [
                         'Referer' => "https://www.amazon.com/dp/{$asin}",
                     ])
                 ]);
+                
+                if (!$testResponse) {
+                    LoggingService::log("URL pattern blocked for bandwidth optimization: {$pattern}", ['asin' => $asin]);
+                    continue;
+                }
                 
                 $statusCode = $testResponse->getStatusCode();
                 $contentLength = strlen($testResponse->getBody()->getContents());
@@ -405,11 +774,21 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             
             while ($retryCount < $maxRetries) {
                 try {
-                    $response = $this->httpClient->get($url, [
-                        'headers' => array_merge($this->headers, [
+                    $response = $this->makeOptimizedRequest($url, [
+                        'headers' => array_merge($this->getBandwidthOptimizedHeaders(), [
                             'Referer' => $page === 1 ? "https://www.amazon.com/dp/{$asin}" : $workingBaseUrl,
                         ])
                     ]);
+
+                    if (!$response) {
+                        LoggingService::log("Review page request blocked for bandwidth optimization", [
+                            'asin' => $asin,
+                            'page' => $page,
+                            'retry' => $retryCount + 1
+                        ]);
+                        $retryCount++;
+                        continue;
+                    }
 
                     $statusCode = $response->getStatusCode();
                     $html = $response->getBody()->getContents();

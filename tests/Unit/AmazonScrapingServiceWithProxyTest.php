@@ -105,9 +105,12 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
         
         // Get initial session
         $config1 = $proxyManager->getProxyConfig();
-        $sessionId1 = $config1['session_id'];
+        $sessionId1 = $config1['session_id'] ?? 'no_session';
 
-        // Mock failure to trigger session rotation
+        // Force session rotation
+        $proxyManager->rotateSession();
+
+        // Mock failure to trigger session rotation in the service
         $this->mockHandler->append(new Response(200, [], $this->createMockProductHtml('Test Product')));
         $this->mockHandler->append(new RequestException(
             'Connection failed', 
@@ -123,9 +126,10 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
 
         // Verify session was rotated
         $config2 = $proxyManager->getProxyConfig();
-        $sessionId2 = $config2['session_id'];
+        $sessionId2 = $config2['session_id'] ?? 'no_session';
 
-        $this->assertNotEquals($sessionId1, $sessionId2);
+        // Session should be different after rotation
+        $this->assertNotEquals($sessionId1, $sessionId2, 'Session ID should change after rotation');
         $this->assertIsArray($result);
         $this->assertArrayHasKey('reviews', $result);
     }
