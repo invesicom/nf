@@ -47,7 +47,9 @@ class NewsletterSignup extends Component
             // reCAPTCHA v3 validation (skip in local/testing)
             if (!app()->environment(['local', 'testing'])) {
                 if (empty($this->g_recaptcha_response)) {
-                    $this->setErrorMessage('Please wait for reCAPTCHA verification to complete.');
+                    $this->setErrorMessage('Security verification is loading. Please try again in a moment.');
+                    // Trigger reCAPTCHA generation
+                    $this->dispatch('generateRecaptcha');
                     return;
                 }
 
