@@ -92,67 +92,143 @@
 
 @if(!app()->environment(['local', 'testing']))
     @push('scripts')
-        <!-- reCAPTCHA v3 Script -->
-        <script src="https://www.google.com/recaptcha/api.js?render={{ $captcha->getSiteKey() }}" defer></script>
+        @if($captcha->getProvider() === 'hcaptcha')
+            <!-- hCaptcha Script -->
+            <script src="https://js.hcaptcha.com/1/api.js?render={{ $captcha->getSiteKey() }}" defer></script>
+        @else
+            <!-- reCAPTCHA v3 Script -->
+            <script src="https://www.google.com/recaptcha/api.js?render={{ $captcha->getSiteKey() }}" defer></script>
+        @endif
+        
         <script>
-            let recaptchaLoaded = false;
-            let recaptchaInterval;
+            let captchaLoaded = false;
+            let captchaInterval;
             let newsletterComponent = null;
+            let siteKey = '{{ $captcha->getSiteKey() }}';
+            let provider = '{{ $captcha->getProvider() }}';
 
             // Initialize when everything is ready
             function initNewsletter() {
-                if (window.Livewire && typeof grecaptcha !== 'undefined') {
+                console.log('Initializing newsletter component with provider:', provider);
+                if (window.Livewire && isCaptchaReady()) {
                     try {
                         newsletterComponent = @this;
-                        initializeRecaptcha();
+                        console.log('Newsletter component found:', !!newsletterComponent);
+                        initializeCaptcha();
                     } catch(e) {
                         console.log('Waiting for component...', e.message);
                         setTimeout(initNewsletter, 1000);
                     }
                 } else {
+                    console.log('Waiting for dependencies...', {
+                        livewire: !!window.Livewire,
+                        captcha: isCaptchaReady(),
+                        provider: provider
+                    });
                     setTimeout(initNewsletter, 1000);
                 }
             }
 
-            function initializeRecaptcha() {
-                if (typeof grecaptcha !== 'undefined' && !recaptchaLoaded) {
-                    grecaptcha.ready(function() {
-                        recaptchaLoaded = true;
-                        console.log('reCAPTCHA v3 loaded successfully');
-                        executeRecaptcha();
-                        
-                        // Set up automatic token refresh every 100 seconds
-                        if (recaptchaInterval) clearInterval(recaptchaInterval);
-                        recaptchaInterval = setInterval(executeRecaptcha, 100000);
-                    });
-                } else if (typeof grecaptcha === 'undefined') {
-                    console.log('reCAPTCHA not loaded yet, retrying...');
-                    setTimeout(initializeRecaptcha, 2000);
+            function isCaptchaReady() {
+                if (provider === 'hcaptcha') {
+                    return typeof hcaptcha !== 'undefined';
+                } else {
+                    return typeof grecaptcha !== 'undefined';
                 }
             }
 
-            function executeRecaptcha() {
-                if (typeof grecaptcha !== 'undefined' && recaptchaLoaded && newsletterComponent) {
-                    console.log('Executing reCAPTCHA...');
-                    grecaptcha.execute('{{ $captcha->getSiteKey() }}', {action: 'newsletter_signup'})
+            function initializeCaptcha() {
+                console.log('Initializing captcha with site key:', siteKey);
+                
+                if (provider === 'hcaptcha' && typeof hcaptcha !== 'undefined' && !captchaLoaded) {
+                    console.log('Setting up hCaptcha invisible...');
+                    captchaLoaded = true;
+                    
+                    // Test hCaptcha
+                    try {
+                        hcaptcha.execute(siteKey, {async: true})
+                            .then(function(response) {
+                                console.log('hCaptcha invisible confirmed - token generated:', response.response.substring(0, 20) + '...');
+                                executeCaptcha(); // Generate initial token
+                                
+                                // Set up automatic token refresh every 100 seconds
+                                if (captchaInterval) clearInterval(captchaInterval);
+                                captchaInterval = setInterval(executeCaptcha, 100000);
+                            })
+                            .catch(function(error) {
+                                console.error('hCaptcha execution failed:', error);
+                            });
+                    } catch(error) {
+                        console.error('hCaptcha setup error:', error);
+                    }
+                    
+                } else if (provider === 'recaptcha' && typeof grecaptcha !== 'undefined' && !captchaLoaded) {
+                    grecaptcha.ready(function() {
+                        captchaLoaded = true;
+                        console.log('reCAPTCHA ready! Testing execution...');
+                        
+                        // Test if this is a v3 key by trying to execute
+                        grecaptcha.execute(siteKey, {action: 'test'})
+                            .then(function(token) {
+                                console.log('reCAPTCHA v3 confirmed - token generated:', token.substring(0, 20) + '...');
+                                executeCaptcha(); // Generate initial token
+                                
+                                // Set up automatic token refresh every 100 seconds
+                                if (captchaInterval) clearInterval(captchaInterval);
+                                captchaInterval = setInterval(executeCaptcha, 100000);
+                            })
+                            .catch(function(error) {
+                                console.error('reCAPTCHA execution failed - might be v2 key:', error);
+                                console.log('Please ensure you are using a reCAPTCHA v3 site key');
+                            });
+                    });
+                } else {
+                    console.log('Captcha not loaded yet, retrying...');
+                    setTimeout(initializeCaptcha, 2000);
+                }
+            }
+
+            function executeCaptcha() {
+                if (!captchaLoaded || !newsletterComponent) {
+                    console.log('Captcha not ready:', {
+                        loaded: captchaLoaded,
+                        component: !!newsletterComponent,
+                        provider: provider
+                    });
+                    return;
+                }
+
+                console.log('Executing captcha...');
+
+                if (provider === 'hcaptcha' && typeof hcaptcha !== 'undefined') {
+                    hcaptcha.execute(siteKey, {async: true})
+                        .then(function(response) {
+                            console.log('hCaptcha token generated successfully:', response.response.substring(0, 20) + '...');
+                            try {
+                                newsletterComponent.set('g_recaptcha_response', response.response);
+                                console.log('hCaptcha token sent to Livewire component');
+                            } catch(e) {
+                                console.error('Failed to set hCaptcha token in component:', e);
+                            }
+                        })
+                        .catch(function(error) {
+                            console.error('hCaptcha execution error:', error);
+                        });
+                        
+                } else if (provider === 'recaptcha' && typeof grecaptcha !== 'undefined') {
+                    grecaptcha.execute(siteKey, {action: 'newsletter_signup'})
                         .then(function(token) {
-                            console.log('reCAPTCHA token generated:', token.substring(0, 20) + '...');
+                            console.log('reCAPTCHA token generated successfully:', token.substring(0, 20) + '...');
                             try {
                                 newsletterComponent.set('g_recaptcha_response', token);
-                                console.log('Token sent to component');
+                                console.log('reCAPTCHA token sent to Livewire component');
                             } catch(e) {
-                                console.error('Failed to set token:', e);
+                                console.error('Failed to set reCAPTCHA token in component:', e);
                             }
                         })
                         .catch(function(error) {
                             console.error('reCAPTCHA execution error:', error);
                         });
-                } else {
-                    console.log('reCAPTCHA not ready:', {
-                        grecaptcha: typeof grecaptcha !== 'undefined',
-                        loaded: recaptchaLoaded,
-                        component: !!newsletterComponent
-                    });
                 }
             }
 
@@ -166,29 +242,50 @@
             // Handle Livewire events
             document.addEventListener('livewire:init', function() {
                 console.log('Livewire initialized');
+                setTimeout(initNewsletter, 500); // Give it a moment
                 
                 Livewire.on('resetRecaptcha', function() {
-                    console.log('Reset reCAPTCHA event received');
-                    executeRecaptcha();
+                    console.log('Reset captcha event received');
+                    setTimeout(executeCaptcha, 100);
                 });
                 
                 Livewire.on('generateRecaptcha', function() {
-                    console.log('Generate reCAPTCHA event received');
-                    executeRecaptcha();
+                    console.log('Generate captcha event received');
+                    setTimeout(executeCaptcha, 100);
                 });
             });
 
             // Handle form submission - ensure fresh token
             function handleFormSubmit(event) {
                 console.log('Form submit intercepted');
-                if (recaptchaLoaded) {
-                    executeRecaptcha();
-                    // Small delay to ensure token is set
-                    setTimeout(function() {
-                        console.log('Proceeding with form submission');
-                    }, 100);
+                if (captchaLoaded && newsletterComponent) {
+                    console.log('Current token:', newsletterComponent.get('g_recaptcha_response') ? 'exists' : 'missing');
+                    if (!newsletterComponent.get('g_recaptcha_response')) {
+                        console.log('No token found, generating new one...');
+                        event.preventDefault();
+                        executeCaptcha();
+                        setTimeout(function() {
+                            console.log('Retrying form submission...');
+                            event.target.dispatchEvent(new Event('submit'));
+                        }, 1000);
+                        return false;
+                    }
                 }
+                return true;
             }
+
+            // Auto-execute on email field focus
+            document.addEventListener('DOMContentLoaded', function() {
+                const emailInput = document.querySelector('input[type="email"]');
+                if (emailInput) {
+                    emailInput.addEventListener('focus', function() {
+                        if (captchaLoaded && !newsletterComponent?.get('g_recaptcha_response')) {
+                            console.log('Email focused, generating captcha token...');
+                            executeCaptcha();
+                        }
+                    });
+                }
+            });
         </script>
     @endpush
 @endif 
