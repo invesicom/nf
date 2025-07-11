@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\NewsletterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,4 +20,12 @@ Route::get('/', function () {
 
 Route::get('/privacy', function () {
     return view('privacy');
+});
+
+// Newsletter routes
+Route::prefix('newsletter')->name('newsletter.')->group(function () {
+    Route::post('/subscribe', [NewsletterController::class, 'subscribe'])->name('subscribe');
+    Route::post('/unsubscribe', [NewsletterController::class, 'unsubscribe'])->name('unsubscribe');
+    Route::post('/check', [NewsletterController::class, 'checkSubscription'])->name('check');
+    Route::get('/test-connection', [NewsletterController::class, 'testConnection'])->name('test');
 });

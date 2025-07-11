@@ -51,6 +51,13 @@ return [
         'api_url' => env('PUSHOVER_API_URL', 'https://api.pushover.net/1/messages.json'),
     ],
 
+    'mailtrain' => [
+        'base_url' => env('MAILTRAIN_BASE_URL'),
+        'api_token' => env('MAILTRAIN_API_TOKEN'),
+        'list_id' => env('MAILTRAIN_LIST_ID'),
+        'timeout' => env('MAILTRAIN_TIMEOUT', 30),
+    ],
+
     // Amazon validation is now handled client-side only
     // Server skips validation to avoid IP throttling
 

@@ -106,6 +106,11 @@
     <livewire:review-analyzer />
   </main>
 
+  <!-- Newsletter Signup Section -->
+  <section class="max-w-3xl mx-auto mt-8">
+    <livewire:newsletter-signup />
+  </section>
+
   <footer class="text-center text-gray-500 text-sm mt-10 p-2">
     <div class="flex items-center justify-center mb-2">
       <span class="flex items-center">
