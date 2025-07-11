@@ -24,6 +24,7 @@
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors text-sm"
                             style="--tw-ring-color: #19939f;"
                             :disabled="loading"
+                            onfocus="if(typeof executeRecaptcha === 'function') executeRecaptcha();"
                         />
                         @error('email')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
@@ -96,24 +97,22 @@
         <script>
             let recaptchaLoaded = false;
             let recaptchaInterval;
-            let componentInstance = null;
+            let newsletterComponent = null;
 
-            // Wait for Livewire component to be ready
-            document.addEventListener('livewire:initialized', function() {
-                // Find the newsletter component
-                componentInstance = Livewire.find('{{ $this->getId() }}');
-                initializeRecaptcha();
-            });
-
-            // Also try on DOMContentLoaded for fallback
-            document.addEventListener('DOMContentLoaded', function() {
-                setTimeout(function() {
-                    if (!componentInstance) {
-                        componentInstance = @this;
+            // Initialize when everything is ready
+            function initNewsletter() {
+                if (window.Livewire && typeof grecaptcha !== 'undefined') {
+                    try {
+                        newsletterComponent = @this;
                         initializeRecaptcha();
+                    } catch(e) {
+                        console.log('Waiting for component...', e.message);
+                        setTimeout(initNewsletter, 1000);
                     }
-                }, 500);
-            });
+                } else {
+                    setTimeout(initNewsletter, 1000);
+                }
+            }
 
             function initializeRecaptcha() {
                 if (typeof grecaptcha !== 'undefined' && !recaptchaLoaded) {
@@ -122,59 +121,74 @@
                         console.log('reCAPTCHA v3 loaded successfully');
                         executeRecaptcha();
                         
-                        // Set up automatic token refresh every 100 seconds (tokens expire after 120 seconds)
+                        // Set up automatic token refresh every 100 seconds
                         if (recaptchaInterval) clearInterval(recaptchaInterval);
                         recaptchaInterval = setInterval(executeRecaptcha, 100000);
                     });
-                } else {
-                    // Retry if grecaptcha is not loaded yet
-                    setTimeout(initializeRecaptcha, 1000);
+                } else if (typeof grecaptcha === 'undefined') {
+                    console.log('reCAPTCHA not loaded yet, retrying...');
+                    setTimeout(initializeRecaptcha, 2000);
                 }
             }
 
             function executeRecaptcha() {
-                if (typeof grecaptcha !== 'undefined' && recaptchaLoaded && componentInstance) {
+                if (typeof grecaptcha !== 'undefined' && recaptchaLoaded && newsletterComponent) {
+                    console.log('Executing reCAPTCHA...');
                     grecaptcha.execute('{{ $captcha->getSiteKey() }}', {action: 'newsletter_signup'})
                         .then(function(token) {
                             console.log('reCAPTCHA token generated:', token.substring(0, 20) + '...');
-                            // Send token to Livewire component
-                            componentInstance.set('g_recaptcha_response', token);
+                            try {
+                                newsletterComponent.set('g_recaptcha_response', token);
+                                console.log('Token sent to component');
+                            } catch(e) {
+                                console.error('Failed to set token:', e);
+                            }
                         })
                         .catch(function(error) {
-                            console.error('reCAPTCHA error:', error);
+                            console.error('reCAPTCHA execution error:', error);
                         });
+                } else {
+                    console.log('reCAPTCHA not ready:', {
+                        grecaptcha: typeof grecaptcha !== 'undefined',
+                        loaded: recaptchaLoaded,
+                        component: !!newsletterComponent
+                    });
                 }
             }
 
-            // Listen for Livewire events
+            // Start initialization when DOM is ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initNewsletter);
+            } else {
+                initNewsletter();
+            }
+
+            // Handle Livewire events
             document.addEventListener('livewire:init', function() {
+                console.log('Livewire initialized');
+                
                 Livewire.on('resetRecaptcha', function() {
+                    console.log('Reset reCAPTCHA event received');
                     executeRecaptcha();
                 });
                 
                 Livewire.on('generateRecaptcha', function() {
+                    console.log('Generate reCAPTCHA event received');
                     executeRecaptcha();
                 });
             });
 
-            // Handle form submission
+            // Handle form submission - ensure fresh token
             function handleFormSubmit(event) {
                 console.log('Form submit intercepted');
-                // Always ensure we have a fresh token
-                if (!recaptchaLoaded || !componentInstance.get('g_recaptcha_response')) {
-                    console.log('Generating fresh reCAPTCHA token...');
+                if (recaptchaLoaded) {
                     executeRecaptcha();
+                    // Small delay to ensure token is set
+                    setTimeout(function() {
+                        console.log('Proceeding with form submission');
+                    }, 100);
                 }
-                // The form will proceed normally as wire:submit.prevent handles it
             }
-
-            // Refresh token before form submission
-            document.addEventListener('livewire:init', function() {
-                Livewire.hook('morph.updating', (el, component) => {
-                    // Generate fresh token before any form submission
-                    executeRecaptcha();
-                });
-            });
         </script>
     @endpush
 @endif 
