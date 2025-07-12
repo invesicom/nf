@@ -35,3 +35,8 @@ Route::prefix('newsletter')->name('newsletter.')->group(function () {
 Route::get('/amazon/{asin}', [AmazonProductController::class, 'show'])
     ->name('amazon.product.show')
     ->where('asin', '[A-Z0-9]{10}');
+
+Route::get('/amazon/{asin}/{slug}', [AmazonProductController::class, 'showWithSlug'])
+    ->name('amazon.product.show.slug')
+    ->where('asin', '[A-Z0-9]{10}')
+    ->where('slug', '[a-z0-9-]+');

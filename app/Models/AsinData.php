@@ -227,4 +227,47 @@ class AsinData extends Model
                is_array($openaiResult) &&
                !empty($this->getReviewsArray());
     }
+
+    /**
+     * Generate a URL-friendly slug from the product title.
+     *
+     * @return string|null The slug or null if no title
+     */
+    public function getSlugAttribute(): ?string
+    {
+        if (empty($this->product_title)) {
+            return null;
+        }
+
+        // Convert to lowercase and replace spaces/special chars with hyphens
+        $slug = strtolower($this->product_title);
+        $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
+        $slug = preg_replace('/[\s-]+/', '-', $slug);
+        $slug = trim($slug, '-');
+
+        // Limit length to 60 characters for SEO
+        if (strlen($slug) > 60) {
+            $slug = substr($slug, 0, 60);
+            $slug = preg_replace('/-[^-]*$/', '', $slug); // Remove partial words
+        }
+
+        return $slug ?: null;
+    }
+
+    /**
+     * Generate the SEO-friendly URL for this product.
+     *
+     * @return string The SEO-friendly URL path
+     */
+    public function getSeoUrlAttribute(): string
+    {
+        $slug = $this->slug;
+        
+        if ($slug) {
+            return "/amazon/{$this->asin}/{$slug}";
+        }
+        
+        // Fallback to basic URL if no slug available
+        return "/amazon/{$this->asin}";
+    }
 }

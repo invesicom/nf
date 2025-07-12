@@ -169,10 +169,19 @@ class ReviewAnalyzer extends Component
                 LoggingService::log('Product has product data, redirecting to shareable URL', [
                     'asin' => $asinData->asin,
                     'have_product_data' => $asinData->have_product_data,
+                    'slug' => $asinData->slug,
                 ]);
                 
-                // Redirect to the shareable URL
-                return $this->redirect(route('amazon.product.show', ['asin' => $asinData->asin]));
+                // Redirect to the SEO-friendly URL if slug is available
+                if ($asinData->slug) {
+                    return $this->redirect(route('amazon.product.show.slug', [
+                        'asin' => $asinData->asin,
+                        'slug' => $asinData->slug
+                    ]));
+                } else {
+                    // Fallback to basic URL if no slug
+                    return $this->redirect(route('amazon.product.show', ['asin' => $asinData->asin]));
+                }
             }
 
             // Set final state
