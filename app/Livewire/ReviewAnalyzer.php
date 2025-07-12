@@ -164,6 +164,17 @@ class ReviewAnalyzer extends Component
             $analysisResult = $analysisService->calculateFinalMetrics($asinData);
             $this->setResults($analysisResult);
 
+            // Check if we should redirect to shareable URL
+            if ($asinData->have_product_data) {
+                LoggingService::log('Product has product data, redirecting to shareable URL', [
+                    'asin' => $asinData->asin,
+                    'have_product_data' => $asinData->have_product_data,
+                ]);
+                
+                // Redirect to the shareable URL
+                return $this->redirect(route('amazon.product.show', ['asin' => $asinData->asin]));
+            }
+
             // Set final state
             $this->isAnalyzed = true;
 

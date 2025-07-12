@@ -367,6 +367,16 @@ class ReviewAnalysisService
 
         LoggingService::log('Gathered '.count($asinData->getReviewsArray()).' reviews');
 
+        // Queue product data scraping job if not already scraped
+        if (!$asinData->have_product_data) {
+            LoggingService::log('Queuing product data scraping job', [
+                'asin' => $asin,
+                'asin_data_id' => $asinData->id,
+            ]);
+            
+            \App\Jobs\ScrapeAmazonProductData::dispatch($asinData);
+        }
+
         return $asinData;
     }
 

@@ -28,6 +28,10 @@ class AsinData extends Model
         'asin',
         'country',
         'product_description',
+        'product_title',
+        'product_image_url',
+        'have_product_data',
+        'product_data_scraped_at',
         'reviews',
         'openai_result',
     ];
@@ -38,8 +42,10 @@ class AsinData extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'reviews'       => 'array',
-        'openai_result' => 'array',
+        'reviews'                  => 'array',
+        'openai_result'            => 'array',
+        'have_product_data'        => 'boolean',
+        'product_data_scraped_at'  => 'datetime',
     ];
 
     /**

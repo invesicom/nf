@@ -1,0 +1,130 @@
+<?php
+
+namespace App\Jobs;
+
+use App\Models\AsinData;
+use App\Services\Amazon\AmazonProductDataService;
+use App\Services\LoggingService;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
+
+class ScrapeAmazonProductData implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /**
+     * The number of times the job may be attempted.
+     *
+     * @var int
+     */
+    public $tries = 3;
+
+    /**
+     * The maximum number of seconds the job can run.
+     *
+     * @var int
+     */
+    public $timeout = 120;
+
+    /**
+     * Create a new job instance.
+     */
+    public function __construct(
+        public AsinData $asinData
+    ) {
+        // Set the queue name for product scraping jobs
+        $this->onQueue('product-scraping');
+    }
+
+    /**
+     * Execute the job.
+     */
+    public function handle(): void
+    {
+        LoggingService::log('Starting Amazon product data scraping job', [
+            'asin' => $this->asinData->asin,
+            'country' => $this->asinData->country,
+            'id' => $this->asinData->id,
+        ]);
+
+        try {
+            // Check if product data has already been scraped
+            if ($this->asinData->have_product_data) {
+                LoggingService::log('Product data already scraped, skipping', [
+                    'asin' => $this->asinData->asin,
+                ]);
+                return;
+            }
+
+            // Create the product data service
+            $productDataService = app(AmazonProductDataService::class);
+
+            // Scrape the product data
+            $productData = $productDataService->scrapeProductData(
+                $this->asinData->asin,
+                $this->asinData->country
+            );
+
+            if (empty($productData)) {
+                throw new \Exception('Failed to scrape product data - no data returned');
+            }
+
+            // Update the database record
+            $this->asinData->update([
+                'product_title' => $productData['title'] ?? null,
+                'product_image_url' => $productData['image_url'] ?? null,
+                'have_product_data' => true,
+                'product_data_scraped_at' => now(),
+            ]);
+
+            LoggingService::log('Successfully scraped and saved Amazon product data', [
+                'asin' => $this->asinData->asin,
+                'title' => $productData['title'] ?? 'N/A',
+                'has_image' => !empty($productData['image_url']),
+                'image_url_length' => strlen($productData['image_url'] ?? ''),
+            ]);
+
+        } catch (\Exception $e) {
+            LoggingService::log('Failed to scrape Amazon product data', [
+                'asin' => $this->asinData->asin,
+                'error' => $e->getMessage(),
+                'attempt' => $this->attempts(),
+            ]);
+
+            // Log the error for monitoring
+            Log::error('Amazon product data scraping failed', [
+                'asin' => $this->asinData->asin,
+                'error' => $e->getMessage(),
+                'attempt' => $this->attempts(),
+                'max_attempts' => $this->tries,
+            ]);
+
+            // Re-throw the exception to trigger retry mechanism
+            throw $e;
+        }
+    }
+
+    /**
+     * Handle a job failure.
+     */
+    public function failed(\Throwable $exception): void
+    {
+        LoggingService::log('Amazon product data scraping job failed permanently', [
+            'asin' => $this->asinData->asin,
+            'error' => $exception->getMessage(),
+            'attempts' => $this->attempts(),
+        ]);
+
+        // Optionally, you could send an alert or notification here
+        // For now, we'll just log the failure
+        Log::error('Amazon product data scraping job failed permanently', [
+            'asin' => $this->asinData->asin,
+            'error' => $exception->getMessage(),
+            'attempts' => $this->attempts(),
+        ]);
+    }
+}
