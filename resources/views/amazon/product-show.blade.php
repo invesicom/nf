@@ -6,8 +6,15 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{{ $meta_title }}</title>
   <meta name="description" content="{{ $meta_description }}" />
-  <meta name="keywords" content="Amazon review analysis, fake review detector, {{ $asinData->asin }}, {{ $asinData->product_title ?? 'Amazon product' }}, review authenticity" />
+  <meta name="keywords" content="{{ $seo_data['keywords'] }}" />
   <meta name="author" content="Null Fake" />
+  
+  <!-- Enhanced SEO Meta Tags -->
+  <meta name="rating" content="{{ $asinData->adjusted_rating ?? 0 }}" />
+  <meta name="review-grade" content="{{ $asinData->grade ?? 'N/A' }}" />
+  <meta name="fake-review-percentage" content="{{ $asinData->fake_percentage ?? 0 }}" />
+  <meta name="trust-score" content="{{ $seo_data['trust_score'] }}" />
+  <meta name="review-summary" content="{{ $seo_data['review_summary'] }}" />
   
   <!-- SEO and Robots Configuration -->
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
@@ -16,22 +23,37 @@
   <link rel="canonical" href="{{ url($canonical_url) }}" />
 
   <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="{{ url()->current() }}" />
-  <meta property="og:title" content="{{ $meta_title }}" />
-  <meta property="og:description" content="{{ $meta_description }}" />
+  <meta property="og:type" content="product" />
+  <meta property="og:url" content="{{ url($canonical_url) }}" />
+  <meta property="og:title" content="{{ $seo_data['social_title'] }}" />
+  <meta property="og:description" content="{{ $seo_data['social_description'] }}" />
+  <meta property="og:site_name" content="Null Fake" />
   @if($asinData->product_image_url)
   <meta property="og:image" content="{{ $asinData->product_image_url }}" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   @endif
+  <!-- Product specific Open Graph -->
+  <meta property="product:price:amount" content="N/A" />
+  <meta property="product:availability" content="in stock" />
+  <meta property="product:condition" content="new" />
+  <meta property="product:rating" content="{{ $asinData->adjusted_rating ?? 0 }}" />
+  <meta property="product:rating:scale" content="5" />
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:url" content="{{ url()->current() }}" />
-  <meta property="twitter:title" content="{{ $meta_title }}" />
-  <meta property="twitter:description" content="{{ $meta_description }}" />
+  <meta property="twitter:site" content="@nullfake" />
+  <meta property="twitter:url" content="{{ url($canonical_url) }}" />
+  <meta property="twitter:title" content="{{ $seo_data['social_title'] }}" />
+  <meta property="twitter:description" content="{{ $seo_data['social_description'] }}" />
   @if($asinData->product_image_url)
   <meta property="twitter:image" content="{{ $asinData->product_image_url }}" />
   @endif
+  <!-- Twitter Product Card -->
+  <meta name="twitter:label1" content="Grade" />
+  <meta name="twitter:data1" content="{{ $asinData->grade ?? 'N/A' }}" />
+  <meta name="twitter:label2" content="Fake Reviews" />
+  <meta name="twitter:data2" content="{{ $asinData->fake_percentage ?? 0 }}%" />
 
   <!-- Favicon -->
   <link rel="apple-touch-icon" sizes="57x57" href="/img/apple-icon-57x57.png">
@@ -61,7 +83,7 @@
     "@context": "https://schema.org",
     "@type": "Product",
     "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
-    "description": "{{ $meta_description }}",
+    "description": "{{ $seo_data['review_summary'] }}",
     @if($asinData->product_image_url)
     "image": "{{ $asinData->product_image_url }}",
     @endif
@@ -69,26 +91,111 @@
       "@type": "Brand",
       "name": "Amazon"
     },
+    "sku": "{{ $asinData->asin }}",
+    "gtin": "{{ $asinData->asin }}",
     "aggregateRating": {
       "@type": "AggregateRating",
       "ratingValue": "{{ $asinData->adjusted_rating }}",
       "bestRating": "5",
       "worstRating": "1",
-      "ratingCount": "{{ count($asinData->getReviewsArray()) }}"
+      "ratingCount": "{{ count($asinData->getReviewsArray()) }}",
+      "reviewCount": "{{ count($asinData->getReviewsArray()) }}"
     },
-    "review": {
-      "@type": "Review",
-      "reviewRating": {
-        "@type": "Rating",
-        "ratingValue": "{{ $asinData->grade === 'A' ? 5 : ($asinData->grade === 'B' ? 4 : ($asinData->grade === 'C' ? 3 : ($asinData->grade === 'D' ? 2 : 1))) }}",
-        "bestRating": "5"
+    "review": [
+      {
+        "@type": "Review",
+        "reviewRating": {
+          "@type": "Rating",
+          "ratingValue": "{{ $asinData->grade === 'A' ? 5 : ($asinData->grade === 'B' ? 4 : ($asinData->grade === 'C' ? 3 : ($asinData->grade === 'D' ? 2 : 1))) }}",
+          "bestRating": "5",
+          "worstRating": "1"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "Null Fake - AI Review Analysis"
+        },
+        "reviewBody": "{{ $asinData->explanation }}",
+        "datePublished": "{{ $asinData->updated_at->toISOString() }}",
+        "headline": "Fake Review Analysis - Grade {{ $asinData->grade ?? 'N/A' }}"
+      }
+    ],
+    "additionalProperty": [
+      {
+        "@type": "PropertyValue",
+        "name": "Fake Review Percentage",
+        "value": "{{ $asinData->fake_percentage ?? 0 }}%"
       },
-      "author": {
-        "@type": "Organization",
-        "name": "Null Fake"
+      {
+        "@type": "PropertyValue",
+        "name": "Authenticity Grade",
+        "value": "{{ $asinData->grade ?? 'N/A' }}"
       },
-      "reviewBody": "{{ $asinData->explanation }}"
-    }
+      {
+        "@type": "PropertyValue",
+        "name": "Trust Score",
+        "value": "{{ $seo_data['trust_score'] }}/100"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "Amazon Original Rating",
+        "value": "{{ $asinData->amazon_rating ?? 0 }}"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "Adjusted Rating",
+        "value": "{{ $asinData->adjusted_rating ?? 0 }}"
+      }
+    ],
+    "url": "{{ url($canonical_url) }}",
+    "sameAs": "https://www.amazon.com/dp/{{ $asinData->asin }}"
+  }
+  </script>
+
+  <!-- Additional Review Analysis Schema -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "AnalysisNewsArticle",
+    "headline": "{{ $meta_title }}",
+    "description": "{{ $meta_description }}",
+    "author": {
+      "@type": "Organization",
+      "name": "Null Fake",
+      "url": "{{ url('/') }}"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Null Fake",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "{{ url('/img/nullfake.png') }}"
+      }
+    },
+    "datePublished": "{{ $asinData->updated_at->toISOString() }}",
+    "dateModified": "{{ $asinData->updated_at->toISOString() }}",
+    "mainEntityOfPage": {
+      "@type": "WebPage",
+      "@id": "{{ url($canonical_url) }}"
+    },
+    "about": {
+      "@type": "Product",
+      "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
+      "identifier": "{{ $asinData->asin }}"
+    },
+    "mentions": [
+      {
+        "@type": "Thing",
+        "name": "Fake Reviews"
+      },
+      {
+        "@type": "Thing",
+        "name": "Review Analysis"
+      },
+      {
+        "@type": "Thing",
+        "name": "Amazon Product Reviews"
+      }
+    ]
   }
   </script>
 </head>
