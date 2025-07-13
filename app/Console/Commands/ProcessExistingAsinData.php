@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Jobs\ScrapeAmazonProductData;
 use App\Models\AsinData;
 use App\Services\LoggingService;
+use App\Services\Amazon\AmazonProductDataService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Queue;
 
@@ -19,15 +20,14 @@ class ProcessExistingAsinData extends Command
                             {--batch-size=10 : Number of records to process in each batch}
                             {--delay=5 : Delay in seconds between batches to avoid rate limiting}
                             {--force : Process all records, even those already processed}
-                            {--dry-run : Show what would be processed without actually processing}
-                            {--queue=product-scraping : Queue name to use for jobs}';
+                            {--dry-run : Show what would be processed without actually processing}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Retroactively process existing ASIN records to scrape product data';
+    protected $description = 'Retroactively process existing ASIN records to scrape product data directly';
 
     /**
      * Execute the console command.
@@ -38,7 +38,6 @@ class ProcessExistingAsinData extends Command
         $delay = (int) $this->option('delay');
         $force = $this->option('force');
         $dryRun = $this->option('dry-run');
-        $queueName = $this->option('queue');
 
         $this->info('🚀 Starting ASIN Data Processing');
         $this->info('=====================================');
@@ -70,7 +69,7 @@ class ProcessExistingAsinData extends Command
         $this->info("📊 Found {$totalRecords} records to process");
         $this->info("⚙️  Batch size: {$batchSize}");
         $this->info("⏱️  Delay between batches: {$delay} seconds");
-        $this->info("🔄 Queue: {$queueName}");
+        $this->info("⚡ Processing: Direct (no queuing)");
         
         if ($force) {
             $this->warn('⚠️  Force mode: Processing ALL records (including already processed)');
@@ -88,11 +87,11 @@ class ProcessExistingAsinData extends Command
 
         // Process records in batches
         $processed = 0;
-        $queued = 0;
+        $scraped = 0;
         $skipped = 0;
         $errors = 0;
 
-        $progressBar = $this->output->createProgressBar($totalRecords);
+        $progressBar = $this->output->createProgressBar($batchSize);
         $progressBar->setFormat('verbose');
 
         LoggingService::log('Starting batch processing of existing ASIN data', [
@@ -101,52 +100,60 @@ class ProcessExistingAsinData extends Command
             'delay' => $delay,
             'force' => $force,
             'dry_run' => $dryRun,
-            'queue' => $queueName,
+            'processing_mode' => 'direct',
         ]);
 
-        $query->chunk($batchSize, function ($asinRecords) use (
-            &$processed, &$queued, &$skipped, &$errors, 
-            $progressBar, $dryRun, $queueName, $delay
-        ) {
-            foreach ($asinRecords as $asinData) {
-                try {
-                    $shouldProcess = $this->shouldProcessRecord($asinData);
-                    
-                    if (!$shouldProcess['process']) {
-                        $skipped++;
-                        $this->line("\n🔄 Skipped {$asinData->asin}: {$shouldProcess['reason']}");
-                    } else {
-                        if (!$dryRun) {
-                            // Dispatch the job to the queue
-                            ScrapeAmazonProductData::dispatch($asinData->id)->onQueue($queueName);
-                            $queued++;
-                            $this->line("\n✅ Queued {$asinData->asin} for processing");
-                        } else {
-                            $this->line("\n🧪 Would queue {$asinData->asin} for processing");
-                            $queued++;
-                        }
-                    }
-                    
-                    $processed++;
-                    $progressBar->advance();
-                    
-                } catch (\Exception $e) {
-                    $errors++;
-                    $this->error("\n❌ Error processing {$asinData->asin}: " . $e->getMessage());
-                    
-                    LoggingService::log('Error in batch processing', [
-                        'asin' => $asinData->asin,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
-            }
+        // Get only the first batch of records
+        $asinRecords = $query->limit($batchSize)->get();
 
-            // Add delay between batches to avoid rate limiting
-            if ($delay > 0 && !$dryRun) {
-                $this->line("\n⏳ Waiting {$delay} seconds before next batch...");
-                sleep($delay);
+        foreach ($asinRecords as $asinData) {
+            try {
+                $shouldProcess = $this->shouldProcessRecord($asinData);
+                
+                if (!$shouldProcess['process']) {
+                    $skipped++;
+                    $this->line("\n🔄 Skipped {$asinData->asin}: {$shouldProcess['reason']}");
+                } else {
+                    if (!$dryRun) {
+                        // Process directly instead of queuing
+                        $this->line("\n🔄 Processing {$asinData->asin}...");
+                        
+                        $productService = app(AmazonProductDataService::class);
+                        $result = $productService->scrapeAndSaveProductData($asinData);
+                        
+                        if ($result) {
+                            $scraped++;
+                            $this->line("✅ Successfully scraped product data for {$asinData->asin}");
+                        } else {
+                            $this->line("⚠️ Failed to scrape product data for {$asinData->asin}");
+                        }
+                    } else {
+                        $this->line("\n🧪 Would process {$asinData->asin} directly");
+                        $scraped++;
+                    }
+                }
+                
+                $processed++;
+                $progressBar->advance();
+                
+                // Add delay between individual records to avoid rate limiting
+                if ($delay > 0 && !$dryRun && $processed < $batchSize) {
+                    $this->line("⏳ Waiting {$delay} seconds before next record...");
+                    sleep($delay);
+                }
+                
+            } catch (\Exception $e) {
+                $errors++;
+                $this->error("\n❌ Error processing {$asinData->asin}: " . $e->getMessage());
+                
+                LoggingService::log('Error in batch processing', [
+                    'asin' => $asinData->asin,
+                    'error' => $e->getMessage(),
+                ]);
+                
+                $progressBar->advance();
             }
-        });
+        }
 
         $progressBar->finish();
 
@@ -155,20 +162,20 @@ class ProcessExistingAsinData extends Command
         $this->info('📋 Processing Summary');
         $this->info('====================');
         $this->info("📊 Total records processed: {$processed}");
-        $this->info("✅ Jobs queued: {$queued}");
+        $this->info("✅ Product data scraped: {$scraped}");
         $this->info("🔄 Records skipped: {$skipped}");
         $this->info("❌ Errors encountered: {$errors}");
-
-        if (!$dryRun && $queued > 0) {
+        
+        if ($processed < $totalRecords) {
+            $remaining = $totalRecords - $processed;
             $this->newLine();
-            $this->info("🎯 Jobs have been queued for processing.");
-            $this->info("💡 Run 'php artisan queue:work --queue={$queueName}' to process them.");
-            $this->info("📊 Monitor progress with 'php artisan queue:monitor'");
+            $this->info("📊 {$remaining} records remaining to process");
+            $this->info("💡 Run the command again to process the next batch");
         }
 
         LoggingService::log('Batch processing completed', [
             'total_processed' => $processed,
-            'jobs_queued' => $queued,
+            'product_data_scraped' => $scraped,
             'records_skipped' => $skipped,
             'errors' => $errors,
         ]);

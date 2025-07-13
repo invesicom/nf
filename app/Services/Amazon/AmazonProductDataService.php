@@ -104,6 +104,50 @@ class AmazonProductDataService
     }
 
     /**
+     * Scrape product data and save to database.
+     *
+     * @param \App\Models\AsinData $asinData The ASIN data record to update
+     * @return bool True if successful, false otherwise
+     */
+    public function scrapeAndSaveProductData(\App\Models\AsinData $asinData): bool
+    {
+        try {
+            $productData = $this->scrapeProductData($asinData->asin, $asinData->country);
+            
+            if (empty($productData)) {
+                LoggingService::log('No product data scraped', [
+                    'asin' => $asinData->asin,
+                    'country' => $asinData->country,
+                ]);
+                return false;
+            }
+
+            // Update the database record
+            $asinData->update([
+                'product_title' => $productData['title'] ?? null,
+                'product_image_url' => $productData['image_url'] ?? null,
+                'have_product_data' => true,
+                'product_data_scraped_at' => now(),
+            ]);
+
+            LoggingService::log('Successfully updated product data', [
+                'asin' => $asinData->asin,
+                'title' => $productData['title'] ?? 'N/A',
+                'has_image' => !empty($productData['image_url']),
+            ]);
+
+            return true;
+
+        } catch (\Exception $e) {
+            LoggingService::log('Failed to scrape and save product data', [
+                'asin' => $asinData->asin,
+                'error' => $e->getMessage(),
+            ]);
+            return false;
+        }
+    }
+
+    /**
      * Scrape product data from Amazon.
      *
      * @param string $asin Amazon Standard Identification Number
