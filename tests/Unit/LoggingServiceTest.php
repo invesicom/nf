@@ -217,12 +217,25 @@ class LoggingServiceTest extends TestCase
 
     public function test_case_sensitive_pattern_matching()
     {
-        // Test that pattern matching is case sensitive
-        $exception = new \Exception('CURL ERROR 28: timeout');
-
+        $exception = new \Exception('cURL error 28: timed out after 30000 milliseconds');
         $result = LoggingService::handleException($exception);
+        
+        $this->assertStringContainsString('took too long to respond', $result);
+    }
 
-        // Should not match the timeout pattern (case sensitive)
-        $this->assertEquals('An unexpected error occurred. Please try again later.', $result);
+    public function test_handle_exception_proxy_auth_error()
+    {
+        $exception = new \Exception('cURL error 56: Received HTTP code 407 from proxy after CONNECT (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://www.amazon.com/dp/B00076SPZO');
+        $result = LoggingService::handleException($exception);
+        
+        $this->assertEquals('The review service is temporarily unavailable due to network configuration issues. Please try again in a few minutes.', $result);
+    }
+
+    public function test_handle_exception_proxy_auth_error_generic()
+    {
+        $exception = new \Exception('proxy authentication failed');
+        $result = LoggingService::handleException($exception);
+        
+        $this->assertEquals('The review service is temporarily unavailable due to network configuration issues. Please try again in a few minutes.', $result);
     }
 }

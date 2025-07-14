@@ -17,6 +17,10 @@ class LoggingService
             'patterns' => ['cURL error 28', 'Operation timed out', 'timed out after'],
             'message'  => 'The review service took too long to respond. This can happen when Amazon is blocking requests or the service is overloaded. Please try again in a few minutes.',
         ],
+        'PROXY_AUTH_ERROR' => [
+            'patterns' => ['cURL error 56', 'Received HTTP code 407', 'proxy authentication'],
+            'message'  => 'The review service is temporarily unavailable due to network configuration issues. Please try again in a few minutes.',
+        ],
         'UNWRANGLE_TIMEOUT' => [
             'patterns' => ['Unwrangle API request exception', 'with 0 bytes received'],
             'message'  => 'Unable to connect to the review service. This may be due to high traffic or temporary service issues. Please try again in a few minutes.',
@@ -30,7 +34,7 @@ class LoggingService
             'message'  => 'Data processing error occurred. Please try again.',
         ],
         'FETCHING_FAILED' => [
-            'patterns' => ['Unable to fetch product reviews at this time'],
+            'patterns' => ['Unable to fetch product reviews at this time', 'Unable to fetch product reviews'],
             'message'  => null, // Use the detailed message from AmazonFetchService
         ],
         'OPENAI_ERROR' => [

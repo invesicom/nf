@@ -169,9 +169,21 @@ class AlertService
             array_merge($context, [
                 'service' => $service,
                 'error_type' => $errorType,
-                'error_message' => $errorMessage
             ]),
-            1 // High priority
+            1 // High priority since connectivity affects the whole service
+        );
+    }
+
+    /**
+     * Send proxy service issue alert
+     */
+    public function proxyServiceIssue(string $message, array $context = []): void
+    {
+        $this->alert(
+            AlertType::CONNECTIVITY_ISSUE,
+            "Proxy service issue: {$message}",
+            array_merge($context, ['service_type' => 'proxy']),
+            1 // High priority - proxy issues affect scraping capability
         );
     }
 

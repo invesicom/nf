@@ -564,6 +564,10 @@ class AsinDataModelTest extends TestCase
             'asin',
             'country',
             'product_description',
+            'product_title',
+            'product_image_url',
+            'have_product_data',
+            'product_data_scraped_at',
             'reviews',
             'openai_result',
         ];

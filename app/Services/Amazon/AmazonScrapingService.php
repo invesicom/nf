@@ -294,10 +294,35 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             return $response;
             
         } catch (\Exception $e) {
+            $errorMessage = $e->getMessage();
+            
             LoggingService::log('Optimized request failed', [
                 'url' => $url,
-                'error' => $e->getMessage()
+                'error' => $errorMessage
             ]);
+            
+            // Check if this is a proxy authentication error
+            if (str_contains($errorMessage, 'cURL error 56') || 
+                str_contains($errorMessage, 'Received HTTP code 407') ||
+                str_contains($errorMessage, 'proxy authentication')) {
+                
+                LoggingService::log('Proxy authentication error detected', [
+                    'url' => parse_url($url, PHP_URL_HOST) . parse_url($url, PHP_URL_PATH),
+                    'error_type' => 'proxy_auth_failure',
+                    'proxy_provider' => $this->currentProxyConfig['provider'] ?? 'unknown'
+                ]);
+                
+                // Send alert about proxy service issues (for admin)
+                app(AlertService::class)->proxyServiceIssue(
+                    'Proxy authentication failed',
+                    [
+                        'error' => $errorMessage,
+                        'provider' => $this->currentProxyConfig['provider'] ?? 'unknown',
+                        'url' => parse_url($url, PHP_URL_HOST) . parse_url($url, PHP_URL_PATH)
+                    ]
+                );
+            }
+            
             return null;
         }
     }
@@ -441,13 +466,11 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
 
         // Check if fetching failed and provide specific error message
         if (empty($reviewsData) || !isset($reviewsData['reviews'])) {
-            throw new \Exception('Unable to fetch product reviews at this time. This could be due to:
-• The product URL being invalid or the product not existing on Amazon
-• Amazon blocking our scraping attempts (temporary)
-• Network connectivity issues
-• Cookie session expired
-
-Please try again in a few minutes. If the problem persists, verify the Amazon URL is correct and the product exists on amazon.com.');
+            // Create a more descriptive exception that will be properly handled by LoggingService
+            $exception = new \Exception('Unable to fetch product reviews. This could be due to Amazon blocking requests, network issues, or service configuration problems. Please try again in a few minutes.');
+            
+            // Let LoggingService handle the exception and provide appropriate user message
+            throw new \Exception(LoggingService::handleException($exception));
         }
 
         // Save to database - NO OpenAI analysis yet (will be done separately)
