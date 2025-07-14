@@ -106,10 +106,7 @@
     <livewire:review-analyzer />
   </main>
 
-  <!-- Product Carousel Section -->
-  <section class="max-w-6xl mx-auto mt-8 px-6">
-    <livewire:product-carousel />
-  </section>
+
 
   <!-- Newsletter Signup Section -->
   <section class="max-w-3xl mx-auto mt-8">
