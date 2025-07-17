@@ -249,9 +249,29 @@ class OpenAIService
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
             $vine = isset($review['meta_data']['is_vine_voice']) && $review['meta_data']['is_vine_voice'] ? 'Vine' : '';
             
-            // Clean and truncate text to handle UTF-8 issues
-            $title = $this->cleanUtf8Text(substr($review['review_title'], 0, 100));
-            $text = $this->cleanUtf8Text(substr($review['review_text'], 0, 400));
+            // Handle both old and new review data structures
+            // New structure (bandwidth optimized): has 'text' field but no 'review_title'
+            // Old structure: has 'review_title' and 'review_text' fields
+            $title = '';
+            $text = '';
+            
+            // Try to get title (optional - bandwidth optimization removed this)
+            if (isset($review['review_title'])) {
+                $title = $this->cleanUtf8Text(substr($review['review_title'], 0, 100));
+            } else {
+                // No title available in bandwidth-optimized structure - use first part of review text
+                $reviewText = $review['text'] ?? $review['review_text'] ?? '';
+                if (!empty($reviewText)) {
+                    $title = $this->cleanUtf8Text(substr($reviewText, 0, 50) . '...');
+                }
+            }
+            
+            // Get review text - try multiple field names for compatibility
+            if (isset($review['review_text'])) {
+                $text = $this->cleanUtf8Text(substr($review['review_text'], 0, 400));
+            } elseif (isset($review['text'])) {
+                $text = $this->cleanUtf8Text(substr($review['text'], 0, 400));
+            }
 
             $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}{$vine}\n";
             $prompt .= "T: {$title}\n";
