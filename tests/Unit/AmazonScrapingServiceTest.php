@@ -234,17 +234,23 @@ class AmazonScrapingServiceTest extends TestCase
         $this->assertEquals(5, $review1['rating']);
         $this->assertStringContainsString('This is a great product! I love it.', $review1['review_text']);
         $this->assertStringContainsString('This is a great product! I love it.', $review1['text']); // Backward compatibility
-        $this->assertEquals('John Doe', $review1['author']);
+        // Note: author and review_title removed for bandwidth optimization
         $this->assertArrayHasKey('id', $review1);
-        $this->assertArrayHasKey('review_title', $review1);
+        
+        // Verify bandwidth optimization: only essential fields present
+        $this->assertArrayNotHasKey('author', $review1);
+        $this->assertArrayNotHasKey('review_title', $review1);
 
         $review2 = $result['reviews'][1];
         $this->assertEquals(3, $review2['rating']);
         $this->assertStringContainsString('Not bad, but could be better.', $review2['review_text']);
         $this->assertStringContainsString('Not bad, but could be better.', $review2['text']); // Backward compatibility
-        $this->assertEquals('Jane Smith', $review2['author']);
+        // Note: author and review_title removed for bandwidth optimization
         $this->assertArrayHasKey('id', $review2);
-        $this->assertArrayHasKey('review_title', $review2);
+        
+        // Verify bandwidth optimization: only essential fields present
+        $this->assertArrayNotHasKey('author', $review2);
+        $this->assertArrayNotHasKey('review_title', $review2);
     }
 
     /**

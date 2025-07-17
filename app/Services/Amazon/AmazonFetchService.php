@@ -110,7 +110,7 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
         $apiKey = env('UNWRANGLE_API_KEY');
         $cookie = env('UNWRANGLE_AMAZON_COOKIE');
         $baseUrl = 'https://data.unwrangle.com/api/getter/';
-        $maxPages = 10; // Keep original page count for comprehensive data
+        $maxPages = 5; // Reduced from 10 for bandwidth optimization - 5 pages typically sufficient for analysis
         $country = 'us';
 
         $query = [
@@ -122,11 +122,11 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             'cookie'       => $cookie,
         ];
 
-        // Try with progressively longer timeouts and different strategies
+        // Try with progressively shorter timeouts and fewer pages for bandwidth optimization
         $attempts = [
-            ['timeout' => 60, 'max_pages' => 3, 'description' => 'quick fetch (3 pages, 60s)'],
-            ['timeout' => 90, 'max_pages' => 5, 'description' => 'medium fetch (5 pages, 90s)'],
-            ['timeout' => 120, 'max_pages' => 10, 'description' => 'full fetch (10 pages, 120s)'],
+            ['timeout' => 45, 'max_pages' => 3, 'description' => 'quick fetch (3 pages, 45s) - BANDWIDTH OPTIMIZED'],
+            ['timeout' => 60, 'max_pages' => 5, 'description' => 'standard fetch (5 pages, 60s) - BANDWIDTH OPTIMIZED'],
+            ['timeout' => 90, 'max_pages' => 7, 'description' => 'extended fetch (7 pages, 90s) - FALLBACK'],
         ];
 
         foreach ($attempts as $attemptIndex => $attempt) {
