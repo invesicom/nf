@@ -235,7 +235,7 @@ class LoggingServiceTest extends TestCase
     {
         $exception = new \Exception('proxy authentication failed');
         $result = LoggingService::handleException($exception);
-        
+
         $this->assertEquals('The review service is temporarily unavailable due to network configuration issues. Please try again in a few minutes.', $result);
     }
 }
