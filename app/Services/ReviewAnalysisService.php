@@ -393,14 +393,36 @@ class ReviewAnalysisService
 
         LoggingService::log('Sending '.count($reviews).' reviews to OpenAI for analysis');
 
-        $openaiResult = $this->openAIService->analyzeReviews($reviews);
+        try {
+            $openaiResult = $this->openAIService->analyzeReviews($reviews);
+            
+            $asinData->update([
+                'openai_result' => json_encode($openaiResult),
+                'status'        => 'completed',
+            ]);
 
-        $asinData->update([
-            'openai_result' => json_encode($openaiResult),
-            'status'        => 'completed',
-        ]);
+            LoggingService::log('Updated database record with OpenAI analysis results');
 
-        LoggingService::log('Updated database record with OpenAI analysis results');
+        } catch (\Exception $e) {
+            LoggingService::log('OpenAI analysis failed, using fallback analysis', ['error' => $e->getMessage()]);
+            
+            // Check if it's a quota/billing issue
+            if (str_contains($e->getMessage(), 'quota') || str_contains($e->getMessage(), '429')) {
+                LoggingService::log('OpenAI quota exceeded, applying heuristic fallback analysis');
+                $fallbackResult = $this->generateFallbackAnalysis($reviews);
+                
+                $asinData->update([
+                    'openai_result' => json_encode($fallbackResult),
+                    'status'        => 'completed_fallback',
+                    'analysis_notes' => 'Analysis completed using heuristic fallback due to OpenAI quota limits'
+                ]);
+
+                LoggingService::log('Updated database record with fallback analysis results');
+            } else {
+                // Re-throw other types of errors
+                throw $e;
+            }
+        }
 
         return $asinData->fresh();
     }
@@ -498,5 +520,145 @@ class ReviewAnalysisService
             'total_reviews'   => $totalReviews,
             'asin_review'     => $asinData->fresh(),
         ];
+    }
+
+    /**
+     * Generate a basic heuristic analysis when OpenAI is unavailable
+     */
+    private function generateFallbackAnalysis(array $reviews): array
+    {
+        LoggingService::log('Generating heuristic fallback analysis for '.count($reviews).' reviews');
+        
+        $results = [];
+        
+        foreach ($reviews as $review) {
+            $score = $this->calculateHeuristicFakeScore($review);
+            $results[] = [
+                'id' => $review['id'] ?? uniqid(),
+                'score' => $score
+            ];
+        }
+        
+        $summary = $this->generateFallbackSummary($reviews, $results);
+        
+        return [
+            'detailed_scores' => array_column($results, 'score', 'id'),
+            'results' => $results,
+            'summary' => $summary,
+            'analysis_type' => 'heuristic_fallback',
+            'fallback_reason' => 'OpenAI quota exceeded'
+        ];
+    }
+
+    /**
+     * Calculate a heuristic fake review score based on common patterns
+     */
+    private function calculateHeuristicFakeScore(array $review): int
+    {
+        $score = 20; // Base score - assume most reviews are somewhat genuine
+        
+        $text = $review['text'] ?? $review['review_text'] ?? '';
+        $rating = (int)($review['rating'] ?? 3);
+        
+        // Length-based scoring
+        $textLength = strlen($text);
+        if ($textLength < 20) {
+            $score += 30; // Very short reviews are suspicious
+        } elseif ($textLength < 50) {
+            $score += 15; // Short reviews are somewhat suspicious
+        } elseif ($textLength > 500) {
+            $score -= 10; // Very detailed reviews are less likely fake
+        }
+        
+        // Rating-based scoring
+        if ($rating == 5) {
+            $score += 10; // 5-star reviews are more often fake
+        } elseif ($rating == 1) {
+            $score += 5; // 1-star reviews can be fake attacks
+        } elseif ($rating == 3 || $rating == 4) {
+            $score -= 5; // More balanced ratings are less suspicious
+        }
+        
+        // Content pattern analysis
+        $lowerText = strtolower($text);
+        
+        // Generic positive patterns
+        $genericPhrases = [
+            'great product', 'highly recommend', 'best ever', 'amazing quality',
+            'love it', 'perfect', 'exactly as described', 'fast shipping'
+        ];
+        
+        $genericCount = 0;
+        foreach ($genericPhrases as $phrase) {
+            if (str_contains($lowerText, $phrase)) {
+                $genericCount++;
+            }
+        }
+        
+        if ($genericCount >= 3) {
+            $score += 25; // Too many generic phrases
+        } elseif ($genericCount >= 2) {
+            $score += 15;
+        }
+        
+        // Excessive punctuation or capitals
+        if (preg_match('/[!]{3,}/', $text) || preg_match('/[A-Z]{5,}/', $text)) {
+            $score += 10;
+        }
+        
+        // Very promotional language
+        $promotionalTerms = ['buy', 'purchase', 'deal', 'price', 'money', 'worth'];
+        $promotionalCount = 0;
+        foreach ($promotionalTerms as $term) {
+            if (str_contains($lowerText, $term)) {
+                $promotionalCount++;
+            }
+        }
+        
+        if ($promotionalCount >= 3) {
+            $score += 15;
+        }
+        
+        // Specific product mentions (often genuine)
+        if (preg_match('/\b(color|size|material|weight|dimension)\b/', $lowerText)) {
+            $score -= 10;
+        }
+        
+        // Personal experience indicators (often genuine)
+        $personalTerms = ['i', 'my', 'me', 'family', 'wife', 'husband', 'kids'];
+        $personalCount = 0;
+        foreach ($personalTerms as $term) {
+            if (str_contains($lowerText, ' '.$term.' ')) {
+                $personalCount++;
+            }
+        }
+        
+        if ($personalCount >= 3) {
+            $score -= 15;
+        }
+        
+        // Ensure score is within bounds
+        return max(0, min(100, $score));
+    }
+
+    /**
+     * Generate a summary for fallback analysis
+     */
+    private function generateFallbackSummary(array $reviews, array $results): string
+    {
+        $totalReviews = count($reviews);
+        $scores = array_column($results, 'score');
+        $avgScore = round(array_sum($scores) / count($scores), 1);
+        
+        $suspicious = count(array_filter($scores, fn($s) => $s >= 60));
+        $likely = count(array_filter($scores, fn($s) => $s >= 40 && $s < 60));
+        $genuine = count(array_filter($scores, fn($s) => $s < 40));
+        
+        $suspiciousPercent = round(($suspicious / $totalReviews) * 100, 1);
+        
+        return "Heuristic Analysis: {$totalReviews} reviews analyzed. ".
+               "Average fake score: {$avgScore}/100. ".
+               "Distribution: {$genuine} likely genuine, {$likely} questionable, {$suspicious} suspicious ({$suspiciousPercent}% suspicious). ".
+               "Note: This is a basic analysis due to OpenAI quota limits. Results may be less accurate than AI analysis.";
     }
 }
