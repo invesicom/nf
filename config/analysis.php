@@ -11,7 +11,7 @@ return [
     | requires queue workers to be running.
     |
     */
-    'async_enabled' => env('ANALYSIS_ASYNC_ENABLED', true),
+    'async_enabled' => env('ANALYSIS_ASYNC_ENABLED', false),
 
     /*
     |--------------------------------------------------------------------------
