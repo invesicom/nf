@@ -58,6 +58,12 @@ return [
         'timeout' => env('MAILTRAIN_TIMEOUT', 30),
     ],
 
+    'amazon_scraping' => [
+        'max_pages' => env('AMAZON_SCRAPING_MAX_PAGES', 10),
+        'target_reviews' => env('AMAZON_SCRAPING_TARGET_REVIEWS', 30),
+        'max_reviews' => env('AMAZON_SCRAPING_MAX_REVIEWS', 100),
+    ],
+
     // Amazon validation is now handled client-side only
     // Server skips validation to avoid IP throttling
 
