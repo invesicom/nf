@@ -42,6 +42,14 @@ return [
             'after_commit' => false,
         ],
 
+        'analysis' => [
+            'driver'       => 'database',
+            'table'        => 'jobs',
+            'queue'        => 'analysis',
+            'retry_after'  => 360, // 6 minutes for analysis jobs
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver'       => 'beanstalkd',
             'host'         => 'localhost',
