@@ -103,7 +103,7 @@ class OpenAIService
                         app(AlertService::class)->openaiQuotaExceeded($errorMessage, [
                             'status_code' => $statusCode,
                             'response_body' => substr($responseBody, 0, 500),
-                ]);
+                        ]);
                     }
                 } elseif ($statusCode >= 500) {
                     $errorMessage = $this->getErrorMessage($statusCode, $responseBody);
@@ -118,6 +118,18 @@ class OpenAIService
             }
         } catch (\Exception $e) {
             LoggingService::log('OpenAI service error', ['error' => $e->getMessage()]);
+
+            // Check for quota exceeded errors in HTTP exceptions
+            if (str_contains($e->getMessage(), 'HTTP request returned status code 429')) {
+                $errorMessage = $e->getMessage();
+                if (str_contains($errorMessage, 'quota')) {
+                    app(AlertService::class)->openaiQuotaExceeded($errorMessage, [
+                        'status_code' => 429,
+                        'error_type' => 'quota_exceeded',
+                        'source' => 'http_exception'
+                    ]);
+                }
+            }
 
             // Check if it's a timeout with 0 bytes - this suggests connection issues
             if (str_contains($e->getMessage(), 'cURL error 28') && str_contains($e->getMessage(), '0 bytes received')) {
