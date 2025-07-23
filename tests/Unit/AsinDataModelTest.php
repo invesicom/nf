@@ -570,6 +570,13 @@ class AsinDataModelTest extends TestCase
             'product_data_scraped_at',
             'reviews',
             'openai_result',
+            'fake_percentage',
+            'amazon_rating',
+            'adjusted_rating',
+            'grade',
+            'explanation',
+            'status',
+            'analysis_notes',
         ];
 
         $this->assertEquals($expectedFillable, $fillable);
