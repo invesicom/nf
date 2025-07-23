@@ -798,16 +798,22 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     /**
      * Scrape reviews from multiple review pages.
      */
-    private function scrapeReviewPages(string $asin, string $country, int $maxPages = 5): array
+    private function scrapeReviewPages(string $asin, string $country, int $maxPages = 8): array
     {
         $allReviews = [];
         
-        // Reduce bandwidth by limiting pages - 5 pages typically provides 50-100 reviews which is sufficient for analysis
-        // This alone can reduce bandwidth by ~40-50% compared to 10 pages
+        // Get configurable limits from environment
+        $maxPages = (int) env('AMAZON_SCRAPING_MAX_PAGES', $maxPages ?: 10);
+        $maxReviews = (int) env('AMAZON_SCRAPING_MAX_REVIEWS', 100);
+        $targetReviews = (int) env('AMAZON_SCRAPING_TARGET_REVIEWS', 30);
+        
+        // Reduce bandwidth by limiting pages - configurable for different environments
         LoggingService::log("Starting review scraping with bandwidth optimization", [
             'asin' => $asin,
             'max_pages' => $maxPages,
-            'bandwidth_optimization' => 'reduced_page_count'
+            'max_reviews' => $maxReviews,
+            'target_reviews' => $targetReviews,
+            'bandwidth_optimization' => 'configurable_limits'
         ]);
         
         // Try different Amazon review URL patterns, prioritizing the most reliable
@@ -873,8 +879,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         
         // Track total bandwidth usage for this scraping session
         $totalBandwidthUsed = 0;
-        $targetReviewCount = 30; // Target minimum for quality analysis
-        
+
         for ($page = 1; $page <= $maxPages; $page++) {
             LoggingService::log("Scraping reviews page {$page} for ASIN: {$asin}");
             
@@ -928,9 +933,20 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                             'total_bandwidth' => $this->formatBytes($totalBandwidthUsed)
                         ]);
                         
+                        // Check if we've hit the maximum review limit
+                        if (count($allReviews) >= $maxReviews) {
+                            LoggingService::log("Maximum review limit reached", [
+                                'asin' => $asin,
+                                'reviews_collected' => count($allReviews),
+                                'max_reviews' => $maxReviews,
+                                'pages_scraped' => $page
+                            ]);
+                            break 2; // Exit both loops
+                        }
+                        
                         // INTELLIGENT early termination for bandwidth optimization
                         // Assess review quality and stop if we have sufficient data for analysis
-                        if ($page >= 2) { // Only consider early termination after page 2
+                        if ($page >= 2 && count($allReviews) >= $targetReviews) { // Only consider early termination after target reached
                             $qualityMetrics = $this->assessReviewQuality($allReviews);
                             
                             LoggingService::log("Quality assessment", [
@@ -943,14 +959,17 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                                 'sufficient' => $qualityMetrics['sufficient_for_analysis']
                             ]);
                             
-                            // Early termination conditions (AGGRESSIVE bandwidth savings)
-                            if ($qualityMetrics['sufficient_for_analysis'] || 
-                                ($qualityMetrics['quality_score'] >= 60 && count($allReviews) >= 25) ||
-                                count($allReviews) >= 40) { // Hard limit to prevent excessive scraping
+                            // More conservative early termination conditions
+                            // Only terminate early if we have EXCEPTIONAL quality AND reached target count
+                            if ($qualityMetrics['sufficient_for_analysis'] && 
+                                $qualityMetrics['quality_reviews'] >= 40 && // Need 40+ quality reviews
+                                count(array_filter($qualityMetrics['rating_distribution'])) >= 4 && // Need 4+ different rating types
+                                $qualityMetrics['avg_length'] >= 100 && // Need higher average length
+                                $qualityMetrics['quality_score'] >= 80) { // Need higher quality score
                                 
                                 $bandwidthSaved = ($maxPages - $page) * ($totalBandwidthUsed / $page);
                                 
-                                LoggingService::log("EARLY TERMINATION - sufficient quality data collected", [
+                                LoggingService::log("EARLY TERMINATION - exceptional quality data collected", [
                                     'asin' => $asin,
                                     'reviews_collected' => count($allReviews),
                                     'quality_score' => round($qualityMetrics['quality_score'], 1),
@@ -958,7 +977,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                                     'pages_remaining' => $maxPages - $page,
                                     'bandwidth_used' => $this->formatBytes($totalBandwidthUsed),
                                     'estimated_bandwidth_saved' => $this->formatBytes($bandwidthSaved),
-                                    'early_termination_reason' => $qualityMetrics['sufficient_for_analysis'] ? 'quality_sufficient' : 'score_threshold'
+                                    'early_termination_reason' => 'exceptional_quality'
                                 ]);
                                 break 2; // Exit both loops
                             }
@@ -1358,11 +1377,12 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         
         $qualityMetrics['quality_score'] = ($diversityScore + $lengthScore + $volumeScore) / 3;
         
-        // Determine if sufficient for analysis (BANDWIDTH OPTIMIZATION)
+        // More lenient criteria for sufficient analysis (only used for EXCEPTIONAL early termination)
+        // These criteria are now much stricter since early termination only happens with exceptional data
         $qualityMetrics['sufficient_for_analysis'] = 
-            $qualityReviews >= 20 && // At least 20 quality reviews
-            count(array_filter($ratingCounts)) >= 3 && // At least 3 different ratings
-            $qualityMetrics['avg_length'] >= 75; // Average length of 75+ characters
+            $qualityReviews >= 35 && // At least 35 quality reviews (increased from 20)
+            count(array_filter($ratingCounts)) >= 4 && // At least 4 different ratings (increased from 3)
+            $qualityMetrics['avg_length'] >= 120; // Average length of 120+ characters (increased from 75)
         
         return $qualityMetrics;
     }
