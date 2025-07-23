@@ -36,7 +36,7 @@ class AsinDataModelTest extends TestCase
         $this->assertEquals('Test Product', $asinData->product_description);
     }
 
-    public function test_fake_percentage_calculation()
+    public function test_fake_percentage_stored_in_database()
     {
         $asinData = AsinData::create([
             'asin'                => 'B08N5WRWNW',
@@ -56,9 +56,10 @@ class AsinDataModelTest extends TestCase
                     3 => 75,  // fake (>= 70)
                 ],
             ],
+            'fake_percentage' => 50.0, // Now stored directly in database
         ]);
 
-        // 2 fake out of 4 total = 50%
+        // Should read from database
         $this->assertEquals(50.0, $asinData->fake_percentage);
     }
 
@@ -75,9 +76,9 @@ class AsinDataModelTest extends TestCase
         $this->assertNull($asinData->fake_percentage);
     }
 
-    public function test_grade_calculation()
+    public function test_grade_stored_in_database()
     {
-        // Test Grade A (< 10% fake)
+        // Test Grade A
         $asinData = AsinData::create([
             'asin'          => 'B08N5WRWNW',
             'country'       => 'us',
@@ -85,53 +86,28 @@ class AsinDataModelTest extends TestCase
             'openai_result' => [
                 'detailed_scores' => array_fill(0, 10, 30), // all genuine
             ],
+            'grade' => 'A', // Now stored directly in database
         ]);
         $this->assertEquals('A', $asinData->grade);
 
-        // Test Grade B (10-19% fake)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_merge(
-                    array_fill(0, 9, 30), // 9 genuine
-                    [75] // 1 fake = 10%
-                ),
-            ],
-        ]);
+        // Test updating grades
+        $asinData->update(['grade' => 'B']);
         $this->assertEquals('B', $asinData->fresh()->grade);
 
-        // Test Grade C (20-29% fake)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_merge(
-                    array_fill(0, 8, 30), // 8 genuine
-                    array_fill(0, 2, 75)  // 2 fake = 20%
-                ),
-            ],
-        ]);
+        $asinData->update(['grade' => 'C']);
         $this->assertEquals('C', $asinData->fresh()->grade);
 
-        // Test Grade D (30-49% fake)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_merge(
-                    array_fill(0, 7, 30), // 7 genuine
-                    array_fill(0, 3, 75)  // 3 fake = 30%
-                ),
-            ],
-        ]);
+        $asinData->update(['grade' => 'D']);
         $this->assertEquals('D', $asinData->fresh()->grade);
 
-        // Test Grade F (>= 50% fake)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_fill(0, 10, 75), // all fake = 100%
-            ],
-        ]);
+        $asinData->update(['grade' => 'F']);
         $this->assertEquals('F', $asinData->fresh()->grade);
     }
 
-    public function test_explanation_generation()
+    public function test_explanation_stored_in_database()
     {
+        $explanation = 'Analysis of 10 reviews found 2 potentially fake reviews (20%). This product has moderate fake review activity. Exercise some caution.';
+        
         $asinData = AsinData::create([
             'asin'          => 'B08N5WRWNW',
             'country'       => 'us',
@@ -142,16 +118,17 @@ class AsinDataModelTest extends TestCase
                     array_fill(0, 2, 75)  // 2 fake = 20%
                 ),
             ],
+            'explanation' => $explanation, // Now stored directly in database
         ]);
 
-        $explanation = $asinData->explanation;
-        $this->assertStringContainsString('Analysis of 10 reviews', $explanation);
-        $this->assertStringContainsString('2 potentially fake reviews', $explanation);
-        $this->assertStringContainsString('20%', $explanation);
-        $this->assertStringContainsString('moderate fake review activity', $explanation);
+        $this->assertEquals($explanation, $asinData->explanation);
+        $this->assertStringContainsString('Analysis of 10 reviews', $asinData->explanation);
+        $this->assertStringContainsString('2 potentially fake reviews', $asinData->explanation);
+        $this->assertStringContainsString('20%', $asinData->explanation);
+        $this->assertStringContainsString('moderate fake review activity', $asinData->explanation);
     }
 
-    public function test_amazon_rating_calculation()
+    public function test_amazon_rating_stored_in_database()
     {
         $asinData = AsinData::create([
             'asin'    => 'B08N5WRWNW',
@@ -163,13 +140,14 @@ class AsinDataModelTest extends TestCase
                 ['rating' => 2, 'text' => 'Bad'],
             ],
             'openai_result' => [],
+            'amazon_rating' => 3.5, // Now stored directly in database
         ]);
 
-        // (5 + 4 + 3 + 2) / 4 = 3.5
+        // Should read from database
         $this->assertEquals(3.5, $asinData->amazon_rating);
     }
 
-    public function test_adjusted_rating_calculation()
+    public function test_adjusted_rating_stored_in_database()
     {
         $asinData = AsinData::create([
             'asin'    => 'B08N5WRWNW',
@@ -188,9 +166,10 @@ class AsinDataModelTest extends TestCase
                     ['score' => 90],  // fake
                 ],
             ],
+            'adjusted_rating' => 4.5, // Now stored directly in database
         ]);
 
-        // Only genuine reviews: (5 + 4) / 2 = 4.5
+        // Should read from database
         $this->assertEquals(4.5, $asinData->adjusted_rating);
     }
 
@@ -302,9 +281,10 @@ class AsinDataModelTest extends TestCase
                     1 => 85,  // fake
                 ],
             ]),
+            'fake_percentage' => 50.0, // Now stored directly in database
         ]);
 
-        // 1 fake out of 2 total = 50%
+        // Should read from database
         $this->assertEquals(50.0, $asinData->fake_percentage);
     }
 
