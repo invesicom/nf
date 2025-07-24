@@ -81,6 +81,9 @@ class ScrapeAmazonProductData implements ShouldQueue
                 'product_data_scraped_at' => now(),
             ]);
 
+            // Clear sitemap cache since product data affects SEO URLs and priorities
+            \App\Http\Controllers\SitemapController::clearCache();
+
             LoggingService::log('Successfully scraped and saved Amazon product data', [
                 'asin' => $this->asinData->asin,
                 'title' => $productData['title'] ?? 'N/A',

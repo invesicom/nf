@@ -511,6 +511,9 @@ class ReviewAnalysisService
             'explanation'     => $explanation,
         ]);
 
+        // Clear sitemap cache since we have a new analyzed product
+        \App\Http\Controllers\SitemapController::clearCache();
+
         return [
             'fake_percentage' => round($fakePercentage, 1),
             'amazon_rating'   => round($amazonRating, 2),
