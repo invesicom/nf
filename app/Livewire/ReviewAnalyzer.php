@@ -223,7 +223,7 @@ class ReviewAnalyzer extends Component
         }
     }
 
-    private function resetAnalysisState()
+    public function resetAnalysisState()
     {
         // Reset progress state
         $this->loading = false;
