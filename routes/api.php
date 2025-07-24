@@ -22,10 +22,12 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 // URL expansion for Amazon short URLs
 Route::post('/expand-url', [App\Http\Controllers\UrlExpansionController::class, 'expandUrl']);
 
-// Async analysis endpoints
-Route::prefix('analysis')->name('api.analysis.')->group(function () {
-    Route::post('/start', [AnalysisController::class, 'startAnalysis'])->name('start');
-    Route::get('/progress/{sessionId}', [AnalysisController::class, 'getProgress'])->name('progress');
-    Route::delete('/cancel/{sessionId}', [AnalysisController::class, 'cancelAnalysis'])->name('cancel');
-    Route::post('/cleanup', [AnalysisController::class, 'cleanup'])->name('cleanup');
-});
+// Async analysis endpoints - require session and CSRF protection
+Route::prefix('analysis')->name('api.analysis.')
+    ->middleware(['web']) // Use web middleware for session support
+    ->group(function () {
+        Route::post('/start', [AnalysisController::class, 'startAnalysis'])->name('start');
+        Route::get('/progress/{sessionId}', [AnalysisController::class, 'getProgress'])->name('progress');
+        Route::delete('/cancel/{sessionId}', [AnalysisController::class, 'cancelAnalysis'])->name('cancel');
+        Route::post('/cleanup', [AnalysisController::class, 'cleanup'])->name('cleanup');
+    });
