@@ -80,13 +80,55 @@ class ReviewAnalyzer extends Component
 
     public function analyze()
     {
-        LoggingService::log('=== LIVEWIRE ANALYZE METHOD STARTED ===');
-        LoggingService::log('Product URL value: ' . ($this->productUrl ?? 'NULL'));
-        LoggingService::log('Product URL length: ' . strlen($this->productUrl ?? ''));
+        LoggingService::log('=== LIVEWIRE ANALYZE METHOD STARTED (ASYNC MODE) ===');
+        
+        // For backward compatibility, detect if we should use async mode
+        $useAsyncMode = config('analysis.async_enabled', true);
+        
+        if ($useAsyncMode) {
+            $this->analyzeAsync();
+        } else {
+            $this->analyzeSynchronous();
+        }
+    }
 
+    /**
+     * New async analysis method
+     */
+    private function analyzeAsync()
+    {
         try {
-            // Loading state and progress are already initialized by initializeProgress()
-            // Just clear previous results
+            // Validate input first
+            $this->validate([
+                'productUrl' => 'required|url',
+            ]);
+
+            // Trigger JavaScript-based async analysis
+            $this->dispatch('startAsyncAnalysis', [
+                'productUrl' => $this->productUrl,
+                'captchaData' => [
+                    'g_recaptcha_response' => $this->g_recaptcha_response,
+                    'h_captcha_response' => $this->h_captcha_response,
+                ]
+            ]);
+
+        } catch (ValidationException $e) {
+            LoggingService::log('Validation error in async analyze method: ' . $e->getMessage());
+            $errors = $e->errors();
+            $this->error = !empty($errors) ? reset($errors)[0] : $e->getMessage();
+            $this->resetAnalysisState();
+        }
+    }
+
+    /**
+     * Original synchronous analysis method (fallback)
+     */
+    private function analyzeSynchronous()
+    {
+        LoggingService::log('Using synchronous analysis mode');
+        
+        try {
+            // Original sync logic remains unchanged for compatibility
             $this->result = null;
             $this->error = null;
             $this->amazon_rating = null;
@@ -102,23 +144,16 @@ class ReviewAnalyzer extends Component
             $this->adjusted_rating = 0.00;
             $this->isAnalyzed = false;
 
-            // Ensure productUrl is not empty before validation
             if (empty($this->productUrl)) {
-                LoggingService::log('Product URL is empty before validation, attempting to get from input');
-                // Try to get the value from the form if it exists
                 $this->productUrl = request()->input('productUrl', $this->productUrl);
             }
             
-            LoggingService::log('Final product URL before validation: ' . ($this->productUrl ?: 'EMPTY'));
-            
-            // Validate input
             $this->validate([
                 'productUrl' => 'required|url',
             ]);
 
             // Captcha validation (if not local)
             if (!app()->environment(['local', 'testing'])) {
-                // Skip captcha validation if already passed in this session
                 if (!$this->captcha_passed) {
                     $captchaService = app(CaptchaService::class);
                     $provider = $captchaService->getProvider();
@@ -127,13 +162,11 @@ class ReviewAnalyzer extends Component
                         if (!$captchaService->verify($this->g_recaptcha_response)) {
                             throw new \Exception('Captcha verification failed. Please try again.');
                         }
-                        // Mark captcha as passed for this session
                         $this->captcha_passed = true;
                     } elseif ($provider === 'hcaptcha' && !empty($this->h_captcha_response)) {
                         if (!$captchaService->verify($this->h_captcha_response)) {
                             throw new \Exception('Captcha verification failed. Please try again.');
                         }
-                        // Mark captcha as passed for this session
                         $this->captcha_passed = true;
                     } else {
                         throw new \Exception('Captcha verification failed. Please try again.');
@@ -143,10 +176,8 @@ class ReviewAnalyzer extends Component
 
             $analysisService = app(ReviewAnalysisService::class);
             $productInfo = $analysisService->checkProductExists($this->productUrl);
-
             $asinData = $productInfo['asin_data'];
 
-            // Gather reviews if needed
             if ($productInfo['needs_fetching']) {
                 $asinData = $analysisService->fetchReviews(
                     $productInfo['asin'],
@@ -155,55 +186,38 @@ class ReviewAnalyzer extends Component
                 );
             }
 
-            // Analyze with OpenAI if needed
             if ($productInfo['needs_openai']) {
                 $asinData = $analysisService->analyzeWithOpenAI($asinData);
             }
 
-            // Calculate final metrics and set results
             $analysisResult = $analysisService->calculateFinalMetrics($asinData);
             $this->setResults($analysisResult);
 
-            // Check if we should redirect to shareable URL
             if ($asinData->have_product_data) {
-                LoggingService::log('Product has product data, redirecting to shareable URL', [
-                    'asin' => $asinData->asin,
-                    'have_product_data' => $asinData->have_product_data,
-                    'slug' => $asinData->slug,
-                ]);
-                
-                // Redirect to the SEO-friendly URL if slug is available
                 if ($asinData->slug) {
                     return $this->redirect(route('amazon.product.show.slug', [
                         'asin' => $asinData->asin,
                         'slug' => $asinData->slug
                     ]));
                 } else {
-                    // Fallback to basic URL if no slug
                     return $this->redirect(route('amazon.product.show', ['asin' => $asinData->asin]));
                 }
             }
 
-            // Set final state
             $this->isAnalyzed = true;
 
-            LoggingService::log('=== LIVEWIRE ANALYZE METHOD COMPLETED SUCCESSFULLY ===');
         } catch (ValidationException $e) {
-            // Preserve validation errors as-is since they're already user-friendly
-            LoggingService::log('Validation error in analyze method: ' . $e->getMessage());
-            // Get the first validation error message
+            LoggingService::log('Validation error in sync analyze method: ' . $e->getMessage());
             $errors = $e->errors();
             $this->error = !empty($errors) ? reset($errors)[0] : $e->getMessage();
             $this->resetAnalysisState();
         } catch (\Exception $e) {
-            // Check if this is a CAPTCHA error and preserve the message
             if (str_contains($e->getMessage(), 'Captcha') || str_contains($e->getMessage(), 'captcha')) {
-                LoggingService::log('CAPTCHA error in analyze method: ' . $e->getMessage());
                 $this->error = $e->getMessage();
                 $this->resetAnalysisState();
                 return;
             }
-            LoggingService::log('Exception in analyze method: '.$e->getMessage());
+            LoggingService::log('Exception in sync analyze method: '.$e->getMessage());
             $this->error = LoggingService::handleException($e);
             $this->resetAnalysisState();
         }
@@ -330,5 +344,28 @@ class ReviewAnalyzer extends Component
     {
         $this->productUrl = $url;
         LoggingService::log('Product URL set via JavaScript: ' . $url);
+    }
+
+    /**
+     * Handle async analysis results
+     */
+    public function setAsyncResults($result)
+    {
+        LoggingService::log('Setting async analysis results', [
+            'has_result' => !empty($result),
+            'has_asin_data' => !empty($result['asin_data']),
+        ]);
+
+        if (empty($result) || empty($result['analysis_result'])) {
+            $this->error = 'Invalid analysis result received';
+            return;
+        }
+
+        // Set results from async analysis
+        $this->setResults($result['analysis_result']);
+        $this->isAnalyzed = true;
+        $this->loading = false;
+
+        LoggingService::log('Async analysis results set successfully');
     }
 }

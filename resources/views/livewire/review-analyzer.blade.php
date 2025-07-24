@@ -216,6 +216,11 @@
 
 {{-- Analysis progress tracking JavaScript --}}
 <script>
+// Global variables for async analysis
+let currentSessionId = null;
+let progressPollingInterval = null;
+let isAsyncMode = {{ config('analysis.async_enabled') ? 'true' : 'false' }};
+
 function showAnalysisProgress() {
     const progressBar = document.getElementById('progress-bar');
     const progressStatus = document.getElementById('progress-status');
@@ -231,35 +236,179 @@ function showAnalysisProgress() {
         resultsSection.style.display = 'none';
     }
     
-    const steps = [
-        { percent: 12, message: 'Validating product URL...', delay: 2000 },
-        { percent: 25, message: 'Authenticating request...', delay: 3000 },
-        { percent: 38, message: 'Accessing product database...', delay: 4000 },
-        { percent: 52, message: 'Gathering review information...', delay: 18000 }, // Longest step - actual data extraction
-        { percent: 70, message: 'Processing reviews with AI...', delay: 25000 }, // AI analysis phase
-        { percent: 85, message: 'Computing authenticity metrics...', delay: 6000 },
-        { percent: 95, message: 'Generating final report...', delay: 4000 },
-        { percent: 100, message: 'Analysis complete!', delay: 2000 }
-    ];
-    
-    let currentStep = 0;
-    let totalTime = 0;
-    
-    function updateProgress() {
-        if (currentStep < steps.length) {
-            const step = steps[currentStep];
-            progressBar.style.width = step.percent + '%';
-            progressStatus.textContent = step.message;
-            
-            totalTime += step.delay;
-            currentStep++;
-            
-            setTimeout(updateProgress, step.delay);
+    if (isAsyncMode) {
+        // Reset progress for async mode - real progress will come from polling
+        progressBar.style.width = '0%';
+        progressStatus.textContent = 'Starting analysis...';
+    } else {
+        // Use original simulated progress for sync mode
+        const steps = [
+            { percent: 12, message: 'Validating product URL...', delay: 2000 },
+            { percent: 25, message: 'Authenticating request...', delay: 3000 },
+            { percent: 38, message: 'Accessing product database...', delay: 4000 },
+            { percent: 52, message: 'Gathering review information...', delay: 18000 },
+            { percent: 70, message: 'Processing reviews with AI...', delay: 25000 },
+            { percent: 85, message: 'Computing authenticity metrics...', delay: 6000 },
+            { percent: 95, message: 'Generating final report...', delay: 4000 },
+            { percent: 100, message: 'Analysis complete!', delay: 2000 }
+        ];
+        
+        let currentStep = 0;
+        
+        function updateProgress() {
+            if (currentStep < steps.length) {
+                const step = steps[currentStep];
+                progressBar.style.width = step.percent + '%';
+                progressStatus.textContent = step.message;
+                currentStep++;
+                setTimeout(updateProgress, step.delay);
+            }
         }
+        
+        setTimeout(updateProgress, 500);
+    }
+}
+
+// Async analysis functions
+async function startAsyncAnalysis(productUrl, captchaData) {
+    console.log('Starting async analysis for:', productUrl);
+    
+    try {
+        const response = await fetch('/api/analysis/start', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                productUrl: productUrl,
+                g_recaptcha_response: captchaData.g_recaptcha_response || '',
+                h_captcha_response: captchaData.h_captcha_response || ''
+            })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+            currentSessionId = data.session_id;
+            console.log('Analysis started, session ID:', currentSessionId);
+            
+            // Start polling for progress
+            startProgressPolling();
+        } else {
+            throw new Error(data.error || 'Failed to start analysis');
+        }
+        
+    } catch (error) {
+        console.error('Error starting async analysis:', error);
+        updateProgressError('Failed to start analysis: ' + error.message);
+    }
+}
+
+function startProgressPolling() {
+    if (!currentSessionId) return;
+    
+    const pollingInterval = {{ config('analysis.polling_interval', 2000) }};
+    
+    progressPollingInterval = setInterval(async () => {
+        try {
+            const response = await fetch(`/api/analysis/progress/${currentSessionId}`, {
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                updateProgressFromServer(data);
+                
+                if (data.status === 'completed') {
+                    handleAnalysisComplete(data);
+                } else if (data.status === 'failed') {
+                    handleAnalysisError(data.error);
+                }
+            } else {
+                throw new Error(data.error || 'Failed to get progress');
+            }
+            
+        } catch (error) {
+            console.error('Error polling progress:', error);
+            handleAnalysisError('Connection error while checking progress');
+        }
+    }, pollingInterval);
+}
+
+function updateProgressFromServer(data) {
+    const progressBar = document.getElementById('progress-bar');
+    const progressStatus = document.getElementById('progress-status');
+    
+    if (progressBar && progressStatus) {
+        progressBar.style.width = data.progress_percentage + '%';
+        progressStatus.textContent = data.current_message;
+        
+        console.log(`Progress: ${data.progress_percentage}% - ${data.current_message}`);
+    }
+}
+
+function handleAnalysisComplete(data) {
+    console.log('Analysis completed:', data);
+    
+    // Stop polling
+    if (progressPollingInterval) {
+        clearInterval(progressPollingInterval);
+        progressPollingInterval = null;
     }
     
-    // Start the progress tracking
-    setTimeout(updateProgress, 500);
+    // Update final progress
+    updateProgressFromServer({
+        progress_percentage: 100,
+        current_message: 'Analysis complete!'
+    });
+    
+    // Handle redirection or show results
+    if (data.redirect_url) {
+        setTimeout(() => {
+            window.location.href = data.redirect_url;
+        }, 1000);
+    } else {
+        // Show results in current component
+        window.Livewire.find('{{ $this->getId() }}').call('setAsyncResults', data.result);
+    }
+    
+    currentSessionId = null;
+}
+
+function handleAnalysisError(errorMessage) {
+    console.error('Analysis failed:', errorMessage);
+    
+    // Stop polling
+    if (progressPollingInterval) {
+        clearInterval(progressPollingInterval);
+        progressPollingInterval = null;
+    }
+    
+    updateProgressError(errorMessage);
+    currentSessionId = null;
+}
+
+function updateProgressError(errorMessage) {
+    const progressStatus = document.getElementById('progress-status');
+    const progressBar = document.getElementById('progress-bar');
+    
+    if (progressStatus) {
+        progressStatus.textContent = 'Error: ' + errorMessage;
+        progressStatus.className = 'text-xs text-red-500 mb-2';
+    }
+    
+    if (progressBar) {
+        progressBar.className = 'bg-red-500 h-3 rounded-full transition-all duration-1000 ease-out';
+    }
+    
+    // Also update Livewire component
+    window.Livewire.find('{{ $this->getId() }}').set('error', errorMessage);
+    window.Livewire.find('{{ $this->getId() }}').call('resetAnalysisState');
 }
 
 // Reset progress when page loads
@@ -715,7 +864,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Listen for Livewire event to sync inputs
+    // Listen for Livewire events
     if (typeof Livewire !== 'undefined') {
         Livewire.on('syncInputs', () => {
             const urlInput = document.getElementById('productUrl');
@@ -724,6 +873,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.Livewire.find('{{ $this->getId() }}').call('setProductUrl', urlInput.value);
                 console.log('Synced URL to Livewire:', urlInput.value);
             }
+        });
+
+        // Listen for async analysis start event from Livewire
+        Livewire.on('startAsyncAnalysis', (data) => {
+            console.log('Received startAsyncAnalysis event:', data);
+            startAsyncAnalysis(data[0].productUrl, data[0].captchaData);
         });
     }
 });

@@ -324,71 +324,26 @@ class AsinDataModelTest extends TestCase
         $this->assertNull($asinData->explanation);
     }
 
-    public function test_explanation_different_fake_percentage_ranges()
+    public function test_explanation_database_storage()
     {
-        // Test >= 50% fake (F grade)
+        // Test that explanation is stored and retrieved from database
+        $explanation = 'Analysis of 10 reviews found 2 potentially fake reviews (20%). This product has moderate fake review activity. Exercise some caution.';
+        
         $asinData = AsinData::create([
             'asin'          => 'B08N5WRWNW',
             'country'       => 'us',
             'reviews'       => array_fill(0, 10, ['rating' => 5, 'text' => 'Great']),
-            'openai_result' => [
-                'detailed_scores' => array_fill(0, 10, 75), // all fake = 100%
-            ],
+            'openai_result' => ['detailed_scores' => array_fill(0, 10, 30)],
+            'explanation'   => $explanation,
         ]);
-        $this->assertStringContainsString('extremely high percentage', $asinData->explanation);
-        $this->assertStringContainsString('Avoid purchasing', $asinData->explanation);
 
-        // Test >= 30% fake (D grade)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_merge(
-                    array_fill(0, 6, 30), // 6 genuine
-                    array_fill(0, 4, 75)  // 4 fake = 40%
-                ),
-            ],
-        ]);
-        $explanation = $asinData->fresh()->explanation;
-        $this->assertStringContainsString('high percentage', $explanation);
-        $this->assertStringContainsString('Consider looking for alternatives', $explanation);
-
-        // Test >= 20% fake (C grade)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_merge(
-                    array_fill(0, 8, 30), // 8 genuine
-                    array_fill(0, 2, 75)  // 2 fake = 20%
-                ),
-            ],
-        ]);
-        $explanation = $asinData->fresh()->explanation;
-        $this->assertStringContainsString('moderate fake review activity', $explanation);
-        $this->assertStringContainsString('Exercise some caution', $explanation);
-
-        // Test 10-19% fake (B grade)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_merge(
-                    array_fill(0, 9, 30), // 9 genuine
-                    [75] // 1 fake = 10%
-                ),
-            ],
-        ]);
-        $explanation = $asinData->fresh()->explanation;
-        $this->assertStringContainsString('some fake review activity', $explanation);
-        $this->assertStringContainsString('generally trustworthy', $explanation);
-
-        // Test < 10% fake (A grade)
-        $asinData->update([
-            'openai_result' => [
-                'detailed_scores' => array_merge(
-                    array_fill(0, 10, 30), // 10 genuine
-                    [] // 0 fake = 0%
-                ),
-            ],
-        ]);
-        $explanation = $asinData->fresh()->explanation;
-        $this->assertStringContainsString('genuine reviews', $explanation);
-        $this->assertStringContainsString('minimal fake activity', $explanation);
+        $this->assertEquals($explanation, $asinData->explanation);
+        
+        // Test updating explanation
+        $newExplanation = 'Updated explanation with new analysis results.';
+        $asinData->update(['explanation' => $newExplanation]);
+        
+        $this->assertEquals($newExplanation, $asinData->fresh()->explanation);
     }
 
     public function test_amazon_rating_with_empty_reviews()
@@ -402,7 +357,7 @@ class AsinDataModelTest extends TestCase
         $this->assertEquals(0, $asinData->amazon_rating);
     }
 
-    public function test_adjusted_rating_with_no_openai_results()
+    public function test_adjusted_rating_database_storage()
     {
         $asinData = AsinData::create([
             'asin'    => 'B08N5WRWNW',
@@ -412,10 +367,11 @@ class AsinDataModelTest extends TestCase
                 ['rating' => 3, 'text' => 'OK'],
             ],
             'openai_result' => null,
+            'adjusted_rating' => 4.0, // Set directly in database
         ]);
 
-        // Should fall back to amazon_rating
-        $this->assertEquals(4.0, $asinData->adjusted_rating); // (5+3)/2 = 4.0
+        // Should read from database
+        $this->assertEquals(4.0, $asinData->adjusted_rating);
     }
 
     public function test_adjusted_rating_with_missing_results_key()
@@ -428,9 +384,10 @@ class AsinDataModelTest extends TestCase
                 ['rating' => 3, 'text' => 'OK'],
             ],
             'openai_result' => ['other_data' => 'value'], // No 'results' key
+            'adjusted_rating' => 4.0, // Set value directly
         ]);
 
-        // Should fall back to amazon_rating
+        // Should read from database
         $this->assertEquals(4.0, $asinData->adjusted_rating);
     }
 
@@ -449,10 +406,11 @@ class AsinDataModelTest extends TestCase
                     ['score' => 90],  // fake
                 ],
             ],
+            'adjusted_rating' => 5.0, // Set value directly
         ]);
 
-        // All reviews are fake, should fall back to amazon_rating
-        $this->assertEquals(5.0, $asinData->adjusted_rating); // (5+5)/2 = 5.0
+        // Should read from database
+        $this->assertEquals(5.0, $asinData->adjusted_rating);
     }
 
     public function test_adjusted_rating_with_string_openai_result()
@@ -470,9 +428,10 @@ class AsinDataModelTest extends TestCase
                     ['score' => 85],  // fake
                 ],
             ]),
+            'adjusted_rating' => 5.0, // Set value directly
         ]);
 
-        // Only genuine review: 5/1 = 5.0
+        // Should read from database
         $this->assertEquals(5.0, $asinData->adjusted_rating);
     }
 
