@@ -14,8 +14,8 @@
   <meta name="googlebot" content="index, follow" />
   <meta name="bingbot" content="index, follow" />
   
-  <link rel="canonical" href="https://nullfake.com/" />
-  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  <link rel="canonical" href="{{ url('/') }}" />
+  <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}" />
 
   <!-- Favicon and App Icons -->
   <link rel="apple-touch-icon" sizes="57x57" href="/img/apple-icon-57x57.png">
@@ -38,14 +38,14 @@
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://nullfake.com/" />
+  <meta property="og:url" content="{{ url('/') }}" />
   <meta property="og:title" content="Null Fake - Amazon Review Analysis" />
   <meta property="og:description" content="AI-powered Amazon review analyzer. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product." />
-  <meta property="og:image" content="/img/nullfake.png" />
+  <meta property="og:image" content="{{ url('/img/nullfake.png') }}" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:url" content="https://nullfake.com/" />
+  <meta name="twitter:url" content="{{ url('/') }}" />
   <meta name="twitter:title" content="Null Fake - Amazon Review Analysis" />
   <meta name="twitter:description" content="AI-powered Amazon review analyzer. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product." />
   <meta name="twitter:image" content="/img/nullfake.png" />
@@ -56,7 +56,7 @@
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "Null Fake - Amazon Review Analysis",
-    "url": "https://nullfake.com/",
+    "url": "{{ url('/') }}",
     "description": "Null Fake is an AI-powered tool that analyzes Amazon product reviews for authenticity. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product.",
     "applicationCategory": "ProductivityApplication",
     "operatingSystem": "All",
@@ -65,7 +65,7 @@
       "price": "0",
       "priceCurrency": "USD"
     },
-    "image": "https://nullfake.com/img/nullfake.png",
+    "image": "{{ url('/img/nullfake.png') }}",
     "author": {
       "@type": "Organization",
       "name": "shift8 web",

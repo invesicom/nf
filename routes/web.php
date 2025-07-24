@@ -39,6 +39,21 @@ Route::get('/sitemap-products-{page}.xml', [SitemapController::class, 'products'
     ->name('sitemap.products')
     ->where('page', '[0-9]+');
 
+// Dynamic robots.txt
+Route::get('/robots.txt', function () {
+    $robotsTxt = "User-agent: *\nAllow: /\n\n";
+    $robotsTxt .= "# Allow all search engines to crawl everything\n";
+    $robotsTxt .= "# No restrictions or disallowed paths\n\n";
+    $robotsTxt .= "# Dynamic sitemap with all analyzed products\n";
+    $robotsTxt .= "Sitemap: " . url('/sitemap.xml') . "\n\n";
+    $robotsTxt .= "# Additional sitemap information\n";
+    $robotsTxt .= "# - Main sitemap includes homepage, static pages, and recent products\n";
+    $robotsTxt .= "# - Additional product sitemaps are generated automatically as needed\n";
+    $robotsTxt .= "# - All analyzed Amazon products are included for better discoverability\n";
+    
+    return response($robotsTxt, 200, ['Content-Type' => 'text/plain']);
+})->name('robots');
+
 // Amazon product shareable routes
 Route::get('/amazon/{asin}', [AmazonProductController::class, 'show'])
     ->name('amazon.product.show')

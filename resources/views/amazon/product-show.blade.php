@@ -21,6 +21,7 @@
   <meta name="googlebot" content="index, follow" />
   
   <link rel="canonical" href="{{ url($canonical_url) }}" />
+  <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}" />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="product" />
