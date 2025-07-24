@@ -11,7 +11,7 @@ return [
     | requires queue workers to be running.
     |
     */
-    'async_enabled' => env('ANALYSIS_ASYNC_ENABLED', false),
+    'async_enabled' => env('ANALYSIS_ASYNC_ENABLED', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------
