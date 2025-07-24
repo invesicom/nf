@@ -60,7 +60,7 @@ class AnalysisController extends Controller
                 'asin' => $asin,
                 'product_url' => $productUrl,
                 'status' => 'pending',
-                'total_steps' => 7,
+                'total_steps' => 8,
                 'current_message' => 'Queued for analysis...',
             ]);
 

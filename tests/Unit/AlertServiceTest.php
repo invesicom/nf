@@ -35,7 +35,7 @@ class AlertServiceTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[\PHPUnit\Framework\Attributes\Test]
     public function it_handles_amazon_session_expired_alert()
     {
         // Test passes if no exception is thrown

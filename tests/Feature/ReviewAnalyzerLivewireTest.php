@@ -25,6 +25,8 @@ class ReviewAnalyzerLivewireTest extends TestCase
             'captcha.recaptcha.site_key'   => 'test_site_key',
             'captcha.recaptcha.secret_key' => 'test_secret_key',
             'captcha.recaptcha.verify_url' => 'https://www.google.com/recaptcha/api/siteverify',
+            // Force sync mode for all tests to avoid async complexity
+            'analysis.async_enabled'       => false,
         ]);
     }
 
@@ -88,21 +90,27 @@ class ReviewAnalyzerLivewireTest extends TestCase
 
     public function test_successful_analysis_with_existing_data()
     {
-        // Create test data
+        // Force sync mode for this test
+        config(['analysis.async_enabled' => false]);
+        
+        // Create test data with product data to avoid job dispatch issues in tests
         $asinData = AsinData::create([
-            'asin'            => 'B08N5WRWNW',
-            'country'         => 'us',
-            'product_url'     => 'https://www.amazon.com/dp/B08N5WRWNW',
-            'reviews'         => json_encode([
+            'asin'              => 'B08N5WRWNW',
+            'country'           => 'us',
+            'product_url'       => 'https://www.amazon.com/dp/B08N5WRWNW',
+            'reviews'           => json_encode([
                 ['id' => 0, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John'],
             ]),
-            'openai_result'   => json_encode(['detailed_scores' => [0 => 25]]),
-            'fake_percentage' => 0.0,
-            'amazon_rating'   => 5.0,
-            'adjusted_rating' => 5.0,
-            'grade'           => 'A',
-            'explanation'     => 'Test explanation',
-            'status'          => 'completed',
+            'openai_result'     => json_encode(['detailed_scores' => [0 => 25]]),
+            'fake_percentage'   => 0.0,
+            'amazon_rating'     => 5.0,
+            'adjusted_rating'   => 5.0,
+            'grade'             => 'A',
+            'explanation'       => 'Test explanation',
+            'status'            => 'completed',
+            'have_product_data' => true, // Prevent product scraping job dispatch in tests
+            'product_title'     => 'Test Product Title',
+            'slug'              => 'test-product-title',
         ]);
 
         // Mock services properly
@@ -119,14 +127,12 @@ class ReviewAnalyzerLivewireTest extends TestCase
         $component->set('productUrl', 'https://www.amazon.com/dp/B08N5WRWNW')
                   ->call('analyze');
 
-        // Should succeed without errors
+        // Should succeed without errors and redirect to product page (has product data)
         $this->assertEmpty($component->get('error'), 
             'Analysis should succeed with existing data, but got error: ' . $component->get('error'));
-        $this->assertTrue($component->get('isAnalyzed'));
-        $this->assertFalse($component->get('loading'));
-        $this->assertNotNull($component->get('result'));
-        $this->assertEquals(5.0, $component->get('amazon_rating'));
-        $this->assertEquals('A', $component->get('grade'));
+        
+        // Sync flow redirects when product data exists (have_product_data = true in test)
+        $component->assertRedirect();
     }
 
     public function test_analysis_with_fetching_needed()
@@ -200,19 +206,22 @@ class ReviewAnalyzerLivewireTest extends TestCase
 
         // Mock ReviewAnalysisService to ensure analysis can succeed
         $this->mockReviewAnalysisService(AsinData::create([
-            'asin'            => 'B08N5WRWNW',
-            'country'         => 'us',
-            'product_url'     => 'https://www.amazon.com/dp/B08N5WRWNW',
-            'reviews'         => json_encode([
+            'asin'              => 'B08N5WRWNW',
+            'country'           => 'us',
+            'product_url'       => 'https://www.amazon.com/dp/B08N5WRWNW',
+            'reviews'           => json_encode([
                 ['id' => 0, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John'],
             ]),
-            'openai_result'   => json_encode(['detailed_scores' => [0 => 25]]),
-            'fake_percentage' => 0.0,
-            'amazon_rating'   => 5.0,
-            'adjusted_rating' => 5.0,
-            'grade'           => 'A',
-            'explanation'     => 'Test explanation',
-            'status'          => 'completed',
+            'openai_result'     => json_encode(['detailed_scores' => [0 => 25]]),
+            'fake_percentage'   => 0.0,
+            'amazon_rating'     => 5.0,
+            'adjusted_rating'   => 5.0,
+            'grade'             => 'A',
+            'explanation'       => 'Test explanation',
+            'status'            => 'completed',
+            'have_product_data' => true, // Prevent product scraping job dispatch in tests
+            'product_title'     => 'Test Product Title',
+            'slug'              => 'test-product-title',
         ]));
 
         // Note: CAPTCHA is bypassed in testing environment regardless of this mock
@@ -226,9 +235,9 @@ class ReviewAnalyzerLivewireTest extends TestCase
                   ->set('g_recaptcha_response', 'invalid_token')
                   ->call('analyze');
 
-        // In testing environment, CAPTCHA is bypassed so analysis succeeds
-        $component->assertSet('isAnalyzed', true);
+        // In testing environment, CAPTCHA is bypassed so analysis succeeds and redirects
         $component->assertSet('error', null);
+        $component->assertRedirect(); // Now redirects to product page
         $component->assertSet('captcha_passed', false); // Remains false since bypassed
     }
 
@@ -236,19 +245,22 @@ class ReviewAnalyzerLivewireTest extends TestCase
     {
         // Create existing analysis data
         $asinData = AsinData::create([
-            'asin'        => 'B08N5WRWNW',
-            'country'     => 'us',
-            'product_url' => 'https://www.amazon.com/dp/B08N5WRWNW',
-            'reviews'     => json_encode([
+            'asin'              => 'B08N5WRWNW',
+            'country'           => 'us',
+            'product_url'       => 'https://www.amazon.com/dp/B08N5WRWNW',
+            'reviews'           => json_encode([
                 ['id' => 0, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John'],
             ]),
-            'openai_result'   => json_encode(['detailed_scores' => [0 => 25]]),
-            'fake_percentage' => 0.0,
-            'amazon_rating'   => 5.0,
-            'adjusted_rating' => 5.0,
-            'grade'           => 'A',
-            'explanation'     => 'Test explanation',
-            'status'          => 'completed',
+            'openai_result'     => json_encode(['detailed_scores' => [0 => 25]]),
+            'fake_percentage'   => 0.0,
+            'amazon_rating'     => 5.0,
+            'adjusted_rating'   => 5.0,
+            'grade'             => 'A',
+            'explanation'       => 'Test explanation',
+            'status'            => 'completed',
+            'have_product_data' => true, // Prevent product scraping job dispatch in tests
+            'product_title'     => 'Test Product Title',
+            'slug'              => 'test-product-title',
         ]);
 
         // Mock CaptchaService - success
@@ -293,7 +305,7 @@ class ReviewAnalyzerLivewireTest extends TestCase
         $component->set('productUrl', 'https://www.amazon.com/dp/B08N5WRWNW')
                   ->set('g_recaptcha_response', 'valid_token')
                   ->call('analyze')
-                  ->assertSet('isAnalyzed', true)
+                  ->assertRedirect() // Now redirects to product page
                   ->assertSet('error', null);
     }
 

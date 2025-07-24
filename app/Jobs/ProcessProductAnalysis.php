@@ -80,22 +80,46 @@ class ProcessProductAnalysis implements ShouldQueue
             $session->updateProgress(5, 85, 'Computing authenticity metrics...');
             $analysisResult = $analysisService->calculateFinalMetrics($asinData);
 
-            // Step 6: Queue product data scraping if needed (async)
+            // Step 6: Execute product data scraping as part of analysis flow (user waits for complete result)
             if (!$asinData->have_product_data) {
-                ScrapeAmazonProductData::dispatch($asinData)->onQueue('product-scraping');
+                $session->updateProgress(6, 92, 'Fetching product information...');
+                
+                // Execute product scraping synchronously as part of the analysis process
+                $scrapeJob = new ScrapeAmazonProductData($asinData);
+                $scrapeJob->handle();
+                
+                // Refresh the model to get updated product data
+                $asinData = $asinData->fresh();
+                
+                LoggingService::log('Product scraping completed as part of analysis', [
+                    'asin' => $asinData->asin,
+                    'session_id' => $this->sessionId,
+                    'have_product_data' => $asinData->have_product_data,
+                ]);
+            } else {
+                // Skip product data step if already available
+                $session->updateProgress(6, 92, 'Product information already available...');
             }
 
-            // Step 7: Complete
-            $session->updateProgress(6, 95, 'Generating final report...');
+            // Step 7: Complete analysis with full product data available
+            $session->updateProgress(7, 98, 'Generating final report...');
             
             // Prepare final result
+            $redirectUrl = $this->determineRedirectUrl($asinData);
+            
+            LoggingService::log('Async analysis completed successfully', [
+                'asin' => $asinData->asin,
+                'redirect_url' => $redirectUrl,
+            ]);
+            
             $finalResult = [
                 'success' => true,
                 'asin_data' => $asinData->fresh(),
                 'analysis_result' => $analysisResult,
-                'redirect_url' => $this->determineRedirectUrl($asinData),
+                'redirect_url' => $redirectUrl,
             ];
 
+            // Step 8: Mark as completed (100%)
             $session->markAsCompleted($finalResult);
             
             LoggingService::log('Async product analysis completed successfully', [
@@ -132,10 +156,9 @@ class ProcessProductAnalysis implements ShouldQueue
 
     private function determineRedirectUrl(AsinData $asinData): ?string
     {
-        if (!$asinData->have_product_data) {
-            return null;
-        }
-
+        // Async mode: Always redirect to product page since we wait for complete analysis + product data
+        // By this point, product scraping has completed as part of the analysis flow
+        
         if ($asinData->slug) {
             return route('amazon.product.show.slug', [
                 'asin' => $asinData->asin,

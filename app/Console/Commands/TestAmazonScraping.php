@@ -12,7 +12,7 @@ class TestAmazonScraping extends Command
     
     protected $description = 'Test Amazon scraping service with a specific ASIN';
 
-    public function handle()
+    public function handle(AmazonScrapingService $scrapingService)
     {
         $asin = $this->argument('asin');
         $reviewsOnly = $this->option('reviews-only');
@@ -22,8 +22,6 @@ class TestAmazonScraping extends Command
         $this->newLine();
         
         try {
-            $scrapingService = new AmazonScrapingService();
-            
             if ($reviewsOnly) {
                 $this->testReviewsOnly($scrapingService, $asin);
             } elseif ($fullAnalysis) {

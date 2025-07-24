@@ -64,7 +64,8 @@ return [
         'fetch_reviews' => ['weight' => 52, 'message' => 'Gathering review information...'],
         'openai_analysis' => ['weight' => 70, 'message' => 'Analyzing reviews with AI...'],
         'calculate_metrics' => ['weight' => 85, 'message' => 'Computing authenticity metrics...'],
-        'finalize' => ['weight' => 95, 'message' => 'Generating final report...'],
+        'fetch_product_data' => ['weight' => 92, 'message' => 'Fetching product information...'],
+        'finalize' => ['weight' => 98, 'message' => 'Generating final report...'],
         'complete' => ['weight' => 100, 'message' => 'Analysis complete!'],
     ],
 ]; 

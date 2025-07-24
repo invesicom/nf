@@ -25,6 +25,8 @@ class CaptchaSessionPersistenceTest extends TestCase
             'captcha.recaptcha.site_key'   => 'test_site_key',
             'captcha.recaptcha.secret_key' => 'test_secret_key',
             'captcha.recaptcha.verify_url' => 'https://www.google.com/recaptcha/api/siteverify',
+            // Force sync mode for this test to test immediate analysis completion
+            'analysis.async_enabled'       => false,
         ]);
 
         // Create existing analysis data to avoid actual API calls

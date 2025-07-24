@@ -14,8 +14,12 @@ class DebugAmazonScraping extends Command
     
     protected $description = 'Debug Amazon scraping with detailed output and HTML inspection';
 
-    public function handle()
+    private $scrapingService;
+
+    public function handle(AmazonScrapingService $scrapingService)
     {
+        $this->scrapingService = $scrapingService;
+        
         $asin = $this->argument('asin');
         $saveHtml = $this->option('save-html');
         $urlTest = $this->option('url-test');
@@ -93,7 +97,7 @@ class DebugAmazonScraping extends Command
     
     private function debugFullScraping($asin, $saveHtml)
     {
-        $service = new AmazonScrapingService();
+        $service = $this->scrapingService;
         
         $this->info("Step 1: Testing product page scraping...");
         

@@ -49,7 +49,8 @@ class ReviewAnalyzer extends Component
         4 => 'Gathering review information...',
         5 => 'Analyzing reviews with AI...',
         6 => 'Calculating final metrics...',
-        7 => 'Finalizing results...',
+        7 => 'Fetching product information...',
+        8 => 'Finalizing results...',
     ];
     public $progressPercentage = 0;
     public $totalReviewsFound = 0;
@@ -103,6 +104,10 @@ class ReviewAnalyzer extends Component
                 'productUrl' => 'required|url',
             ]);
 
+            // Set loading state for UI consistency
+            $this->loading = true;
+            $this->initializeProgress();
+
             // Trigger JavaScript-based async analysis
             $this->dispatch('startAsyncAnalysis', [
                 'productUrl' => $this->productUrl,
@@ -128,6 +133,10 @@ class ReviewAnalyzer extends Component
         LoggingService::log('Using synchronous analysis mode');
         
         try {
+            // Set loading state for UI consistency
+            $this->loading = true;
+            $this->initializeProgress();
+            
             // Original sync logic remains unchanged for compatibility
             $this->result = null;
             $this->error = null;
@@ -193,6 +202,7 @@ class ReviewAnalyzer extends Component
             $analysisResult = $analysisService->calculateFinalMetrics($asinData);
             $this->setResults($analysisResult);
 
+            // Sync mode: Use original behavior - redirect if product data exists, otherwise show in-place
             if ($asinData->have_product_data) {
                 if ($asinData->slug) {
                     return $this->redirect(route('amazon.product.show.slug', [
@@ -205,6 +215,7 @@ class ReviewAnalyzer extends Component
             }
 
             $this->isAnalyzed = true;
+            $this->loading = false; // Analysis completed successfully
 
         } catch (ValidationException $e) {
             LoggingService::log('Validation error in sync analyze method: ' . $e->getMessage());
@@ -344,6 +355,100 @@ class ReviewAnalyzer extends Component
     {
         $this->productUrl = $url;
         LoggingService::log('Product URL set via JavaScript: ' . $url);
+    }
+
+    /**
+     * Called when async analysis starts polling - keeps loading state but hands over to JS progress
+     */
+    public function startAsyncPolling()
+    {
+        // Keep loading = true so UI shows progress, but let JS handle the actual progress updates
+        $this->loading = true;
+        $this->progressPercentage = 0;
+        $this->currentlyProcessing = 'Starting analysis...';
+        
+        LoggingService::log('Async polling started - UI will show progress bar');
+    }
+
+    /**
+     * Start simulated progress for sync mode (called by JavaScript)
+     */
+    public function startSyncProgress()
+    {
+        LoggingService::log('Starting simulated progress for sync mode');
+        
+        // Dispatch JavaScript event to start the progress simulation
+        $this->dispatch('startSyncProgressSimulation');
+    }
+
+    /**
+     * Update progress from sync simulation or async polling (called by JavaScript)
+     */
+    public function updateProgress($data)
+    {
+        $this->progressPercentage = $data['progress'] ?? 0;
+        $this->currentlyProcessing = $data['message'] ?? 'Processing...';
+        $this->progressStep = $data['step'] ?? 0;
+        $this->loading = true;
+        
+        LoggingService::log("Progress update: {$this->progressPercentage}% - {$this->currentlyProcessing}");
+    }
+
+    /**
+     * Update progress from async polling (called by JavaScript)
+     */
+    public function updateAsyncProgress($data)
+    {
+        // Just call the general updateProgress method
+        $this->updateProgress($data);
+        LoggingService::log("Async progress update: {$this->progressPercentage}% - {$this->currentlyProcessing}");
+    }
+
+    /**
+     * Handle async analysis completion (called by JavaScript)
+     */
+    public function handleAsyncCompletion($data)
+    {
+        LoggingService::log('Handling async analysis completion');
+        
+        // Set final state
+        $this->loading = false;
+        $this->progressPercentage = 100;
+        $this->currentlyProcessing = 'Analysis complete!';
+        
+        // Handle results the same way as sync mode
+        if (isset($data['redirect_url']) && !empty($data['redirect_url'])) {
+            LoggingService::log('Redirecting to: ' . $data['redirect_url']);
+            // Redirect to results page (same as sync mode)
+            return redirect($data['redirect_url']);
+        } elseif (isset($data['result'])) {
+            // Extract the actual analysis result from the job data structure
+            $jobResult = $data['result'];
+            if (isset($jobResult['analysis_result'])) {
+                $this->setResults($jobResult['analysis_result']);
+                $this->isAnalyzed = true;
+            } else {
+                LoggingService::log('No analysis_result found in job result: ' . json_encode($jobResult));
+                $this->handleAsyncError('Invalid result data structure');
+            }
+        }
+    }
+
+    /**
+     * Handle async analysis error (called by JavaScript)
+     */
+    public function handleAsyncError($errorMessage)
+    {
+        LoggingService::log('Handling async analysis error: ' . $errorMessage);
+        
+        // Reset state first, then set error state
+        $this->resetAnalysisState();
+        
+        // Set error state (same as sync mode)  
+        $this->loading = false;
+        $this->error = $errorMessage;
+        $this->currentlyProcessing = 'Analysis failed';
+        $this->progressPercentage = 0;
     }
 
     /**

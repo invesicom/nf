@@ -96,13 +96,12 @@
             </div>
         @endif
 
-        <button type="button" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
+        <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
                 wire:loading.attr="disabled" 
-                wire:click="startAnalysis"
                 onclick="showAnalysisProgress()"
                 id="analyze-button">
-            <span wire:loading.remove wire:target="startAnalysis">Analyze Reviews</span>
-            <span wire:loading wire:target="startAnalysis">
+                            <span wire:loading.remove wire:target="analyze">Analyze Reviews</span>
+                <span wire:loading wire:target="analyze">
                 Analyzing...
             </span>
         </button>
@@ -111,25 +110,29 @@
 
 
     {{-- Simple Loading indicator that actually works --}}
-    <div wire:loading wire:target="startAnalysis" class="mt-6 bg-white rounded-lg shadow-md p-6 w-full">
+    <div wire:loading wire:target="analyze" class="mt-6 bg-white rounded-lg shadow-md p-6 w-full"></div>
+
+    {{-- Progress bar for both sync and async modes --}}
+    @if($loading)
+    <div class="mt-6 bg-white rounded-lg shadow-md p-6 w-full progress-bar-container">
         <div class="text-center">
             <h3 class="text-lg font-semibold text-gray-800 mb-4">Analyzing Reviews</h3>
             
                          <!-- Animated progress bar -->
              <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
                  <div id="progress-bar" class="bg-blue-500 h-3 rounded-full transition-all duration-1000 ease-out" 
-                      style="width: 0%"></div>
+                      style="width: {{ $progressPercentage }}%"></div>
              </div>
              
              <!-- Progress Status -->
-             <p id="progress-status" class="text-xs text-gray-500 mb-2">Initializing analysis...</p>
+             <p id="progress-status" class="text-xs text-gray-500 mb-2">{{ $currentlyProcessing ?? 'Initializing analysis...' }}</p>
             
                          <p class="text-sm text-gray-600 mb-4">
                  Gathering review information and performing AI analysis...
              </p>
             
             <div class="flex justify-center">
-                <svg class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg id="loading-spinner" class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -140,6 +143,7 @@
             </p>
         </div>
     </div>
+    @endif
 
     {{-- Results section --}}
     @if($result && !$loading)
@@ -237,43 +241,71 @@ function showAnalysisProgress() {
     }
     
     if (isAsyncMode) {
-        // Reset progress for async mode - real progress will come from polling
-        progressBar.style.width = '0%';
-        progressStatus.textContent = 'Starting analysis...';
+        // In async mode, Livewire handles all progress updates
+        // No need to manipulate DOM directly - just ensure we're in async mode
+        console.log('Async mode: Progress will be handled by Livewire polling');
     } else {
-        // Use original simulated progress for sync mode
-        const steps = [
-            { percent: 12, message: 'Validating product URL...', delay: 2000 },
-            { percent: 25, message: 'Authenticating request...', delay: 3000 },
-            { percent: 38, message: 'Accessing product database...', delay: 4000 },
-            { percent: 52, message: 'Gathering review information...', delay: 18000 },
-            { percent: 70, message: 'Processing reviews with AI...', delay: 25000 },
-            { percent: 85, message: 'Computing authenticity metrics...', delay: 6000 },
-            { percent: 95, message: 'Generating final report...', delay: 4000 },
-            { percent: 100, message: 'Analysis complete!', delay: 2000 }
-        ];
-        
-        let currentStep = 0;
-        
-        function updateProgress() {
-            if (currentStep < steps.length) {
-                const step = steps[currentStep];
-                progressBar.style.width = step.percent + '%';
-                progressStatus.textContent = step.message;
-                currentStep++;
-                setTimeout(updateProgress, step.delay);
-            }
+        // Use Livewire-controlled simulated progress for sync mode
+        console.log('Sync mode: Starting simulated progress via Livewire');
+        const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
+        if (livewireComponent) {
+            livewireComponent.call('startSyncProgress');
         }
-        
-        setTimeout(updateProgress, 500);
     }
 }
 
+// Sync progress simulation via Livewire
+window.addEventListener('startSyncProgressSimulation', function() {
+    console.log('Starting sync progress simulation via Livewire');
+    
+    const steps = [
+        { percent: 12, message: 'Validating product URL...', delay: 2000 },
+        { percent: 25, message: 'Authenticating request...', delay: 3000 },
+        { percent: 38, message: 'Accessing product database...', delay: 4000 },
+        { percent: 52, message: 'Gathering review information...', delay: 18000 },
+        { percent: 70, message: 'Processing reviews with AI...', delay: 25000 },
+        { percent: 85, message: 'Computing authenticity metrics...', delay: 6000 },
+        { percent: 95, message: 'Generating final report...', delay: 4000 },
+        { percent: 100, message: 'Analysis complete!', delay: 2000 }
+    ];
+    
+    let currentStep = 0;
+    
+    function updateSyncProgress() {
+        if (currentStep < steps.length) {
+            const step = steps[currentStep];
+            
+            // Update via Livewire instead of direct DOM manipulation
+            const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
+            if (livewireComponent) {
+                livewireComponent.call('updateProgress', {
+                    progress: step.percent,
+                    message: step.message,
+                    step: currentStep + 1
+                });
+            }
+            
+            currentStep++;
+            if (currentStep < steps.length) {
+                setTimeout(updateSyncProgress, step.delay);
+            }
+        }
+    }
+    
+    setTimeout(updateSyncProgress, 500);
+});
+
 // Async analysis functions
 async function startAsyncAnalysis(productUrl, captchaData) {
-    console.log('Starting async analysis for:', productUrl);
+    console.log('=== STARTING ASYNC ANALYSIS ===');
+    console.log('Product URL:', productUrl);
+    console.log('Captcha data:', captchaData);
     
     try {
+        // Notify Livewire that we're starting async polling (keeps progress bar visible)
+        window.Livewire.find('{{ $this->getId() }}').call('startAsyncPolling');
+        
+        console.log('Making API call to /api/analysis/start...');
         const response = await fetch('/api/analysis/start', {
             method: 'POST',
             headers: {
@@ -341,12 +373,14 @@ function startProgressPolling() {
 }
 
 function updateProgressFromServer(data) {
-    const progressBar = document.getElementById('progress-bar');
-    const progressStatus = document.getElementById('progress-status');
-    
-    if (progressBar && progressStatus) {
-        progressBar.style.width = data.progress_percentage + '%';
-        progressStatus.textContent = data.current_message;
+    // Update Livewire component state instead of direct DOM manipulation
+    const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
+    if (livewireComponent) {
+        livewireComponent.call('updateAsyncProgress', {
+            progress: data.progress_percentage,
+            message: data.current_message,
+            step: data.current_step || 0
+        });
         
         console.log(`Progress: ${data.progress_percentage}% - ${data.current_message}`);
     }
@@ -361,20 +395,17 @@ function handleAnalysisComplete(data) {
         progressPollingInterval = null;
     }
     
-    // Update final progress
+    // Update final progress through Livewire
     updateProgressFromServer({
         progress_percentage: 100,
-        current_message: 'Analysis complete!'
+        current_message: 'Analysis complete!',
+        current_step: 8
     });
     
-    // Handle redirection or show results
-    if (data.redirect_url) {
-        setTimeout(() => {
-            window.location.href = data.redirect_url;
-        }, 1000);
-    } else {
-        // Show results in current component
-        window.Livewire.find('{{ $this->getId() }}').call('setAsyncResults', data.result);
+    // Let Livewire handle completion (results or redirection)
+    const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
+    if (livewireComponent) {
+        livewireComponent.call('handleAsyncCompletion', data);
     }
     
     currentSessionId = null;
@@ -389,27 +420,16 @@ function handleAnalysisError(errorMessage) {
         progressPollingInterval = null;
     }
     
-    updateProgressError(errorMessage);
+    // Update Livewire component with error
+    const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
+    if (livewireComponent) {
+        livewireComponent.call('handleAsyncError', errorMessage);
+    }
+    
     currentSessionId = null;
 }
 
-function updateProgressError(errorMessage) {
-    const progressStatus = document.getElementById('progress-status');
-    const progressBar = document.getElementById('progress-bar');
-    
-    if (progressStatus) {
-        progressStatus.textContent = 'Error: ' + errorMessage;
-        progressStatus.className = 'text-xs text-red-500 mb-2';
-    }
-    
-    if (progressBar) {
-        progressBar.className = 'bg-red-500 h-3 rounded-full transition-all duration-1000 ease-out';
-    }
-    
-    // Also update Livewire component
-    window.Livewire.find('{{ $this->getId() }}').set('error', errorMessage);
-    window.Livewire.find('{{ $this->getId() }}').call('resetAnalysisState');
-}
+// updateProgressError function removed - now handled by handleAsyncError Livewire method
 
 // Reset progress when page loads
 document.addEventListener('DOMContentLoaded', function() {
@@ -878,6 +898,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Listen for async analysis start event from Livewire
         Livewire.on('startAsyncAnalysis', (data) => {
             console.log('Received startAsyncAnalysis event:', data);
+            console.log('About to call startAsyncAnalysis function...');
             startAsyncAnalysis(data[0].productUrl, data[0].captchaData);
         });
     }

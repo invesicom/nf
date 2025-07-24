@@ -51,7 +51,13 @@ class ProxyCommandsTest extends TestCase
     {
         // Mock the Amazon scraping service to avoid real network calls
         $this->mock(\App\Services\Amazon\AmazonScrapingService::class, function ($mock) {
-            $mock->shouldReceive('fetchReviews')->andReturn(['reviews' => []]);
+            $mock->shouldReceive('fetchReviews')->andReturn([
+                'description' => 'Test product description',
+                'total_reviews' => 100,
+                'reviews' => [
+                    ['id' => 1, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John']
+                ]
+            ]);
         });
 
         $this->artisan('test:amazon-scraping B0CBC67ZXC')
@@ -63,7 +69,12 @@ class ProxyCommandsTest extends TestCase
     {
         // Mock the Amazon scraping service to avoid real network calls
         $this->mock(\App\Services\Amazon\AmazonScrapingService::class, function ($mock) {
-            $mock->shouldReceive('fetchReviews')->andReturn(['reviews' => []]);
+            $mock->shouldReceive('fetchReviews')->andReturn([
+                'reviews' => [
+                    ['id' => 1, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John'],
+                    ['id' => 2, 'rating' => 4, 'review_title' => 'Good', 'review_text' => 'Good product', 'author' => 'Jane']
+                ]
+            ]);
         });
 
         $this->artisan('test:amazon-scraping B0CBC67ZXC --reviews-only')
@@ -87,8 +98,12 @@ class ProxyCommandsTest extends TestCase
     {
         // Mock the Amazon scraping service for debug command
         $this->mock(\App\Services\Amazon\AmazonScrapingService::class, function ($mock) {
-            $mock->shouldReceive('fetchReviews')->andReturn(['reviews' => []]);
-            $mock->shouldReceive('setHttpClient')->andReturnSelf();
+            $mock->shouldReceive('fetchReviews')->andReturn([
+                'description' => 'Debug test product',
+                'reviews' => []
+            ]);
+            // Allow any other method calls that might be needed for debugging
+            $mock->shouldIgnoreMissing();
         });
 
         $this->artisan('debug:amazon-scraping B0CBC67ZXC')
@@ -98,10 +113,10 @@ class ProxyCommandsTest extends TestCase
 
     public function test_debug_amazon_scraping_command_url_test()
     {
-        // Mock the Amazon scraping service for URL test
+        // This test only tests URL patterns, so it doesn't need the scraping service
+        // But we'll mock it anyway in case it's called
         $this->mock(\App\Services\Amazon\AmazonScrapingService::class, function ($mock) {
-            $mock->shouldReceive('fetchReviews')->andReturn(['reviews' => []]);
-            $mock->shouldReceive('setHttpClient')->andReturnSelf();
+            $mock->shouldIgnoreMissing();
         });
 
         $this->artisan('debug:amazon-scraping B0CBC67ZXC --url-test')
