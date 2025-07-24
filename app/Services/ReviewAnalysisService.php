@@ -21,7 +21,7 @@ class ReviewAnalysisService
         $this->openAIService = $openAIService;
     }
 
-    private function extractAsinFromUrl($url): string
+    public function extractAsinFromUrl($url): string
     {
         // Handle short URLs (a.co redirects)
         if (preg_match('/^https?:\/\/a\.co\//', $url)) {
