@@ -381,7 +381,7 @@ class ReviewAnalysisService
     }
 
     /**
-     * Phase 3: Analyze reviews with OpenAI (if needed).
+     * Phase 3: Analyze reviews with LLM (using multi-provider system).
      */
     public function analyzeWithOpenAI(AsinData $asinData): AsinData
     {
@@ -391,30 +391,32 @@ class ReviewAnalysisService
             throw new \Exception('No reviews found for analysis');
         }
 
-        LoggingService::log('Sending '.count($reviews).' reviews to OpenAI for analysis');
+        LoggingService::log('Sending '.count($reviews).' reviews to LLM for analysis');
 
         try {
-            $openaiResult = $this->openAIService->analyzeReviews($reviews);
+            // Use the new LLM service manager for multi-provider support
+            $llmManager = app(LLMServiceManager::class);
+            $result = $llmManager->analyzeReviews($reviews);
             
             $asinData->update([
-                'openai_result' => json_encode($openaiResult),
+                'openai_result' => json_encode($result),
                 'status'        => 'completed',
             ]);
 
-            LoggingService::log('Updated database record with OpenAI analysis results');
+            LoggingService::log('Updated database record with LLM analysis results');
 
         } catch (\Exception $e) {
-            LoggingService::log('OpenAI analysis failed, using fallback analysis', ['error' => $e->getMessage()]);
+            LoggingService::log('LLM analysis failed, using fallback analysis', ['error' => $e->getMessage()]);
             
             // Check if it's a quota/billing issue
-            if (str_contains($e->getMessage(), 'quota') || str_contains($e->getMessage(), '429')) {
-                LoggingService::log('OpenAI quota exceeded, applying heuristic fallback analysis');
+            if (str_contains($e->getMessage(), 'quota') || str_contains($e->getMessage(), '429') || str_contains($e->getMessage(), 'All LLM providers failed')) {
+                LoggingService::log('All LLM providers failed, applying heuristic fallback analysis');
                 $fallbackResult = $this->generateFallbackAnalysis($reviews);
                 
                 $asinData->update([
                     'openai_result' => json_encode($fallbackResult),
                     'status'        => 'completed_fallback',
-                    'analysis_notes' => 'Analysis completed using heuristic fallback due to OpenAI quota limits'
+                    'analysis_notes' => 'Analysis completed using heuristic fallback due to LLM provider failures'
                 ]);
 
                 LoggingService::log('Updated database record with fallback analysis results');
