@@ -315,6 +315,7 @@ async function startAsyncAnalysis(productUrl, captchaData) {
 
         const response = await fetch('/api/analysis/start', {
             method: 'POST',
+            credentials: 'same-origin', // Include session cookies for CSRF validation
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken,
@@ -361,6 +362,7 @@ function startProgressPolling() {
     progressPollingInterval = setInterval(async () => {
         try {
             const response = await fetch(`/api/analysis/progress/${currentSessionId}`, {
+                credentials: 'same-origin', // Include session cookies for session verification
                 headers: {
                     'Accept': 'application/json'
                 }
