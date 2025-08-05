@@ -306,11 +306,18 @@ async function startAsyncAnalysis(productUrl, captchaData) {
         window.Livewire.find('{{ $this->getId() }}').call('startAsyncPolling');
         
         console.log('Making API call to /api/analysis/start...');
+        // Check CSRF token exists before making request
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        if (!csrfToken) {
+            throw new Error('CSRF token not found in page meta tags');
+        }
+        console.log('CSRF token found, making API request...');
+
         const response = await fetch('/api/analysis/start', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'X-CSRF-TOKEN': csrfToken,
                 'Accept': 'application/json'
             },
             body: JSON.stringify({
@@ -319,6 +326,14 @@ async function startAsyncAnalysis(productUrl, captchaData) {
                 h_captcha_response: captchaData.h_captcha_response || ''
             })
         });
+
+        console.log('API response status:', response.status);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('API request failed:', response.status, errorText);
+            throw new Error(`API request failed: ${response.status} - ${errorText}`);
+        }
 
         const data = await response.json();
         
