@@ -52,21 +52,25 @@ class AnalysisSession extends Model
 
     public function updateProgress(int $step, float $percentage, string $message): void
     {
-        // Use direct DB update to ensure immediate persistence in long-running jobs
-        \Illuminate\Support\Facades\DB::table('analysis_sessions')
-            ->where('id', $this->id)
-            ->update([
-                'current_step' => $step,
-                'progress_percentage' => $percentage,
-                'current_message' => $message,
-                'updated_at' => now()
-            ]);
-        
-        // Update model instance to stay in sync
-        $this->current_step = $step;
-        $this->progress_percentage = $percentage;
-        $this->current_message = $message;
-        $this->updated_at = now();
+        // For long-running jobs, use a fresh instance to avoid staleness issues
+        $fresh = static::find($this->id);
+        if ($fresh) {
+            $fresh->current_step = $step;
+            $fresh->progress_percentage = $percentage;
+            $fresh->current_message = $message;
+            $fresh->save();
+            
+            // Update current instance to stay in sync
+            $this->current_step = $step;
+            $this->progress_percentage = $percentage;
+            $this->current_message = $message;
+        } else {
+            // Fallback if fresh instance not found
+            $this->current_step = $step;
+            $this->progress_percentage = $percentage;
+            $this->current_message = $message;
+            $this->save();
+        }
         
         // Log progress update for debugging
         \Illuminate\Support\Facades\Log::info("Progress update committed to database", [
