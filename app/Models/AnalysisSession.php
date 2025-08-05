@@ -52,10 +52,21 @@ class AnalysisSession extends Model
 
     public function updateProgress(int $step, float $percentage, string $message): void
     {
-        $this->update([
-            'current_step' => $step,
-            'progress_percentage' => $percentage,
-            'current_message' => $message,
+        // Refresh model to get latest state for long-running jobs
+        $this->refresh();
+        
+        // Update attributes and save
+        $this->current_step = $step;
+        $this->progress_percentage = $percentage;
+        $this->current_message = $message;
+        $this->save();
+        
+        // Log progress update for debugging
+        \Illuminate\Support\Facades\Log::info("Progress update committed to database", [
+            'session_id' => $this->id,
+            'step' => $step,
+            'percentage' => $percentage,
+            'message' => $message
         ]);
     }
 
