@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Services\LLMProviderInterface;
 use App\Services\Providers\OpenAIProvider;
 use App\Services\Providers\DeepSeekProvider;
+use App\Services\Providers\OllamaProvider;
 use Illuminate\Support\Facades\Cache;
 
 class LLMServiceManager
@@ -149,6 +150,9 @@ class LLMServiceManager
         
         // Initialize DeepSeek provider
         $this->providers['deepseek'] = app(DeepSeekProvider::class);
+        
+        // Initialize Ollama provider
+        $this->providers['ollama'] = app(OllamaProvider::class);
         
         // Set primary provider based on config
         $primaryProviderName = config('services.llm.primary_provider', 'openai');

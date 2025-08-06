@@ -52,9 +52,15 @@ return [
         'timeout' => env('DEEPSEEK_TIMEOUT', 120),
     ],
 
+    'ollama' => [
+        'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434'),
+        'model' => env('OLLAMA_MODEL', 'llama3.2:3b'),
+        'timeout' => env('OLLAMA_TIMEOUT', 120),
+    ],
+
     'llm' => [
         'primary_provider' => env('LLM_PRIMARY_PROVIDER', 'openai'),
-        'fallback_order' => ['deepseek', 'openai'],
+        'fallback_order' => ['ollama', 'deepseek', 'openai'],
         'auto_fallback' => env('LLM_AUTO_FALLBACK', true),
         'cost_tracking' => env('LLM_COST_TRACKING', true),
     ],
