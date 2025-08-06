@@ -510,8 +510,14 @@ function handleAnalysisComplete(data) {
     const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
     if (livewireComponent) {
         console.log('[PROD DEBUG] Calling Livewire handleAsyncCompletion...');
-        livewireComponent.call('handleAsyncCompletion', data);
-        console.log('[PROD DEBUG] Livewire handleAsyncCompletion called at:', new Date().toISOString());
+        const callStart = Date.now();
+        livewireComponent.call('handleAsyncCompletion', data).then(() => {
+            const callTime = Date.now() - callStart;
+            console.log('[PROD DEBUG] Livewire call completed in ' + callTime + 'ms at:', new Date().toISOString());
+        }).catch((error) => {
+            const callTime = Date.now() - callStart;
+            console.log('[PROD DEBUG] Livewire call FAILED after ' + callTime + 'ms:', error);
+        });
     } else {
         console.log('[PROD DEBUG] NO LIVEWIRE COMPONENT FOUND!');
     }
