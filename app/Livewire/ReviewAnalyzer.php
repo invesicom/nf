@@ -409,7 +409,6 @@ class ReviewAnalyzer extends Component
      */
     public function handleAsyncCompletion($data)
     {
-        LoggingService::log('[PROD DEBUG] handleAsyncCompletion STARTED at: ' . now()->toISOString());
         LoggingService::log('Handling async analysis completion');
         
         // Set final state
@@ -418,12 +417,9 @@ class ReviewAnalyzer extends Component
         $this->currentlyProcessing = 'Analysis complete!';
         
         // Handle results the same way as sync mode
-        LoggingService::log('[PROD DEBUG] About to check redirect_url at: ' . now()->toISOString());
         if (isset($data['redirect_url']) && !empty($data['redirect_url'])) {
-            LoggingService::log('[PROD DEBUG] Redirect URL found: ' . $data['redirect_url'] . ' at: ' . now()->toISOString());
             LoggingService::log('Redirecting to: ' . $data['redirect_url']);
             // Redirect to results page (same as sync mode)
-            LoggingService::log('[PROD DEBUG] About to return redirect() at: ' . now()->toISOString());
             return redirect($data['redirect_url']);
         } elseif (isset($data['result'])) {
             // Extract the actual analysis result from the job data structure

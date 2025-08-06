@@ -372,7 +372,7 @@ class ProgressPoller {
         if (this.isPolling) return;
         this.isPolling = true;
         this.retryCount = 0;
-        console.log(`[${new Date().toISOString()}] [PROD DEBUG] Starting progress polling for session: ${this.sessionId}`);
+                    console.log('Starting progress polling for session:', this.sessionId);
         this._poll();
     }
 
@@ -385,7 +385,7 @@ class ProgressPoller {
         if (!this.isPolling) return;
 
         const startTime = Date.now();
-        console.log(`[${new Date().toISOString()}] [PROD DEBUG] Poll #${this.retryCount + 1} - Session: ${this.sessionId}`);
+                        console.log(`Poll #${this.retryCount + 1} for session:`, this.sessionId);
 
         try {
             const response = await fetch(`/api/analysis/progress/${this.sessionId}`, {
@@ -401,7 +401,7 @@ class ProgressPoller {
             const data = await response.json();
             const elapsed = Date.now() - startTime;
             
-            console.log(`[${new Date().toISOString()}] [PROD DEBUG] Poll response (${elapsed}ms): ${data.progress_percentage}% - ${data.current_message}`);
+                                console.log(`Poll response (${elapsed}ms): ${data.progress_percentage}% - ${data.current_message}`);
 
             // Reset retry count on successful response
             this.retryCount = 0;
@@ -411,11 +411,9 @@ class ProgressPoller {
                 this.onProgress(data);
 
                 if (data.status === 'completed') {
-                    console.log(`[${new Date().toISOString()}] [PROD DEBUG] Analysis completed - calling onComplete`);
-                    this.stop();
-                    console.log(`[${new Date().toISOString()}] [PROD DEBUG] About to call handleAnalysisComplete`);
-                    this.onComplete(data);
-                    console.log(`[${new Date().toISOString()}] [PROD DEBUG] handleAnalysisComplete called`);
+                                            console.log('Analysis completed - calling onComplete');
+                        this.stop();
+                        this.onComplete(data);
                     return;
                 } else if (data.status === 'failed') {
                     console.log(`[${new Date().toISOString()}] Analysis failed: ${data.error}`);
@@ -495,8 +493,7 @@ function updateProgressFromServer(data) {
 }
 
 function handleAnalysisComplete(data) {
-    console.log('[PROD DEBUG] handleAnalysisComplete STARTED at:', new Date().toISOString());
-    console.log('[PROD DEBUG] Analysis completed data:', data);
+    console.log('Analysis completed:', data);
     
     // Update final progress through Livewire
     updateProgressFromServer({
@@ -506,20 +503,11 @@ function handleAnalysisComplete(data) {
     });
     
     // Let Livewire handle completion (results or redirection)
-    console.log('[PROD DEBUG] About to call Livewire handleAsyncCompletion at:', new Date().toISOString());
     const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
     if (livewireComponent) {
-        console.log('[PROD DEBUG] Calling Livewire handleAsyncCompletion...');
-        const callStart = Date.now();
-        livewireComponent.call('handleAsyncCompletion', data).then(() => {
-            const callTime = Date.now() - callStart;
-            console.log('[PROD DEBUG] Livewire call completed in ' + callTime + 'ms at:', new Date().toISOString());
-        }).catch((error) => {
-            const callTime = Date.now() - callStart;
-            console.log('[PROD DEBUG] Livewire call FAILED after ' + callTime + 'ms:', error);
-        });
+        livewireComponent.call('handleAsyncCompletion', data);
     } else {
-        console.log('[PROD DEBUG] NO LIVEWIRE COMPONENT FOUND!');
+        console.log('Livewire component not found');
     }
     
     currentSessionId = null;
