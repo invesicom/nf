@@ -311,7 +311,7 @@
             <div>
               <h4 class="font-semibold text-blue-800 mb-1">About Review Data Collection</h4>
               <p class="text-sm text-blue-700">
-                We scrape as much review data as Amazon makes available at the time of analysis. 
+                We extract as much review data as Amazon makes available at the time of analysis. 
                 The amount may vary due to Amazon's rate limiting, regional restrictions, or other factors. 
                 Our analysis is based on the reviews we successfully collected.
               </p>
