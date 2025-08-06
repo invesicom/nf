@@ -372,7 +372,7 @@ class ProgressPoller {
         if (this.isPolling) return;
         this.isPolling = true;
         this.retryCount = 0;
-        console.log(`[${new Date().toISOString()}] Starting progress polling for session: ${this.sessionId}`);
+        console.log(`[${new Date().toISOString()}] [PROD DEBUG] Starting progress polling for session: ${this.sessionId}`);
         this._poll();
     }
 
@@ -385,7 +385,7 @@ class ProgressPoller {
         if (!this.isPolling) return;
 
         const startTime = Date.now();
-        console.log(`[${new Date().toISOString()}] Polling attempt, retry: ${this.retryCount}`);
+        console.log(`[${new Date().toISOString()}] [PROD DEBUG] Poll #${this.retryCount + 1} - Session: ${this.sessionId}`);
 
         try {
             const response = await fetch(`/api/analysis/progress/${this.sessionId}`, {
@@ -401,7 +401,7 @@ class ProgressPoller {
             const data = await response.json();
             const elapsed = Date.now() - startTime;
             
-            console.log(`[${new Date().toISOString()}] Poll response (${elapsed}ms): ${data.progress_percentage}% - ${data.current_message}`);
+            console.log(`[${new Date().toISOString()}] [PROD DEBUG] Poll response (${elapsed}ms): ${data.progress_percentage}% - ${data.current_message}`);
 
             // Reset retry count on successful response
             this.retryCount = 0;
