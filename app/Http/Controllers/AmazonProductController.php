@@ -308,4 +308,29 @@ class AmazonProductController extends Controller
         
         return max(0, min(100, round($baseScore)));
     }
+
+    /**
+     * Display a paginated list of all analyzed products.
+     */
+    public function index(Request $request): View
+    {
+        LoggingService::log('Displaying products listing page', [
+            'page' => $request->get('page', 1),
+            'user_agent' => $request->userAgent(),
+            'ip' => $request->ip(),
+        ]);
+
+        // Get analyzed products with product data, ordered by most recent first
+        $products = AsinData::where('status', 'completed')
+            ->whereNotNull('fake_percentage')
+            ->whereNotNull('grade')
+            ->where('have_product_data', true)
+            ->whereNotNull('product_title')
+            ->orderBy('updated_at', 'desc')
+            ->paginate(100);
+
+        return view('products.index', [
+            'products' => $products,
+        ]);
+    }
 }

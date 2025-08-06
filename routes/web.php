@@ -24,6 +24,8 @@ Route::get('/privacy', function () {
     return view('privacy');
 });
 
+Route::get('/products', [AmazonProductController::class, 'index'])->name('products.index');
+
 // Newsletter routes
 Route::prefix('newsletter')->name('newsletter.')->group(function () {
     Route::post('/subscribe', [NewsletterController::class, 'subscribe'])->name('subscribe');
