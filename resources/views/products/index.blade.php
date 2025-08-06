@@ -12,18 +12,14 @@
 
 <div class="min-h-screen bg-gray-100">
   <!-- Header -->
-  <header class="bg-white shadow-sm border-b">
-    <div class="max-w-7xl mx-auto px-6 py-4">
-      <div class="flex items-center">
-        <a href="/" class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <span class="text-xl font-bold text-gray-900">NULL FAKE</span>
+  <header class="bg-white shadow p-4">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
+      <div class="flex items-center pr-4 md:pr-0 space-x-3">
+        <a href="/">
+          <img src="/img/nullfake.png" alt="Null Fake Logo" class="h-12 w-auto object-contain" />
         </a>
       </div>
+      <p class="text-sm text-gray-500">Analyze Amazon reviews for authenticity</p>
     </div>
   </header>
 
