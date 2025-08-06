@@ -86,7 +86,7 @@ class BackfillTotalReviewCounts extends Command
             return self::SUCCESS;
         }
 
-        if (!$this->confirm('Do you want to proceed with processing these products?')) {
+        if (!$dryRun && !$this->option('no-interaction') && !$this->confirm('Do you want to proceed with processing these products?')) {
             $this->info('❌ Operation cancelled by user.');
             return self::SUCCESS;
         }
@@ -163,15 +163,29 @@ class BackfillTotalReviewCounts extends Command
     }
 
     /**
-     * Extract total review count from Amazon product page
+     * Extract total review count from Amazon product page using minimal resources
+     * Uses direct HTTP without proxies for lightweight backfill operations
      */
     private function extractTotalReviewCount(string $asin): ?int
     {
         try {
             $url = "https://www.amazon.com/dp/{$asin}";
             
-            $response = Http::timeout(30)
-                          ->withUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            // Use minimal resource configuration - no proxies, optimized headers
+            $response = Http::timeout(15) // Reduced timeout for faster failure detection
+                          ->withOptions([
+                              'verify' => false, // Skip SSL verification for speed
+                              'connect_timeout' => 10, // Quick connection timeout
+                              'stream' => false, // Don't stream large responses
+                          ])
+                          ->withHeaders([
+                              'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                              'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                              'Accept-Language' => 'en-US,en;q=0.5',
+                              'Accept-Encoding' => 'gzip, deflate', // Enable compression to save bandwidth
+                              'Connection' => 'close', // Don't keep connection alive
+                              'Cache-Control' => 'no-cache',
+                          ])
                           ->get($url);
 
             if (!$response->successful()) {
@@ -179,19 +193,24 @@ class BackfillTotalReviewCounts extends Command
             }
 
             $html = $response->body();
+            
+            // Early exit if page is too large (likely not a standard product page)
+            if (strlen($html) > 2 * 1024 * 1024) { // 2MB limit
+                throw new \Exception("Response too large, likely not a product page");
+            }
+            
             $crawler = new Crawler($html);
 
-            // Try multiple selectors to find total review count
+            // Try multiple selectors to find total review count (ordered by likelihood)
             $reviewCountSelectors = [
-                '[data-hook="total-review-count"]',
-                '.cr-pivot-review-count-info .totalReviewCount',
-                '.a-size-base.a-color-base[data-hook="total-review-count"]',
+                '[data-hook="total-review-count"]', // Most common and reliable
                 'span[data-hook="total-review-count"]',
-                '.a-text-normal',
-                '.a-text-normal span',
-                // Additional selectors for different Amazon layouts
+                '.a-size-base.a-color-base[data-hook="total-review-count"]',
                 '[data-hook="cr-filter-info-review-rating-count"]',
+                '.cr-pivot-review-count-info .totalReviewCount',
+                // Fallback selectors (less reliable, tried last)
                 '.a-row.a-spacing-medium .a-size-base',
+                '.a-text-normal',
             ];
             
             foreach ($reviewCountSelectors as $selector) {
@@ -214,7 +233,7 @@ class BackfillTotalReviewCounts extends Command
                                 
                                 // Sanity check: must be a reasonable number
                                 if ($totalReviews > 0 && $totalReviews < 1000000) {
-                                    $this->line("✅ Found {$totalReviews} total reviews for {$asin} using selector: {$selector}");
+                                    $this->line("✅ Found {$totalReviews} total reviews for {$asin}");
                                     return $totalReviews;
                                 }
                             }
@@ -227,12 +246,27 @@ class BackfillTotalReviewCounts extends Command
             }
 
             // If no selectors worked, try to find any number that looks like a review count
-            $allText = $crawler->text();
-            if (preg_match('/(\d{1,3}(?:,\d{3})*)\s*(?:global\s+)?(?:ratings?|reviews?)/i', $allText, $matches)) {
-                $totalReviews = (int) str_replace(',', '', $matches[1]);
-                if ($totalReviews > 0 && $totalReviews < 1000000) {
-                    $this->line("✅ Found {$totalReviews} total reviews for {$asin} using text search");
-                    return $totalReviews;
+            // Only search in a subset of text to improve performance
+            try {
+                $reviewSection = $crawler->filter('#reviewsMedley, #reviews, .cr-pivot-review')->first();
+                $searchText = $reviewSection->count() > 0 ? $reviewSection->text() : $crawler->text();
+                
+                if (preg_match('/(\d{1,3}(?:,\d{3})*)\s*(?:global\s+)?(?:ratings?|reviews?)/i', $searchText, $matches)) {
+                    $totalReviews = (int) str_replace(',', '', $matches[1]);
+                    if ($totalReviews > 0 && $totalReviews < 1000000) {
+                        $this->line("✅ Found {$totalReviews} total reviews for {$asin} (text search)");
+                        return $totalReviews;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Fallback to full text search if review section not found
+                $allText = $crawler->text();
+                if (preg_match('/(\d{1,3}(?:,\d{3})*)\s*(?:global\s+)?(?:ratings?|reviews?)/i', $allText, $matches)) {
+                    $totalReviews = (int) str_replace(',', '', $matches[1]);
+                    if ($totalReviews > 0 && $totalReviews < 1000000) {
+                        $this->line("✅ Found {$totalReviews} total reviews for {$asin} (fallback search)");
+                        return $totalReviews;
+                    }
                 }
             }
 
