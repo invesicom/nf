@@ -597,6 +597,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'country'             => $country,
             'product_description' => $reviewsData['description'] ?? '',
             'reviews'             => json_encode($reviewsData['reviews']),
+            'total_reviews_on_amazon' => $reviewsData['total_reviews'] ?? count($reviewsData['reviews'] ?? []),
             'openai_result'       => null, // Will be populated later
         ]);
     }
@@ -652,7 +653,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             $result = [
                 'reviews' => $reviews,
                 'description' => $productData['description'] ?? '',
-                'total_reviews' => count($reviews),
+                'total_reviews' => $productData['total_reviews'] ?? count($reviews),
             ];
 
             LoggingService::log('Successfully scraped ' . count($reviews) . ' reviews for ASIN: ' . $asin);
@@ -771,9 +772,39 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                 $description = "Product {$asin}";
             }
 
+            // Try to extract total review count
+            $totalReviews = null;
+            $reviewCountSelectors = [
+                '[data-hook="total-review-count"]',
+                '.cr-pivot-review-count-info .totalReviewCount',
+                '.a-size-base.a-color-base[data-hook="total-review-count"]',
+                'span[data-hook="total-review-count"]',
+                '.a-text-normal',
+                '.a-text-normal span'
+            ];
+            
+            foreach ($reviewCountSelectors as $selector) {
+                try {
+                    $countNode = $crawler->filter($selector);
+                    if ($countNode->count() > 0) {
+                        $countText = trim($countNode->text());
+                        
+                        // Extract number from text like "1,234 global ratings" or "456 reviews"
+                        if (preg_match('/([0-9,]+)\s*(?:global\s+ratings?|reviews?|ratings?)/i', $countText, $matches)) {
+                            $totalReviews = (int) str_replace(',', '', $matches[1]);
+                            LoggingService::log("Extracted total review count: {$totalReviews}", ['asin' => $asin, 'text' => $countText]);
+                            break;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Continue to next selector
+                }
+            }
+
             $result = [
                 'description' => $description,
                 'asin' => $asin,
+                'total_reviews' => $totalReviews,
             ];
             
             // Cache the result for 6 hours (product titles rarely change)

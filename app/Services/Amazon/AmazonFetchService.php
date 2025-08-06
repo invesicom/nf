@@ -68,6 +68,7 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             'country'             => $country,
             'product_description' => $reviewsData['description'] ?? '',
             'reviews'             => json_encode($reviewsData['reviews']),
+            'total_reviews_on_amazon' => $reviewsData['total_reviews'] ?? count($reviewsData['reviews'] ?? []),
             'openai_result'       => null, // Will be populated later
         ]);
     }

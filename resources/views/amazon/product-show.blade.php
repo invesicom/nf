@@ -301,10 +301,34 @@
       <!-- Review Statistics -->
       <div class="mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-3">Review Statistics</h3>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        
+        <!-- Explanation about review data collection -->
+        <div class="bg-blue-50 p-4 rounded-lg mb-4">
+          <div class="flex items-start">
+            <svg class="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+            </svg>
+            <div>
+              <h4 class="font-semibold text-blue-800 mb-1">About Review Data Collection</h4>
+              <p class="text-sm text-blue-700">
+                We scrape as much review data as Amazon makes available at the time of analysis. 
+                The amount may vary due to Amazon's rate limiting, regional restrictions, or other factors. 
+                Our analysis is based on the reviews we successfully collected.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+          @if($asinData->total_reviews_on_amazon)
           <div class="text-center p-3 bg-gray-50 rounded-lg">
-            <div class="text-lg font-bold text-gray-900">{{ count($asinData->getReviewsArray()) }}</div>
-            <div class="text-sm text-gray-600">Total Reviews</div>
+            <div class="text-lg font-bold text-gray-900">{{ number_format($asinData->total_reviews_on_amazon) }}</div>
+            <div class="text-sm text-gray-600">Total Reviews on Amazon</div>
+          </div>
+          @endif
+          <div class="text-center p-3 bg-indigo-50 rounded-lg">
+            <div class="text-lg font-bold text-indigo-600">{{ count($asinData->getReviewsArray()) }}</div>
+            <div class="text-sm text-gray-600">Reviews Analyzed</div>
           </div>
           <div class="text-center p-3 bg-green-50 rounded-lg">
             <div class="text-lg font-bold text-green-600">{{ count($asinData->getReviewsArray()) - round(($asinData->fake_percentage / 100) * count($asinData->getReviewsArray())) }}</div>
