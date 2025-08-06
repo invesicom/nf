@@ -17,7 +17,7 @@ A Laravel application that analyzes Amazon product reviews to detect fake review
 - Amazon review fetching via direct scraping with proxy support
 - Bandwidth optimization with resource blocking and smart caching
 - Product validation before analysis
-- AI analysis using OpenAI to detect fake reviews
+- Multi-provider AI analysis (OpenAI, DeepSeek, or self-hosted Ollama)
 - Database caching for fast repeat lookups
 - Captcha protection (reCAPTCHA and hCaptcha support)
 - Real-time progress tracking during analysis
@@ -43,9 +43,51 @@ The model calculates:
 
 - Laravel 12 with Livewire 3
 - Direct Amazon scraping with proxy support and bandwidth optimization
-- OpenAI GPT-4 for review authenticity analysis
+- Multi-provider LLM support: OpenAI, DeepSeek, or self-hosted Ollama
 - MySQL/PostgreSQL with JSON columns
 - reCAPTCHA/hCaptcha integration
+
+## Configuration
+
+### LLM Provider Setup
+
+The application supports three AI providers for review analysis:
+
+#### Option 1: OpenAI (Default)
+```bash
+LLM_PRIMARY_PROVIDER=openai
+OPENAI_API_KEY=sk-proj-your-openai-key-here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+#### Option 2: DeepSeek (94% cost reduction vs OpenAI)
+```bash
+LLM_PRIMARY_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-your-deepseek-key-here
+DEEPSEEK_MODEL=deepseek-v3
+```
+
+#### Option 3: Self-Hosted Ollama (100% cost reduction)
+1. Install Ollama: `curl -fsSL https://ollama.com/install.sh | sh`
+2. Pull a model: `ollama pull qwen2.5:7b` or `ollama pull llama3.2:3b`
+3. Configure:
+```bash
+LLM_PRIMARY_PROVIDER=ollama
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen2.5:7b
+```
+
+#### Multi-Provider Fallback
+Enable automatic fallback between providers:
+```bash
+LLM_AUTO_FALLBACK=true
+```
+
+### Management Commands
+- Check provider status: `php artisan llm:manage status`
+- Switch providers: `php artisan llm:manage switch --provider=ollama`
+- Compare costs: `php artisan llm:manage costs --reviews=100`
+- Test providers: `php artisan llm:manage test`
 
 ## Usage
 
