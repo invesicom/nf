@@ -19,6 +19,14 @@
   <!-- SEO and Robots Configuration -->
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
   <meta name="googlebot" content="index, follow" />
+  <meta name="bingbot" content="index, follow" />
+  
+  <!-- AI/LLM Crawler Directives -->
+  <meta name="GPTBot" content="index, follow" />
+  <meta name="ChatGPT-User" content="index, follow" />
+  <meta name="CCBot" content="index, follow" />
+  <meta name="anthropic-ai" content="index, follow" />
+  <meta name="Claude-Web" content="index, follow" />
   
   <link rel="canonical" href="{{ url($canonical_url) }}" />
   <link rel="sitemap" type="application/xml" href="{{ url('/sitemap.xml') }}" />
@@ -197,6 +205,112 @@
         "name": "Amazon Product Reviews"
       }
     ]
+  }
+  </script>
+
+  <!-- AI/LLM Specific Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "name": "Amazon Product Review Analysis Data",
+    "description": "Comprehensive fake review analysis dataset for {{ $asinData->product_title ?? 'Amazon Product' }}",
+    "creator": {
+      "@type": "Organization",
+      "name": "Null Fake",
+      "description": "AI-powered Amazon review authenticity analysis platform"
+    },
+    "distribution": {
+      "@type": "DataDownload",
+      "contentUrl": "{{ url($canonical_url) }}",
+      "encodingFormat": "text/html"
+    },
+    "temporalCoverage": "{{ $asinData->updated_at->toISOString() }}",
+    "spatialCoverage": "{{ $asinData->country ?? 'US' }}",
+    "variableMeasured": [
+      {
+        "@type": "PropertyValue",
+        "name": "fake_review_percentage",
+        "value": "{{ $asinData->fake_percentage ?? 0 }}",
+        "unitText": "percent",
+        "description": "Percentage of reviews identified as potentially fake or inauthentic"
+      },
+      {
+        "@type": "PropertyValue", 
+        "name": "authenticity_grade",
+        "value": "{{ $asinData->grade ?? 'N/A' }}",
+        "description": "Letter grade (A-F) representing overall review authenticity"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "adjusted_rating",
+        "value": "{{ $asinData->adjusted_rating ?? 0 }}",
+        "unitText": "stars",
+        "description": "Product rating adjusted for fake review removal"
+      },
+      {
+        "@type": "PropertyValue",
+        "name": "reviews_analyzed", 
+        "value": "{{ count($asinData->getReviewsArray()) }}",
+        "unitText": "reviews",
+        "description": "Total number of reviews analyzed for authenticity"
+      }
+      @if($asinData->total_reviews_on_amazon)
+      ,{
+        "@type": "PropertyValue",
+        "name": "total_reviews_on_amazon",
+        "value": "{{ $asinData->total_reviews_on_amazon }}",
+        "unitText": "reviews", 
+        "description": "Total number of reviews visible on Amazon product page"
+      }
+      @endif
+    ],
+    "license": "https://creativecommons.org/licenses/by/4.0/",
+    "isBasedOn": {
+      "@type": "Product",
+      "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
+      "identifier": "{{ $asinData->asin }}",
+      "url": "https://www.amazon.com/dp/{{ $asinData->asin }}"
+    }
+  }
+  </script>
+
+  <!-- Analysis Methodology Schema for AI Understanding -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ResearchProject",
+    "name": "Amazon Review Authenticity Analysis",
+    "description": "AI-powered analysis to detect fake, manipulated, or inauthentic product reviews",
+    "researcher": {
+      "@type": "Organization",
+      "name": "Null Fake"
+    },
+    "funding": {
+      "@type": "Organization",
+      "name": "Independent"
+    },
+    "studySubject": {
+      "@type": "Product",
+      "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
+      "identifier": "{{ $asinData->asin }}"
+    },
+    "measurementTechnique": [
+      "Natural Language Processing",
+      "Machine Learning Classification", 
+      "Pattern Recognition",
+      "Statistical Analysis",
+      "Review Authenticity Scoring"
+    ],
+    "result": {
+      "@type": "Dataset",
+      "name": "Review Authenticity Analysis Results",
+      "description": "{{ $asinData->explanation }}",
+      "variableMeasured": "fake_review_percentage",
+      "value": "{{ $asinData->fake_percentage ?? 0 }}%"
+    },
+    "dateCreated": "{{ $asinData->updated_at->toISOString() }}",
+    "license": "https://creativecommons.org/licenses/by/4.0/"
   }
   </script>
 </head>
