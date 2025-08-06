@@ -116,11 +116,12 @@ class LLMServiceManagerTest extends TestCase
 
     public function test_switches_primary_provider()
     {
-        $this->assertTrue($this->manager->switchProvider('deepseek'));
+        // Switch to OpenAI provider using partial name matching (case-insensitive)
+        $this->assertTrue($this->manager->switchProvider('OpenAI'));
         
         $optimal = $this->manager->getOptimalProvider();
         $this->assertInstanceOf(LLMProviderInterface::class, $optimal);
-        $this->assertStringContainsString('DeepSeek', $optimal->getProviderName());
+        $this->assertStringContainsString('OpenAI', $optimal->getProviderName());
     }
 
     public function test_compares_costs_across_providers()
