@@ -411,9 +411,11 @@ class ProgressPoller {
                 this.onProgress(data);
 
                 if (data.status === 'completed') {
-                    console.log(`[${new Date().toISOString()}] Analysis completed`);
+                    console.log(`[${new Date().toISOString()}] [PROD DEBUG] Analysis completed - calling onComplete`);
                     this.stop();
+                    console.log(`[${new Date().toISOString()}] [PROD DEBUG] About to call handleAnalysisComplete`);
                     this.onComplete(data);
+                    console.log(`[${new Date().toISOString()}] [PROD DEBUG] handleAnalysisComplete called`);
                     return;
                 } else if (data.status === 'failed') {
                     console.log(`[${new Date().toISOString()}] Analysis failed: ${data.error}`);
@@ -493,7 +495,8 @@ function updateProgressFromServer(data) {
 }
 
 function handleAnalysisComplete(data) {
-    console.log('Analysis completed:', data);
+    console.log('[PROD DEBUG] handleAnalysisComplete STARTED at:', new Date().toISOString());
+    console.log('[PROD DEBUG] Analysis completed data:', data);
     
     // Update final progress through Livewire
     updateProgressFromServer({
@@ -503,9 +506,14 @@ function handleAnalysisComplete(data) {
     });
     
     // Let Livewire handle completion (results or redirection)
+    console.log('[PROD DEBUG] About to call Livewire handleAsyncCompletion at:', new Date().toISOString());
     const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
     if (livewireComponent) {
+        console.log('[PROD DEBUG] Calling Livewire handleAsyncCompletion...');
         livewireComponent.call('handleAsyncCompletion', data);
+        console.log('[PROD DEBUG] Livewire handleAsyncCompletion called at:', new Date().toISOString());
+    } else {
+        console.log('[PROD DEBUG] NO LIVEWIRE COMPONENT FOUND!');
     }
     
     currentSessionId = null;
