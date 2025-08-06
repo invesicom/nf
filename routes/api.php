@@ -31,3 +31,23 @@ Route::prefix('analysis')->name('api.analysis.')
         Route::delete('/cancel/{sessionId}', [AnalysisController::class, 'cancelAnalysis'])->name('cancel');
         Route::post('/cleanup', [AnalysisController::class, 'cleanup'])->name('cleanup');
     });
+
+// DEBUG: No-auth polling test endpoint
+Route::get('/debug/poll-test/{sessionId}', function($sessionId) {
+    $session = \App\Models\AnalysisSession::find($sessionId);
+    
+    return response()->json([
+        'timestamp' => now()->toISOString(),
+        'session_exists' => $session ? true : false,
+        'session_data' => $session ? [
+            'id' => $session->id,
+            'status' => $session->status,
+            'progress_percentage' => $session->progress_percentage,
+            'current_message' => $session->current_message,
+            'current_step' => $session->current_step,
+            'created_at' => $session->created_at,
+            'updated_at' => $session->updated_at,
+        ] : null,
+        'database_time' => \DB::select('SELECT NOW() as now')[0]->now ?? 'unknown'
+    ]);
+});
