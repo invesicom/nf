@@ -329,6 +329,17 @@ class AmazonProductController extends Controller
             ->orderBy('updated_at', 'desc')
             ->paginate(100);
 
+        // Log query results for debugging
+        LoggingService::log('Products query results', [
+            'total_asin_data' => AsinData::count(),
+            'completed_status' => AsinData::where('status', 'completed')->count(),
+            'with_fake_percentage' => AsinData::whereNotNull('fake_percentage')->count(),
+            'with_grade' => AsinData::whereNotNull('grade')->count(),
+            'with_product_data' => AsinData::where('have_product_data', true)->count(),
+            'with_product_title' => AsinData::whereNotNull('product_title')->count(),
+            'meeting_all_criteria' => $products->total(),
+        ]);
+
         return view('products.index', [
             'products' => $products,
         ]);
