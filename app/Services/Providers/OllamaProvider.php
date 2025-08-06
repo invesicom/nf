@@ -10,11 +10,13 @@ class OllamaProvider implements LLMProviderInterface
 {
     private string $baseUrl;
     private string $model;
+    private int $timeout;
     
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
         $this->model = config('services.ollama.model', 'llama3.2:3b');
+        $this->timeout = config('services.ollama.timeout', 120);
     }
     
     public function analyzeReviews(array $reviews): array
@@ -28,7 +30,7 @@ class OllamaProvider implements LLMProviderInterface
         $prompt = $this->buildOptimizedPrompt($reviews);
         
         try {
-            $response = Http::timeout(120)->post("{$this->baseUrl}/api/generate", [
+            $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
                 'model' => $this->model,
                 'prompt' => $prompt,
                 'stream' => false,
