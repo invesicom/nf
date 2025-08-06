@@ -26,6 +26,7 @@ class AsinDataFactory extends Factory
             'fake_percentage' => $this->faker->randomFloat(1, 0, 100),
             'grade' => $this->faker->randomElement(['A', 'B', 'C', 'D', 'F']),
             'have_product_data' => true,
+            'total_reviews_on_amazon' => $this->faker->numberBetween(50, 5000),
             'product_title' => $this->faker->sentence(4),
             'product_image_url' => $this->faker->imageUrl(300, 300, 'products'),
             'product_description' => $this->faker->paragraph(),

@@ -506,6 +506,7 @@ class AsinDataModelTest extends TestCase
             'product_title',
             'product_image_url',
             'have_product_data',
+            'total_reviews_on_amazon',
             'product_data_scraped_at',
             'reviews',
             'openai_result',
