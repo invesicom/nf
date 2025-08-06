@@ -74,7 +74,8 @@ class AnalysisController extends Controller
             }
 
             // Dispatch async job
-            ProcessProductAnalysis::dispatch($session->id, $productUrl, $captchaData);
+            ProcessProductAnalysis::dispatch($session->id, $productUrl, $captchaData)
+                ->onConnection('database');
 
             return response()->json([
                 'success' => true,
