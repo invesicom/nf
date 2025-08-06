@@ -222,7 +222,7 @@
 <script>
 // Global variables for async analysis
 let currentSessionId = null;
-let progressPollingInterval = null;
+let currentPoller = null;
 let isAsyncMode = {{ config('analysis.async_enabled') ? 'true' : 'false' }};
 
 function showAnalysisProgress() {
@@ -354,39 +354,128 @@ async function startAsyncAnalysis(productUrl, captchaData) {
     }
 }
 
+// Improved progress polling class with better error handling and timing
+class ProgressPoller {
+    constructor(sessionId, options = {}) {
+        this.sessionId = sessionId;
+        this.interval = options.interval || {{ config('analysis.polling_interval', 2000) }};
+        this.maxRetries = options.maxRetries || 3;
+        this.backoffMultiplier = options.backoffMultiplier || 1.5;
+        this.isPolling = false;
+        this.retryCount = 0;
+        this.onProgress = options.onProgress || (() => {});
+        this.onComplete = options.onComplete || (() => {});
+        this.onError = options.onError || (() => {});
+    }
+
+    start() {
+        if (this.isPolling) return;
+        this.isPolling = true;
+        this.retryCount = 0;
+        console.log(`[${new Date().toISOString()}] Starting progress polling for session: ${this.sessionId}`);
+        this._poll();
+    }
+
+    stop() {
+        this.isPolling = false;
+        console.log(`[${new Date().toISOString()}] Stopped progress polling`);
+    }
+
+    async _poll() {
+        if (!this.isPolling) return;
+
+        const startTime = Date.now();
+        console.log(`[${new Date().toISOString()}] Polling attempt, retry: ${this.retryCount}`);
+
+        try {
+            const response = await fetch(`/api/analysis/progress/${this.sessionId}`, {
+                credentials: 'same-origin',
+                headers: { 'Accept': 'application/json' },
+                signal: AbortSignal.timeout(10000) // 10 second timeout
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            const elapsed = Date.now() - startTime;
+            
+            console.log(`[${new Date().toISOString()}] Poll response (${elapsed}ms): ${data.progress_percentage}% - ${data.current_message}`);
+
+            // Reset retry count on successful response
+            this.retryCount = 0;
+
+            // Handle response
+            if (data.success) {
+                this.onProgress(data);
+
+                if (data.status === 'completed') {
+                    console.log(`[${new Date().toISOString()}] Analysis completed`);
+                    this.stop();
+                    this.onComplete(data);
+                    return;
+                } else if (data.status === 'failed') {
+                    console.log(`[${new Date().toISOString()}] Analysis failed: ${data.error}`);
+                    this.stop();
+                    this.onError(data.error);
+                    return;
+                }
+            }
+
+            // Schedule next poll
+            this._scheduleNextPoll();
+
+        } catch (error) {
+            console.error(`[${new Date().toISOString()}] Polling error:`, error);
+            
+            this.retryCount++;
+            
+            if (this.retryCount >= this.maxRetries) {
+                console.error(`[${new Date().toISOString()}] Max retries exceeded, stopping polling`);
+                this.stop();
+                this.onError(`Polling failed after ${this.maxRetries} attempts: ${error.message}`);
+                return;
+            }
+
+            // Exponential backoff on retry
+            this._scheduleNextPoll(true);
+        }
+    }
+
+    _scheduleNextPoll(isRetry = false) {
+        if (!this.isPolling) return;
+
+        let delay = this.interval;
+        
+        if (isRetry) {
+            // Exponential backoff: 2s, 3s, 4.5s, etc.
+            delay = this.interval * Math.pow(this.backoffMultiplier, this.retryCount - 1);
+            console.log(`[${new Date().toISOString()}] Retrying in ${delay}ms (attempt ${this.retryCount})`);
+        }
+
+        setTimeout(() => this._poll(), delay);
+    }
+}
+
 function startProgressPolling() {
     if (!currentSessionId) return;
     
-    const pollingInterval = {{ config('analysis.polling_interval', 2000) }};
+    // Stop any existing poller
+    if (currentPoller) {
+        currentPoller.stop();
+    }
     
-    progressPollingInterval = setInterval(async () => {
-        try {
-            const response = await fetch(`/api/analysis/progress/${currentSessionId}`, {
-                credentials: 'same-origin', // Include session cookies for session verification
-                headers: {
-                    'Accept': 'application/json'
-                }
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                updateProgressFromServer(data);
-                
-                if (data.status === 'completed') {
-                    handleAnalysisComplete(data);
-                } else if (data.status === 'failed') {
-                    handleAnalysisError(data.error);
-                }
-            } else {
-                throw new Error(data.error || 'Failed to get progress');
-            }
-            
-        } catch (error) {
-            console.error('Error polling progress:', error);
-            handleAnalysisError('Connection error while checking progress');
-        }
-    }, pollingInterval);
+    // Create new poller with handlers
+    currentPoller = new ProgressPoller(currentSessionId, {
+        interval: {{ config('analysis.polling_interval', 2000) }},
+        maxRetries: 5,
+        onProgress: updateProgressFromServer,
+        onComplete: handleAnalysisComplete,
+        onError: handleAnalysisError
+    });
+
+    currentPoller.start();
 }
 
 function updateProgressFromServer(data) {
@@ -406,12 +495,6 @@ function updateProgressFromServer(data) {
 function handleAnalysisComplete(data) {
     console.log('Analysis completed:', data);
     
-    // Stop polling
-    if (progressPollingInterval) {
-        clearInterval(progressPollingInterval);
-        progressPollingInterval = null;
-    }
-    
     // Update final progress through Livewire
     updateProgressFromServer({
         progress_percentage: 100,
@@ -426,16 +509,11 @@ function handleAnalysisComplete(data) {
     }
     
     currentSessionId = null;
+    currentPoller = null;
 }
 
 function handleAnalysisError(errorMessage) {
     console.error('Analysis failed:', errorMessage);
-    
-    // Stop polling
-    if (progressPollingInterval) {
-        clearInterval(progressPollingInterval);
-        progressPollingInterval = null;
-    }
     
     // Update Livewire component with error
     const livewireComponent = window.Livewire.find('{{ $this->getId() }}');
@@ -444,6 +522,7 @@ function handleAnalysisError(errorMessage) {
     }
     
     currentSessionId = null;
+    currentPoller = null;
 }
 
 // updateProgressError function removed - now handled by handleAsyncError Livewire method
