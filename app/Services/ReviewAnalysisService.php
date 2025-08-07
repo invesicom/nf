@@ -743,7 +743,7 @@ class ReviewAnalysisService
             return ['error' => 'No reviews found for enhanced analysis'];
         }
 
-        // Get existing analysis data (try detailed_analysis first, fallback to openai_result)
+        // Get existing analysis data (try detailed_analysis first, fallback to openai_result, then proceed without)
         $detailedAnalysis = $asinData->detailed_analysis ?? [];
         if (empty($detailedAnalysis)) {
             LoggingService::log('No detailed analysis found, checking openai_result');
@@ -754,8 +754,8 @@ class ReviewAnalysisService
             $detailedAnalysis = $openaiResult['detailed_scores'] ?? [];
             
             if (empty($detailedAnalysis)) {
-                LoggingService::log('No analysis data found, running basic analysis first');
-                return ['error' => 'Run basic analysis first to enable enhanced analysis'];
+                LoggingService::log('No individual review scores found, proceeding with aggregate analysis only');
+                // We can still do enhanced analysis on review text patterns and timeline
             }
         }
 
