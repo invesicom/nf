@@ -15,7 +15,7 @@ class OllamaProvider implements LLMProviderInterface
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
-        $this->model = 'phi4:14b'; // Force phi4:14b for better fake detection
+        $this->model = 'llama3.2:1b'; // Fastest 1B model for production use
         $this->timeout = config('services.ollama.timeout', 300);
     }
     
