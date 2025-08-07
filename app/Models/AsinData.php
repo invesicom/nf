@@ -35,6 +35,8 @@ class AsinData extends Model
         'product_data_scraped_at',
         'reviews',
         'openai_result',
+        'detailed_analysis',
+        'fake_review_examples',
         'fake_percentage',
         'amazon_rating',
         'adjusted_rating',
@@ -52,6 +54,8 @@ class AsinData extends Model
     protected $casts = [
         'reviews'                  => 'array',
         'openai_result'            => 'array',
+        'detailed_analysis'        => 'array',
+        'fake_review_examples'     => 'array',
         'have_product_data'        => 'boolean',
         'product_data_scraped_at'  => 'datetime',
     ];
