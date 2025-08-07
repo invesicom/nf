@@ -44,9 +44,10 @@ class AmazonProductController extends Controller
                 'has_openai_result' => !empty($asinData->openai_result),
             ]);
             
-            return view('amazon.product-analyzing', [
-                'asinData' => $asinData,
+            return view('amazon.product-not-found', [
+                'asin' => $asin,
                 'amazon_url' => "https://www.amazon.com/dp/{$asin}",
+                'message' => 'This product analysis is still in progress. Please try again in a few moments.',
             ]);
         }
 
@@ -104,9 +105,10 @@ class AmazonProductController extends Controller
                 'has_openai_result' => !empty($asinData->openai_result),
             ]);
             
-            return view('amazon.product-analyzing', [
-                'asinData' => $asinData,
+            return view('amazon.product-not-found', [
+                'asin' => $asin,
                 'amazon_url' => "https://www.amazon.com/dp/{$asin}",
+                'message' => 'This product analysis is still in progress. Please try again in a few moments.',
             ]);
         }
 
