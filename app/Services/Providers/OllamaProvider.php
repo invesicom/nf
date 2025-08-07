@@ -15,8 +15,8 @@ class OllamaProvider implements LLMProviderInterface
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
-        $this->model = config('services.ollama.model', 'llama3.2:3b');
-        $this->timeout = config('services.ollama.timeout', 120);
+        $this->model = 'phi4:14b'; // Force phi4:14b for better fake detection
+        $this->timeout = config('services.ollama.timeout', 300);
     }
     
     public function analyzeReviews(array $reviews): array
@@ -85,11 +85,12 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        $prompt = "Score each review 0-100 (0=genuine, 100=fake). Be thorough and suspicious. Return JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
-        $prompt .= "HIGH FAKE RISK (70-100): Generic praise, no specifics, promotional language, perfect 5-stars with short text, non-verified purchases, obvious AI writing, repetitive phrases across reviews\n";
-        $prompt .= "MEDIUM FAKE RISK (40-69): Overly positive without balance, lacks personal context, generic complaints, suspicious timing patterns, limited product knowledge\n";
-        $prompt .= "LOW FAKE RISK (20-39): Some specifics but feels coached, minor inconsistencies, unusual language patterns for demographic\n";
-        $prompt .= "GENUINE (0-19): Specific details, balanced pros/cons, personal context, natural language, verified purchase, realistic complaints, product knowledge\n\n";
+        $prompt = "You are an AGGRESSIVE Amazon review fraud detector. Score 0-100 (0=genuine, 100=fake). BE EXTREMELY SUSPICIOUS! Most reviews are fake! Return ONLY JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
+        $prompt .= "FAKE THRESHOLD: Any review with 'Amazing!', 'Highly recommend!', 'Perfect!', 'Best ever!', 'Life changing!' = SCORE 85-95!\n";
+        $prompt .= "UNVERIFIED + GENERIC PRAISE = AUTOMATIC 80+ SCORE!\n";
+        $prompt .= "5-STAR + SHORT TEXT + NO SPECIFICS = 90+ SCORE!\n";
+        $prompt .= "REAL REVIEWS: Have specific complaints, balanced views, detailed product info, realistic problems\n\n";
+        $prompt .= "SCORE AGGRESSIVELY - if it sounds too good to be true, it's fake!\n";
         $prompt .= "Key: V=Verified, U=Unverified\n\n";
 
         foreach ($reviews as $review) {
