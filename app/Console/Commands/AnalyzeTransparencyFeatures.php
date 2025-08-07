@@ -86,21 +86,23 @@ class AnalyzeTransparencyFeatures extends Command
 
             if (isset($result['detailed_scores'])) {
                 $this->line('   Found ' . count($result['detailed_scores']) . ' detailed scores');
-                foreach ($result['detailed_scores'] as $analysis) {
-                    $score = $analysis['score'] ?? 0;
-                    $confidence = $analysis['analysis_details']['confidence'] ?? 'medium';
-                    $provider = $analysis['analysis_details']['provider'] ?? 'unknown';
-                    
+                foreach ($result['detailed_scores'] as $reviewId => $score) {
                     $riskLevel = $score >= 70 ? '🚨 HIGH RISK' : ($score >= 40 ? '⚠️  MEDIUM RISK' : '✅ LOW RISK');
                     
-                    $this->line("Review {$analysis['id']}: {$riskLevel} ({$score}% fake risk, {$confidence} confidence)");
-                    $this->line("  🔍 {$analysis['explanation']}");
+                    $this->line("Review {$reviewId}: {$riskLevel} ({$score}% fake risk)");
                     
-                    if (!empty($analysis['red_flags'])) {
-                        $this->line("  🚩 Red flags: " . implode(', ', $analysis['red_flags']));
+                    // Generate explanation based on score
+                    if ($score >= 70) {
+                        $explanation = "High fake risk: Multiple suspicious indicators detected";
+                    } elseif ($score >= 40) {
+                        $explanation = "Medium fake risk: Some concerning patterns found";
+                    } elseif ($score >= 20) {
+                        $explanation = "Low fake risk: Minor inconsistencies noted";
+                    } else {
+                        $explanation = "Appears genuine: Natural language and specific details";
                     }
                     
-                    $this->line("  🤖 Analyzed by: {$provider}");
+                    $this->line("  🔍 {$explanation}");
                     $this->newLine();
                 }
             }

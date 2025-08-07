@@ -44,7 +44,7 @@ class DeepSeekProvider implements LLMProviderInterface
                 'messages' => [
                     [
                         'role' => 'system',
-                        'content' => 'You are an expert Amazon review authenticity detector. Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Score 0-100 where 0=definitely genuine, 100=definitely fake. Use the full range: 20-40 for suspicious, 50-70 for likely fake, 80+ for obvious fakes. Return JSON: [{"id":"X","score":Y,"explanation":"detailed reason","red_flags":["flag1","flag2"]}]',
+                        'content' => 'You are an expert Amazon review authenticity detector. Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Score 0-100 where 0=definitely genuine, 100=definitely fake. Use the full range: 20-40 for suspicious, 50-70 for likely fake, 80+ for obvious fakes. Return ONLY JSON: [{"id":"X","score":Y}]',
                     ],
                     [
                         'role' => 'user',
@@ -128,37 +128,19 @@ class DeepSeekProvider implements LLMProviderInterface
     
     private function buildOptimizedPrompt(array $reviews): string
     {
-        $prompt = "Analyze Amazon reviews for authenticity. For each review, provide a score (0-100) and detailed explanation.\n";
-        $prompt .= "Return JSON: [{\"id\":\"X\",\"score\":Y,\"explanation\":\"detailed reason\",\"red_flags\":[\"flag1\",\"flag2\"]}]\n\n";
-        
-        $prompt .= "SCORING GUIDE:\n";
-        $prompt .= "HIGH FAKE RISK (70-100): Generic praise, no specifics, promotional language, perfect 5-stars with short text, non-verified purchases, obvious AI writing, repetitive phrases\n";
-        $prompt .= "MEDIUM FAKE RISK (40-69): Overly positive without balance, lacks personal context, generic complaints, suspicious timing patterns, limited product knowledge\n";
-        $prompt .= "LOW FAKE RISK (20-39): Some specifics but feels coached, minor inconsistencies, unusual language patterns for demographic\n";
-        $prompt .= "GENUINE (0-19): Specific details, balanced pros/cons, personal context, natural language, verified purchase, realistic complaints, product knowledge\n\n";
-        
-        $prompt .= "RED FLAGS TO IDENTIFY:\n";
-        $prompt .= "- Generic language (\"amazing product\", \"highly recommend\")\n";
-        $prompt .= "- No specific product details or use cases\n";
-        $prompt .= "- Overly promotional tone\n";
-        $prompt .= "- Perfect ratings with minimal text\n";
-        $prompt .= "- Unverified purchase patterns\n";
-        $prompt .= "- Repetitive phrases across reviews\n";
-        $prompt .= "- Inconsistent language complexity\n";
-        $prompt .= "- Suspicious timing or reviewer history\n\n";
+        $promptParts = [];
+        $promptParts[] = "Analyze these Amazon reviews for authenticity. Return JSON array with fake probability scores (0-100):";
         
         foreach ($reviews as $index => $review) {
             $reviewText = is_array($review) ? ($review['text'] ?? '') : $review;
             $reviewId = is_array($review) ? ($review['id'] ?? $index + 1) : $index + 1;
-            $rating = is_array($review) ? ($review['rating'] ?? 5) : 5;
             
-            // Truncate for efficiency but keep important context
+            // Truncate for efficiency
             $truncatedText = strlen($reviewText) > 400 ? substr($reviewText, 0, 400) . '...' : $reviewText;
-            $prompt .= "ID:{$reviewId} {$rating}/5\n";
-            $prompt .= "Review: \"{$truncatedText}\"\n\n";
+            $promptParts[] = "Review {$reviewId}: \"{$truncatedText}\"";
         }
         
-        return $prompt;
+        return implode("\n", $promptParts);
     }
     
     private function parseResponse($response, $reviews): array
@@ -178,14 +160,8 @@ class DeepSeekProvider implements LLMProviderInterface
                 if (isset($scoreData['id']) && isset($scoreData['score'])) {
                     $detailedScores[] = [
                         'id' => $scoreData['id'],
-                        'score' => (float) $scoreData['score'],
-                        'explanation' => $scoreData['explanation'] ?? $this->generateExplanation((float)$scoreData['score']),
-                        'red_flags' => $scoreData['red_flags'] ?? [],
-                        'analysis_details' => [
-                            'provider' => 'deepseek',
-                            'model' => $this->model,
-                            'confidence' => $this->calculateConfidence((float)$scoreData['score'])
-                        ]
+                        'score' => (int) $scoreData['score'],
+                        'provider' => 'deepseek'
                     ];
                 }
             }

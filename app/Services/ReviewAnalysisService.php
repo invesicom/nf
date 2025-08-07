@@ -729,4 +729,426 @@ class ReviewAnalysisService
         
         return $fakeExamples;
     }
+
+    /**
+     * Enhanced Analysis for GitHub Issue #31
+     * Performs keyword analysis, timeline patterns, and vocabulary diversity assessment
+     */
+    public function performEnhancedAnalysis(AsinData $asinData): array
+    {
+        LoggingService::log('Starting enhanced analysis for Issue #31 - ASIN: ' . $asinData->asin);
+        
+        $reviews = $asinData->getReviewsArray();
+        if (empty($reviews)) {
+            return ['error' => 'No reviews found for enhanced analysis'];
+        }
+
+        // Get existing analysis data (try detailed_analysis first, fallback to openai_result)
+        $detailedAnalysis = $asinData->detailed_analysis ?? [];
+        if (empty($detailedAnalysis)) {
+            LoggingService::log('No detailed analysis found, checking openai_result');
+            $openaiResult = $asinData->openai_result;
+            if (is_string($openaiResult)) {
+                $openaiResult = json_decode($openaiResult, true);
+            }
+            $detailedAnalysis = $openaiResult['detailed_scores'] ?? [];
+            
+            if (empty($detailedAnalysis)) {
+                LoggingService::log('No analysis data found, running basic analysis first');
+                return ['error' => 'Run basic analysis first to enable enhanced analysis'];
+            }
+        }
+
+        // Perform enhanced analyses
+        $keywordAnalysis = $this->analyzeKeywordPatterns($reviews, $detailedAnalysis);
+        $timelineAnalysis = $this->analyzeReviewTimeline($reviews);
+        $vocabularyAnalysis = $this->analyzeVocabularyDiversity($reviews);
+        
+        // Generate enhanced summary with existing scoring system
+        $enhancedSummary = $this->generateEnhancedSummary(
+            $asinData,
+            $keywordAnalysis,
+            $timelineAnalysis,
+            $vocabularyAnalysis
+        );
+
+        $result = [
+            'enhanced_analysis_v2' => [
+                'keyword_analysis' => $keywordAnalysis,
+                'timeline_analysis' => $timelineAnalysis,
+                'vocabulary_analysis' => $vocabularyAnalysis,
+                'enhanced_summary' => $enhancedSummary,
+                'github_issue' => '#31',
+                'analysis_timestamp' => now()->toISOString()
+            ]
+        ];
+
+        // Store enhanced analysis
+        $asinData->update([
+            'analysis_notes' => json_encode($result)
+        ]);
+
+        LoggingService::log('Enhanced analysis completed for Issue #31');
+        return $result;
+    }
+
+    /**
+     * Analyze keyword patterns and authenticity markers
+     */
+    private function analyzeKeywordPatterns(array $reviews, array $detailedAnalysis): array
+    {
+        $allText = implode(' ', array_column($reviews, 'review_text'));
+        $words = str_word_count(strtolower($allText), 1);
+        
+        // Common fake review phrases
+        $suspiciousPhrases = [
+            'highly recommend', 'amazing product', 'best purchase', 'five stars',
+            'must buy', 'great quality', 'love it', 'perfect', 'excellent'
+        ];
+        
+        $naturalPhrases = [
+            'after using', 'compared to', 'fits perfectly', 'works well with',
+            'shipping was', 'arrived quickly', 'for the price', 'would recommend'
+        ];
+
+        $criticalPhrases = [
+            'waste of money', 'poor quality', 'broke after', 'not as described',
+            'disappointed', 'returning', 'defective', 'cheap material'
+        ];
+
+        // Count phrase occurrences
+        $suspiciousCount = $this->countPhraseOccurrences($allText, $suspiciousPhrases);
+        $naturalCount = $this->countPhraseOccurrences($allText, $naturalPhrases);
+        $criticalCount = $this->countPhraseOccurrences($allText, $criticalPhrases);
+
+        // Calculate vocabulary diversity (unique words / total words)
+        $uniqueWords = array_unique($words);
+        $diversityRatio = count($uniqueWords) / max(1, count($words));
+
+        return [
+            'phrase_patterns' => [
+                'suspicious_phrases' => $suspiciousCount,
+                'natural_phrases' => $naturalCount,
+                'critical_phrases' => $criticalCount,
+                'suspicious_ratio' => round($suspiciousCount / max(1, count($reviews)), 2)
+            ],
+            'vocabulary_diversity' => [
+                'total_words' => count($words),
+                'unique_words' => count($uniqueWords),
+                'diversity_ratio' => round($diversityRatio, 3),
+                'diversity_score' => min(10, round($diversityRatio * 20, 1)) // Scale to 1-10
+            ],
+            'authenticity_indicators' => [
+                'natural_language_flow' => $this->assessLanguageFlow($reviews),
+                'specific_details_ratio' => $this->calculateSpecificDetailsRatio($reviews),
+                'balanced_sentiment' => $this->assessSentimentBalance($reviews)
+            ]
+        ];
+    }
+
+    /**
+     * Analyze review timeline for manipulation patterns
+     */
+    private function analyzeReviewTimeline(array $reviews): array
+    {
+        $timeline = [];
+        $reviewsByDate = [];
+
+        // Group reviews by date
+        foreach ($reviews as $review) {
+            $date = $review['date'] ?? $review['review_date'] ?? date('Y-m-d');
+            if (!isset($reviewsByDate[$date])) {
+                $reviewsByDate[$date] = 0;
+            }
+            $reviewsByDate[$date]++;
+        }
+
+        ksort($reviewsByDate);
+
+        // Detect spikes (days with >3x average reviews)
+        $values = array_values($reviewsByDate);
+        $average = array_sum($values) / max(1, count($values));
+        $spikes = [];
+
+        foreach ($reviewsByDate as $date => $count) {
+            if ($count > ($average * 3) && $count > 5) {
+                $spikes[] = [
+                    'date' => $date,
+                    'review_count' => $count,
+                    'spike_ratio' => round($count / $average, 1)
+                ];
+            }
+        }
+
+        // Calculate review velocity pattern
+        $firstDate = min(array_keys($reviewsByDate));
+        $lastDate = max(array_keys($reviewsByDate));
+        $daysDiff = max(1, (strtotime($lastDate) - strtotime($firstDate)) / 86400);
+        $reviewVelocity = count($reviews) / $daysDiff;
+
+        return [
+            'timeline_data' => $reviewsByDate,
+            'suspicious_spikes' => $spikes,
+            'spike_count' => count($spikes),
+            'review_velocity' => round($reviewVelocity, 2),
+            'date_range' => [
+                'first_review' => $firstDate,
+                'last_review' => $lastDate,
+                'days_span' => round($daysDiff)
+            ],
+            'manipulation_risk' => $this->assessManipulationRisk($spikes, $reviewVelocity, count($reviews))
+        ];
+    }
+
+    /**
+     * Analyze vocabulary diversity across reviews
+     */
+    private function analyzeVocabularyDiversity(array $reviews): array
+    {
+        $reviewTexts = [];
+        $vocabularyMetrics = [];
+
+        foreach ($reviews as $review) {
+            $text = strtolower($review['review_text'] ?? $review['text'] ?? '');
+            $words = str_word_count($text, 1);
+            
+            $reviewTexts[] = $text;
+            $vocabularyMetrics[] = [
+                'word_count' => count($words),
+                'unique_words' => count(array_unique($words)),
+                'diversity' => count($words) > 0 ? count(array_unique($words)) / count($words) : 0
+            ];
+        }
+
+        // Calculate similarity between reviews
+        $similarities = $this->calculateTextSimilarities($reviewTexts);
+        
+        $avgDiversity = array_sum(array_column($vocabularyMetrics, 'diversity')) / max(1, count($vocabularyMetrics));
+        $avgWordCount = array_sum(array_column($vocabularyMetrics, 'word_count')) / max(1, count($vocabularyMetrics));
+
+        return [
+            'average_diversity' => round($avgDiversity, 3),
+            'average_word_count' => round($avgWordCount, 1),
+            'diversity_score' => min(10, round($avgDiversity * 15, 1)),
+            'similarity_analysis' => $similarities,
+            'vocabulary_health' => $this->assessVocabularyHealth($avgDiversity, $similarities)
+        ];
+    }
+
+    /**
+     * Generate enhanced summary with pros/cons analysis
+     */
+    private function generateEnhancedSummary(AsinData $asinData, array $keyword, array $timeline, array $vocabulary): array
+    {
+        $pros = [];
+        $cons = [];
+        $overallScore = $asinData->fake_percentage ? (100 - $asinData->fake_percentage) : 75;
+
+        // Analyze pros based on patterns
+        if ($vocabulary['diversity_score'] >= 7) {
+            $pros[] = "High vocabulary diversity indicates natural, varied authorship";
+        }
+        if ($timeline['spike_count'] === 0) {
+            $pros[] = "Natural review timing with no suspicious activity spikes";
+        }
+        if ($keyword['phrase_patterns']['natural_phrases'] > $keyword['phrase_patterns']['suspicious_phrases']) {
+            $pros[] = "Natural language patterns dominate over generic phrases";
+        }
+        if ($keyword['authenticity_indicators']['balanced_sentiment'] > 0.6) {
+            $pros[] = "Reviews show balanced sentiment with both positive and critical feedback";
+        }
+
+        // Analyze cons based on patterns
+        if ($vocabulary['diversity_score'] < 4) {
+            $cons[] = "Low vocabulary diversity suggests potential template usage or coordination";
+        }
+        if ($timeline['spike_count'] > 2) {
+            $cons[] = "Multiple suspicious review spikes detected indicating possible manipulation";
+        }
+        if ($keyword['phrase_patterns']['suspicious_ratio'] > 0.8) {
+            $cons[] = "High ratio of generic promotional phrases across reviews";
+        }
+        if ($timeline['manipulation_risk'] === 'high') {
+            $cons[] = "Timeline patterns suggest coordinated review manipulation";
+        }
+
+        // Adjust overall score based on enhanced analysis
+        $adjustmentFactor = 0;
+        $adjustmentFactor += ($vocabulary['diversity_score'] - 5) * 2; // -10 to +10
+        $adjustmentFactor += ($timeline['spike_count'] * -5); // Penalty for spikes
+        $adjustmentFactor += (($keyword['phrase_patterns']['natural_phrases'] - $keyword['phrase_patterns']['suspicious_phrases']) * 0.5);
+
+        $enhancedScore = max(0, min(100, $overallScore + $adjustmentFactor));
+        $enhancedGrade = $this->scoreToGrade($enhancedScore);
+
+        return [
+            'enhanced_score' => round($enhancedScore, 1),
+            'enhanced_grade' => $enhancedGrade,
+            'original_score' => $overallScore,
+            'adjustment_factor' => round($adjustmentFactor, 1),
+            'pros' => $pros,
+            'cons' => $cons,
+            'summary_text' => $this->buildSummaryText($enhancedGrade, $pros, $cons, $keyword, $timeline, $vocabulary),
+            'trust_recommendation' => $this->generateTrustRecommendation($enhancedScore, $pros, $cons)
+        ];
+    }
+
+    // Helper methods
+    private function countPhraseOccurrences(string $text, array $phrases): int
+    {
+        $text = strtolower($text);
+        $count = 0;
+        foreach ($phrases as $phrase) {
+            $count += substr_count($text, strtolower($phrase));
+        }
+        return $count;
+    }
+
+    private function assessLanguageFlow(array $reviews): float
+    {
+        // Simple heuristic: check for varied sentence structures
+        $flowScore = 0;
+        foreach ($reviews as $review) {
+            $text = $review['review_text'] ?? $review['text'] ?? '';
+            $sentences = explode('.', $text);
+            $avgLength = array_sum(array_map('strlen', $sentences)) / max(1, count($sentences));
+            $flowScore += min(10, $avgLength / 10); // Normalize to 1-10
+        }
+        return round($flowScore / max(1, count($reviews)), 1);
+    }
+
+    private function calculateSpecificDetailsRatio(array $reviews): float
+    {
+        $detailKeywords = ['size', 'color', 'material', 'weight', 'fits', 'compared', 'price', 'shipping', 'packaging'];
+        $totalReviews = count($reviews);
+        $reviewsWithDetails = 0;
+
+        foreach ($reviews as $review) {
+            $text = strtolower($review['review_text'] ?? $review['text'] ?? '');
+            foreach ($detailKeywords as $keyword) {
+                if (strpos($text, $keyword) !== false) {
+                    $reviewsWithDetails++;
+                    break;
+                }
+            }
+        }
+
+        return round($reviewsWithDetails / max(1, $totalReviews), 2);
+    }
+
+    private function assessSentimentBalance(array $reviews): float
+    {
+        $ratings = array_column($reviews, 'rating');
+        $ratingCounts = array_count_values($ratings);
+        
+        $lowRatings = ($ratingCounts[1] ?? 0) + ($ratingCounts[2] ?? 0);
+        $highRatings = ($ratingCounts[4] ?? 0) + ($ratingCounts[5] ?? 0);
+        $totalRatings = array_sum($ratingCounts);
+        
+        // Balanced if there are some low ratings (indicates authenticity)
+        $balanceScore = ($lowRatings > 0 && $lowRatings < $totalRatings * 0.8) ? 0.8 : 0.3;
+        return $balanceScore;
+    }
+
+    private function calculateTextSimilarities(array $texts): array
+    {
+        if (count($texts) < 2) return ['average_similarity' => 0, 'high_similarity_pairs' => 0];
+        
+        $similarities = [];
+        $highSimilarityPairs = 0;
+        
+        for ($i = 0; $i < count($texts) - 1; $i++) {
+            for ($j = $i + 1; $j < count($texts); $j++) {
+                $similarity = $this->calculateSimpleSimilarity($texts[$i], $texts[$j]);
+                $similarities[] = $similarity;
+                if ($similarity > 0.8) $highSimilarityPairs++;
+            }
+        }
+        
+        return [
+            'average_similarity' => round(array_sum($similarities) / max(1, count($similarities)), 3),
+            'high_similarity_pairs' => $highSimilarityPairs,
+            'similarity_risk' => $highSimilarityPairs > (count($texts) * 0.1) ? 'high' : 'low'
+        ];
+    }
+
+    private function calculateSimpleSimilarity(string $text1, string $text2): float
+    {
+        $words1 = array_unique(str_word_count(strtolower($text1), 1));
+        $words2 = array_unique(str_word_count(strtolower($text2), 1));
+        
+        $intersection = array_intersect($words1, $words2);
+        $union = array_unique(array_merge($words1, $words2));
+        
+        return count($union) > 0 ? count($intersection) / count($union) : 0;
+    }
+
+    private function assessVocabularyHealth(float $diversity, array $similarities): string
+    {
+        if ($diversity > 0.6 && $similarities['average_similarity'] < 0.3) {
+            return 'excellent';
+        } elseif ($diversity > 0.4 && $similarities['average_similarity'] < 0.5) {
+            return 'good';
+        } elseif ($diversity > 0.2) {
+            return 'fair';
+        } else {
+            return 'poor';
+        }
+    }
+
+    private function assessManipulationRisk(array $spikes, float $velocity, int $totalReviews): string
+    {
+        $riskScore = 0;
+        $riskScore += count($spikes) * 20; // 20 points per spike
+        $riskScore += ($velocity > 5) ? 30 : 0; // High velocity penalty
+        $riskScore += ($totalReviews > 100 && $velocity > 10) ? 25 : 0; // Volume + velocity
+        
+        return $riskScore > 50 ? 'high' : ($riskScore > 25 ? 'medium' : 'low');
+    }
+
+    private function scoreToGrade(float $score): string
+    {
+        return $score >= 90 ? 'A' : ($score >= 80 ? 'B' : ($score >= 70 ? 'C' : ($score >= 60 ? 'D' : 'F')));
+    }
+
+    private function buildSummaryText(string $grade, array $pros, array $cons, array $keyword, array $timeline, array $vocabulary): string
+    {
+        $summary = "Enhanced Analysis Summary (Grade: {$grade})\n\n";
+        
+        if (!empty($pros)) {
+            $summary .= "Positive Indicators:\n";
+            foreach ($pros as $pro) {
+                $summary .= "✓ {$pro}\n";
+            }
+            $summary .= "\n";
+        }
+        
+        if (!empty($cons)) {
+            $summary .= "Areas of Concern:\n";
+            foreach ($cons as $con) {
+                $summary .= "⚠ {$con}\n";
+            }
+            $summary .= "\n";
+        }
+        
+        $summary .= "Key Metrics:\n";
+        $summary .= "• Vocabulary Diversity: {$vocabulary['diversity_score']}/10\n";
+        $summary .= "• Review Spikes: {$timeline['spike_count']}\n";
+        $summary .= "• Manipulation Risk: {$timeline['manipulation_risk']}\n";
+        
+        return $summary;
+    }
+
+    private function generateTrustRecommendation(float $score, array $pros, array $cons): string
+    {
+        if ($score >= 85) {
+            return "HIGH TRUST: Strong indicators suggest authentic reviews. Safe to rely on this product's rating.";
+        } elseif ($score >= 70) {
+            return "MODERATE TRUST: Generally positive indicators with minor concerns. Consider reviews carefully.";
+        } elseif ($score >= 55) {
+            return "LOW TRUST: Mixed signals detected. Research additional sources before purchasing.";
+        } else {
+            return "VERY LOW TRUST: Multiple red flags suggest potential manipulation. Exercise caution.";
+        }
+    }
 }
