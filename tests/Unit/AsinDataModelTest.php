@@ -510,6 +510,8 @@ class AsinDataModelTest extends TestCase
             'product_data_scraped_at',
             'reviews',
             'openai_result',
+            'detailed_analysis',
+            'fake_review_examples',
             'fake_percentage',
             'amazon_rating',
             'adjusted_rating',
