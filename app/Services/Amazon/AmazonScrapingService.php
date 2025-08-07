@@ -582,14 +582,22 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         // Fetch reviews from Amazon with direct scraping
         $reviewsData = $this->fetchReviews($asin, $country);
 
-        // Check if fetching failed and provide specific error message
-        if (empty($reviewsData) || !isset($reviewsData['reviews'])) {
-            // Create a more descriptive exception that will be properly handled by LoggingService
-            $exception = new \Exception('Unable to fetch product reviews. This could be due to Amazon blocking requests, network issues, or service configuration problems. Please try again in a few minutes.');
-            
-            // Let LoggingService handle the exception and provide appropriate user message
-            throw new \Exception(LoggingService::handleException($exception));
+        // Check if fetching failed completely (no data structure returned)
+        if (empty($reviewsData)) {
+            throw new \Exception('Unable to fetch product reviews. This could be due to Amazon blocking requests, network issues, or service configuration problems. Please try again in a few minutes.');
         }
+        
+        // If we have data structure but no reviews, that's acceptable (some products have 0 reviews)
+        if (!isset($reviewsData['reviews'])) {
+            $reviewsData['reviews'] = [];
+        }
+        
+        LoggingService::log('Amazon scraping completed', [
+            'asin' => $asin,
+            'review_count' => count($reviewsData['reviews']),
+            'has_description' => !empty($reviewsData['description']),
+            'total_reviews' => $reviewsData['total_reviews'] ?? 'unknown'
+        ]);
 
         // Save to database - NO OpenAI analysis yet (will be done separately)
         return AsinData::create([
@@ -615,7 +623,11 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         // Basic ASIN format validation
         if (!$this->isValidAsinFormat($asin)) {
             LoggingService::log('ASIN format validation failed', ['asin' => $asin]);
-            return [];
+            return [
+                'reviews' => [],
+                'description' => '',
+                'total_reviews' => 0
+            ];
         }
 
         LoggingService::log('Starting Amazon scraping for ASIN: ' . $asin);
@@ -626,7 +638,11 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             
             if (empty($productData)) {
                 LoggingService::log('Failed to scrape product page', ['asin' => $asin]);
-                return [];
+                return [
+                    'reviews' => [],
+                    'description' => '',
+                    'total_reviews' => 0
+                ];
             }
 
             // Then scrape reviews from multiple pages
@@ -647,7 +663,11 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                     );
                 }
                 
-                return [];
+                return [
+                    'reviews' => [],
+                    'description' => $productData['description'] ?? '',
+                    'total_reviews' => 0
+                ];
             }
 
             $result = [

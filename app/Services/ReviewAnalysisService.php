@@ -160,21 +160,35 @@ class ReviewAnalysisService
 
                         $reviews = $asinData->getReviewsArray();
                         if (empty($reviews)) {
-                            throw new \Exception('No reviews found in database for analysis');
+                            LoggingService::log("Product has no reviews to analyze, setting default analysis results for ASIN: {$asin}");
+                            
+                            // Set default analysis for products with no reviews
+                            $defaultResult = [
+                                'detailed_scores' => [],
+                                'analysis_provider' => 'system',
+                                'total_cost' => 0.0
+                            ];
+                            
+                            $asinData->update([
+                                'openai_result' => json_encode($defaultResult),
+                                'status' => 'completed',
+                            ]);
+                            
+                            $asinData = $asinData->fresh();
+                        } else {
+                            LoggingService::logProgress('Completing analysis', 'Analyzing reviews with OpenAI...');
+                            $openaiResult = $this->openAIService->analyzeReviews($reviews);
+
+                            $asinData->update([
+                                'openai_result' => json_encode($openaiResult),
+                                'status'        => 'completed',
+                            ]);
+
+                            LoggingService::log("Completed missing OpenAI analysis for ASIN: {$asin}");
+
+                            // Refresh the model to get updated data
+                            $asinData = $asinData->fresh();
                         }
-
-                        LoggingService::logProgress('Completing analysis', 'Analyzing reviews with OpenAI...');
-                        $openaiResult = $this->openAIService->analyzeReviews($reviews);
-
-                        $asinData->update([
-                            'openai_result' => json_encode($openaiResult),
-                            'status'        => 'completed',
-                        ]);
-
-                        LoggingService::log("Completed missing OpenAI analysis for ASIN: {$asin}");
-
-                        // Refresh the model to get updated data
-                        $asinData = $asinData->fresh();
                     }
                 }
             } else {
@@ -388,7 +402,23 @@ class ReviewAnalysisService
         $reviews = $asinData->getReviewsArray();
 
         if (empty($reviews)) {
-            throw new \Exception('No reviews found for analysis');
+            LoggingService::log("Product has no reviews to analyze, setting default analysis results for ASIN: {$asinData->asin}");
+            
+            // Set default analysis for products with no reviews
+            $defaultResult = [
+                'detailed_scores' => [],
+                'analysis_provider' => 'system',
+                'total_cost' => 0.0
+            ];
+            
+            $asinData->update([
+                'openai_result' => json_encode($defaultResult),
+                'detailed_analysis' => [],
+                'fake_review_examples' => [],
+                'status' => 'completed',
+            ]);
+
+            return $asinData;
         }
 
         LoggingService::log('Sending '.count($reviews).' reviews to LLM for analysis');
