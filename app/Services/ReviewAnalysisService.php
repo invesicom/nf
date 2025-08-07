@@ -398,12 +398,17 @@ class ReviewAnalysisService
             $llmManager = app(LLMServiceManager::class);
             $result = $llmManager->analyzeReviews($reviews);
             
+            // Extract fake review examples for transparency
+            $fakeExamples = $this->extractFakeReviewExamples($result, $reviews);
+            
             $asinData->update([
                 'openai_result' => json_encode($result),
-                'status'        => 'completed',
+                'detailed_analysis' => $result['detailed_scores'] ?? [],
+                'fake_review_examples' => $fakeExamples,
+                'status' => 'completed',
             ]);
 
-            LoggingService::log('Updated database record with LLM analysis results');
+            LoggingService::log('Updated database record with enhanced LLM analysis results including transparency data');
 
         } catch (\Exception $e) {
             LoggingService::log('LLM analysis failed, using fallback analysis', ['error' => $e->getMessage()]);
@@ -665,5 +670,63 @@ class ReviewAnalysisService
                "Average fake score: {$avgScore}/100. ".
                "Distribution: {$genuine} likely genuine, {$likely} questionable, {$suspicious} suspicious ({$suspiciousPercent}% suspicious). ".
                "Note: This is a basic analysis due to OpenAI quota limits. Results may be less accurate than AI analysis.";
+    }
+
+    /**
+     * Extract examples of fake reviews with detailed explanations for transparency
+     */
+    private function extractFakeReviewExamples(array $result, array $reviews): array
+    {
+        $fakeExamples = [];
+        $detailedScores = $result['detailed_scores'] ?? [];
+        
+        // Create a lookup map for reviews by ID
+        $reviewsById = [];
+        foreach ($reviews as $review) {
+            $reviewsById[$review['id']] = $review;
+        }
+        
+        // Find high-scoring fake reviews (70+) with good explanations
+        $highFakeReviews = array_filter($detailedScores, function($analysis) {
+            return ($analysis['score'] ?? 0) >= 70 && !empty($analysis['explanation']);
+        });
+        
+        // Sort by score (highest first) and take top 5 examples
+        usort($highFakeReviews, function($a, $b) {
+            return ($b['score'] ?? 0) <=> ($a['score'] ?? 0);
+        });
+        
+        $exampleCount = 0;
+        foreach ($highFakeReviews as $analysis) {
+            if ($exampleCount >= 5) break; // Limit to 5 examples
+            
+            $reviewId = $analysis['id'];
+            if (!isset($reviewsById[$reviewId])) continue;
+            
+            $review = $reviewsById[$reviewId];
+            $reviewText = $review['review_text'] ?? $review['text'] ?? '';
+            
+            // Skip very short reviews for examples
+            if (strlen($reviewText) < 50) continue;
+            
+            $fakeExamples[] = [
+                'review_id' => $reviewId,
+                'score' => $analysis['score'],
+                'confidence' => $analysis['analysis_details']['confidence'] ?? 'medium',
+                'review_text' => substr($reviewText, 0, 500), // Truncate for display
+                'rating' => $review['rating'] ?? 5,
+                'verified_purchase' => $review['meta_data']['verified_purchase'] ?? false,
+                'explanation' => $analysis['explanation'],
+                'red_flags' => $analysis['red_flags'] ?? [],
+                'provider' => $analysis['analysis_details']['provider'] ?? 'unknown',
+                'model' => $analysis['analysis_details']['model'] ?? 'unknown'
+            ];
+            
+            $exampleCount++;
+        }
+        
+        LoggingService::log('Extracted ' . count($fakeExamples) . ' fake review examples for transparency display');
+        
+        return $fakeExamples;
     }
 }

@@ -85,11 +85,25 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        $prompt = "Score each review 0-100 (0=genuine, 100=fake). Be thorough and suspicious. Return JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
-        $prompt .= "HIGH FAKE RISK (70-100): Generic praise, no specifics, promotional language, perfect 5-stars with short text, non-verified purchases, obvious AI writing, repetitive phrases across reviews\n";
+        $prompt = "Analyze Amazon reviews for authenticity. For each review, provide a score (0-100) and detailed explanation.\n";
+        $prompt .= "Return JSON: [{\"id\":\"X\",\"score\":Y,\"explanation\":\"detailed reason\",\"red_flags\":[\"flag1\",\"flag2\"]}]\n\n";
+        
+        $prompt .= "SCORING GUIDE:\n";
+        $prompt .= "HIGH FAKE RISK (70-100): Generic praise, no specifics, promotional language, perfect 5-stars with short text, non-verified purchases, obvious AI writing, repetitive phrases\n";
         $prompt .= "MEDIUM FAKE RISK (40-69): Overly positive without balance, lacks personal context, generic complaints, suspicious timing patterns, limited product knowledge\n";
         $prompt .= "LOW FAKE RISK (20-39): Some specifics but feels coached, minor inconsistencies, unusual language patterns for demographic\n";
         $prompt .= "GENUINE (0-19): Specific details, balanced pros/cons, personal context, natural language, verified purchase, realistic complaints, product knowledge\n\n";
+        
+        $prompt .= "RED FLAGS TO IDENTIFY:\n";
+        $prompt .= "- Generic language (\"amazing product\", \"highly recommend\")\n";
+        $prompt .= "- No specific product details or use cases\n";
+        $prompt .= "- Overly promotional tone\n";
+        $prompt .= "- Perfect ratings with minimal text\n";
+        $prompt .= "- Unverified purchase patterns\n";
+        $prompt .= "- Repetitive phrases across reviews\n";
+        $prompt .= "- Inconsistent language complexity\n";
+        $prompt .= "- Suspicious timing or reviewer history\n\n";
+        
         $prompt .= "Key: V=Verified, U=Unverified\n\n";
 
         foreach ($reviews as $review) {
@@ -103,7 +117,7 @@ class OllamaProvider implements LLMProviderInterface
             }
 
             $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}\n";
-            $prompt .= "R: {$text}\n\n";
+            $prompt .= "Review: \"{$text}\"\n\n";
         }
 
         return $prompt;
@@ -124,7 +138,13 @@ class OllamaProvider implements LLMProviderInterface
                         $results[] = [
                             'id' => $item['id'],
                             'score' => (float)$item['score'],
-                            'explanation' => $this->generateExplanation((float)$item['score'])
+                            'explanation' => $item['explanation'] ?? $this->generateExplanation((float)$item['score']),
+                            'red_flags' => $item['red_flags'] ?? [],
+                            'analysis_details' => [
+                                'provider' => 'ollama',
+                                'model' => $this->model,
+                                'confidence' => $this->calculateConfidence((float)$item['score'])
+                            ]
                         ];
                     }
                 }
@@ -147,6 +167,17 @@ class OllamaProvider implements LLMProviderInterface
             return "Low fake risk: Minor inconsistencies noted";
         } else {
             return "Appears genuine: Natural language and specific details";
+        }
+    }
+
+    private function calculateConfidence(float $score): string
+    {
+        if ($score >= 80 || $score <= 20) {
+            return "high";
+        } elseif ($score >= 60 || $score <= 40) {
+            return "medium";
+        } else {
+            return "low";
         }
     }
 }

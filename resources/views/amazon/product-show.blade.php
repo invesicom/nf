@@ -322,6 +322,91 @@
       </div>
     </div>
 
+    <!-- Fake Review Examples Section -->
+    @if($asinData->fake_review_examples && count($asinData->fake_review_examples) > 0)
+    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+      <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+        <svg class="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+        </svg>
+        Why These Reviews Were Flagged as Fake
+      </h2>
+      
+      <div class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+        <p class="text-amber-800 text-sm">
+          <strong>Transparency Notice:</strong> Our AI analysis identified the following reviews as potentially fake. 
+          Each example shows specific reasons why the review raised suspicion, helping you understand our analysis methodology.
+        </p>
+      </div>
+
+      <div class="space-y-6">
+        @foreach($asinData->fake_review_examples as $index => $example)
+        <div class="border border-red-200 rounded-lg p-4 bg-red-50">
+          <div class="flex justify-between items-start mb-3">
+            <div class="flex items-center space-x-2">
+              <span class="text-sm font-medium text-red-800">Example {{ $index + 1 }}</span>
+              <span class="px-2 py-1 bg-red-600 text-white text-xs rounded-full">
+                {{ number_format($example['score'], 0) }}% Fake Risk
+              </span>
+              @if($example['confidence'] === 'high')
+                <span class="px-2 py-1 bg-red-700 text-white text-xs rounded-full">High Confidence</span>
+              @elseif($example['confidence'] === 'medium')
+                <span class="px-2 py-1 bg-yellow-600 text-white text-xs rounded-full">Medium Confidence</span>
+              @else
+                <span class="px-2 py-1 bg-gray-500 text-white text-xs rounded-full">Low Confidence</span>
+              @endif
+            </div>
+            <div class="text-xs text-gray-500">
+              {{ $example['rating'] }}/5 stars
+              @if($example['verified_purchase'])
+                • <span class="text-green-600">Verified Purchase</span>
+              @else
+                • <span class="text-red-600">Unverified</span>
+              @endif
+            </div>
+          </div>
+
+          <!-- Review Text -->
+          <div class="mb-3 p-3 bg-white border border-red-300 rounded">
+            <p class="text-gray-700 text-sm italic">{{ $example['review_text'] }}</p>
+          </div>
+
+          <!-- AI Explanation -->
+          <div class="mb-3">
+            <h4 class="font-semibold text-red-800 mb-2">Why This Review Was Flagged:</h4>
+            <p class="text-sm text-red-700">{{ $example['explanation'] }}</p>
+          </div>
+
+          <!-- Red Flags -->
+          @if(!empty($example['red_flags']))
+          <div class="mb-3">
+            <h4 class="font-semibold text-red-800 mb-2">Specific Red Flags Detected:</h4>
+            <div class="flex flex-wrap gap-2">
+              @foreach($example['red_flags'] as $flag)
+                <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded border border-red-300">{{ $flag }}</span>
+              @endforeach
+            </div>
+          </div>
+          @endif
+
+          <!-- Analysis Details -->
+          <div class="text-xs text-gray-500 border-t border-red-200 pt-2">
+            Analyzed by: {{ ucfirst($example['provider']) }} ({{ $example['model'] }})
+          </div>
+        </div>
+        @endforeach
+      </div>
+
+      <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <p class="text-blue-800 text-sm">
+          <strong>Note:</strong> These examples represent reviews with the highest fake probability scores (70%+). 
+          The AI analysis considers factors like language patterns, specificity, verification status, and suspicious indicators.
+          While highly accurate, no automated system is perfect - these should be considered strong indicators rather than definitive proof.
+        </p>
+      </div>
+    </div>
+    @endif
+
     <!-- Share Section -->
     <div class="bg-white rounded-lg shadow-md p-6 mt-6">
       <h3 class="text-lg font-semibold text-gray-900 mb-3">Share This Analysis</h3>
