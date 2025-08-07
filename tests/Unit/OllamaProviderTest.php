@@ -110,7 +110,7 @@ class OllamaProviderTest extends TestCase
         $name = $this->provider->getProviderName();
         
         $this->assertStringContainsString('Ollama', $name);
-        $this->assertStringContainsString('llama3.2:3b', $name);
+        $this->assertStringContainsString('phi4:14b', $name);
     }
 
     public function test_handles_malformed_json_response()
