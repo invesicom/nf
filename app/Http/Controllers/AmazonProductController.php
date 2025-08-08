@@ -32,7 +32,7 @@ class AmazonProductController extends Controller
             
             return view('amazon.product-not-found', [
                 'asin' => $asin,
-                'amazon_url' => "https://www.amazon.com/dp/{$asin}",
+                'amazon_url' => $this->buildAmazonUrl($asin),
             ]);
         }
 
@@ -92,7 +92,7 @@ class AmazonProductController extends Controller
             
             return view('amazon.product-not-found', [
                 'asin' => $asin,
-                'amazon_url' => "https://www.amazon.com/dp/{$asin}",
+                'amazon_url' => $this->buildAmazonUrl($asin),
             ]);
         }
 
@@ -148,12 +148,27 @@ class AmazonProductController extends Controller
         // Display the full product analysis
         return view('amazon.product-show', [
             'asinData' => $asinData,
-            'amazon_url' => "https://www.amazon.com/dp/{$asinData->asin}",
+            'amazon_url' => $this->buildAmazonUrl($asinData->asin),
             'meta_title' => $this->generateMetaTitle($asinData),
             'meta_description' => $this->generateMetaDescription($asinData),
             'canonical_url' => $asinData->seo_url,
             'seo_data' => $seoData,
         ]);
+    }
+
+    /**
+     * Build Amazon URL with affiliate tag if configured.
+     */
+    private function buildAmazonUrl(string $asin): string
+    {
+        $url = "https://www.amazon.com/dp/{$asin}";
+        
+        $affiliateTag = config('app.amazon_affiliate_tag');
+        if ($affiliateTag) {
+            $url .= "?tag={$affiliateTag}";
+        }
+        
+        return $url;
     }
 
     /**

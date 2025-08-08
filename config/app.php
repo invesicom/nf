@@ -46,6 +46,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Amazon Affiliate Tag
+    |--------------------------------------------------------------------------
+    |
+    | Amazon affiliate tag to append to Amazon product URLs. If not set,
+    | no affiliate tag will be added to Amazon links.
+    |
+    */
+
+    'amazon_affiliate_tag' => env('AMAZON_AFFILIATE_TAG'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------
     |

@@ -156,7 +156,7 @@
       }
     ],
     "url": "{{ url($canonical_url) }}",
-    "sameAs": "https://www.amazon.com/dp/{{ $asinData->asin }}"
+    "sameAs": "{{ $amazon_url }}"
   }
   </script>
 
@@ -270,7 +270,7 @@
       "@type": "Product",
       "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
       "identifier": "{{ $asinData->asin }}",
-      "url": "https://www.amazon.com/dp/{{ $asinData->asin }}"
+      "url": "{{ $amazon_url }}"
     }
   }
   </script>
