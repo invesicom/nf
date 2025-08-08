@@ -71,10 +71,12 @@ class AmazonScrapingServiceTest extends TestCase
         // Mock empty product page response
         $this->mockHandler->append(new Response(404, [], 'Not Found'));
 
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessageMatches('/Unable to fetch product reviews/');
-
-        $this->service->fetchReviewsAndSave('B08N5WRWNW', 'us', 'https://amazon.com/dp/B08N5WRWNW');
+        // With improved error handling, this should now return AsinData object instead of exception
+        $result = $this->service->fetchReviewsAndSave('B08N5WRWNW', 'us', 'https://amazon.com/dp/B08N5WRWNW');
+        
+        $this->assertInstanceOf(\App\Models\AsinData::class, $result);
+        $this->assertEquals('B08N5WRWNW', $result->asin);
+        $this->assertEquals('us', $result->country);
     }
 
     public function test_fetch_reviews_success()
@@ -104,7 +106,11 @@ class AmazonScrapingServiceTest extends TestCase
     public function test_fetch_reviews_invalid_asin_format()
     {
         $result = $this->service->fetchReviews('INVALID123', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_product_page_error()
@@ -113,7 +119,11 @@ class AmazonScrapingServiceTest extends TestCase
         $this->mockHandler->append(new Response(500, [], 'Server Error'));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_no_reviews_found()
@@ -130,7 +140,11 @@ class AmazonScrapingServiceTest extends TestCase
         $this->mockHandler->append(new Response(200, [], $emptyReviewsHtml));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => 'Test Product',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_with_cookie_expiration_detection()
@@ -165,7 +179,11 @@ class AmazonScrapingServiceTest extends TestCase
         $this->mockHandler->append(new Response(200, [], $signInHtml));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => 'Test Product', // Product page succeeds, so description is extracted
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_handles_multiple_pages()
@@ -205,7 +223,11 @@ class AmazonScrapingServiceTest extends TestCase
         ));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_parses_review_data_correctly()

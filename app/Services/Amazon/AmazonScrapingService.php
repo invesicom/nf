@@ -976,7 +976,8 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                             break 2; // Break out of both loops
                         }
 
-                        $allReviews = array_merge($allReviews, $pageReviews);
+                        // Deduplicate reviews before merging to prevent duplicate content
+                        $allReviews = $this->deduplicateReviews($allReviews, $pageReviews);
                         
                         LoggingService::log("Extracted " . count($pageReviews) . " reviews from page {$page}", [
                             'total_reviews' => count($allReviews),
@@ -1436,5 +1437,75 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             $qualityMetrics['avg_length'] >= 120; // Average length of 120+ characters (increased from 75)
         
         return $qualityMetrics;
+    }
+
+    /**
+     * Deduplicate reviews to prevent duplicate content from pagination issues
+     * 
+     * @param array $existingReviews Current collection of reviews
+     * @param array $newReviews Reviews from current page to merge
+     * @return array Deduplicated combined reviews
+     */
+    private function deduplicateReviews(array $existingReviews, array $newReviews): array
+    {
+        // Create a lookup map of existing reviews for O(1) duplicate detection
+        $existingTexts = [];
+        foreach ($existingReviews as $index => $review) {
+            if (isset($review['review_text'])) {
+                // Use review text as primary deduplication key
+                $textKey = $this->normalizeReviewText($review['review_text']);
+                $existingTexts[$textKey] = $index;
+            }
+        }
+        
+        $duplicatesFound = 0;
+        $newUniqueReviews = [];
+        
+        foreach ($newReviews as $newReview) {
+            if (!isset($newReview['review_text'])) {
+                continue; // Skip reviews without text
+            }
+            
+            $textKey = $this->normalizeReviewText($newReview['review_text']);
+            
+            // Check if this review text already exists
+            if (!isset($existingTexts[$textKey])) {
+                // This is a new unique review
+                $newUniqueReviews[] = $newReview;
+                $existingTexts[$textKey] = true; // Mark as seen
+            } else {
+                $duplicatesFound++;
+            }
+        }
+        
+        // Log deduplication results for monitoring
+        if ($duplicatesFound > 0) {
+            LoggingService::log("Review deduplication applied", [
+                'existing_reviews' => count($existingReviews),
+                'new_reviews_found' => count($newReviews),
+                'duplicates_filtered' => $duplicatesFound,
+                'unique_new_reviews' => count($newUniqueReviews),
+                'final_total' => count($existingReviews) + count($newUniqueReviews)
+            ]);
+        }
+        
+        return array_merge($existingReviews, $newUniqueReviews);
+    }
+    
+    /**
+     * Normalize review text for consistent duplicate detection
+     * 
+     * @param string $text Raw review text
+     * @return string Normalized text key
+     */
+    private function normalizeReviewText(string $text): string
+    {
+        // Normalize whitespace, case, and common variations for duplicate detection
+        $normalized = trim($text);
+        $normalized = preg_replace('/\s+/', ' ', $normalized); // Normalize whitespace
+        $normalized = strtolower($normalized); // Case insensitive
+        $normalized = preg_replace('/[^\w\s]/', '', $normalized); // Remove punctuation for fuzzy matching
+        
+        return $normalized;
     }
 } 
