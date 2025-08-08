@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\AsinData;
 use App\Services\LoggingService;
+use App\Services\ReviewAnalysisService;
 
 class AuditReviewDuplication extends Command
 {
@@ -15,7 +16,9 @@ class AuditReviewDuplication extends Command
                             {--limit=100 : Maximum number of products to audit}
                             {--fix : Automatically fix duplicates found}
                             {--asin= : Audit specific ASIN}
-                            {--threshold=10 : Minimum duplicate percentage to report}';
+                            {--threshold=10 : Minimum duplicate percentage to report}
+                            {--older-than= : Only audit products older than X days (e.g., 7)}
+                            {--reanalyze : Re-run LLM analysis after fixing duplicates}';
 
     /**
      * The console command description.
@@ -35,18 +38,20 @@ class AuditReviewDuplication extends Command
         $fix = $this->option('fix');
         $specificAsin = $this->option('asin');
         $threshold = (int) $this->option('threshold');
+        $olderThanDays = $this->option('older-than');
+        $reanalyze = $this->option('reanalyze');
 
         if ($specificAsin) {
-            return $this->auditSpecificProduct($specificAsin, $fix);
+            return $this->auditSpecificProduct($specificAsin, $fix, $reanalyze);
         }
 
-        return $this->auditAllProducts($limit, $threshold, $fix);
+        return $this->auditAllProducts($limit, $threshold, $fix, $olderThanDays, $reanalyze);
     }
 
     /**
      * Audit a specific product by ASIN
      */
-    private function auditSpecificProduct(string $asin, bool $fix): int
+    private function auditSpecificProduct(string $asin, bool $fix, bool $reanalyze = false): int
     {
         $product = AsinData::where('asin', $asin)->first();
         
@@ -64,7 +69,13 @@ class AuditReviewDuplication extends Command
         $this->displayDuplicationAnalysis($product, $analysis);
 
         if ($fix && $analysis['has_duplicates']) {
-            return $this->fixProductDuplication($product, $analysis);
+            $result = $this->fixProductDuplication($product, $analysis);
+            
+            if ($reanalyze && $result === 0) {
+                $this->reanalyzeProduct($product);
+            }
+            
+            return $result;
         }
 
         return 0;
@@ -73,11 +84,18 @@ class AuditReviewDuplication extends Command
     /**
      * Audit all products in the database
      */
-    private function auditAllProducts(int $limit, int $threshold, bool $fix): int
+    private function auditAllProducts(int $limit, int $threshold, bool $fix, ?string $olderThanDays = null, bool $reanalyze = false): int
     {
         $query = AsinData::whereNotNull('reviews')
-                         ->where('reviews', '!=', '[]')
-                         ->orderBy('updated_at', 'desc');
+                         ->where('reviews', '!=', '[]');
+        
+        if ($olderThanDays) {
+            $cutoffDate = now()->subDays((int) $olderThanDays);
+            $query->where('updated_at', '<', $cutoffDate);
+            $this->info("🕒 Filtering to products older than {$olderThanDays} days (before {$cutoffDate->format('Y-m-d H:i:s')})");
+        }
+        
+        $query->orderBy('updated_at', 'desc');
 
         $totalProducts = $query->count();
         $this->info("📊 Found {$totalProducts} products with review data");
@@ -114,6 +132,10 @@ class AuditReviewDuplication extends Command
                 if ($fix) {
                     if ($this->fixProductDuplication($product, $analysis) === 0) {
                         $fixedProducts++;
+                        
+                        if ($reanalyze) {
+                            $this->reanalyzeProduct($product);
+                        }
                     }
                 }
             }
@@ -326,5 +348,56 @@ class AuditReviewDuplication extends Command
         $normalized = preg_replace('/[^\w\s]/', '', $normalized); // Remove punctuation for fuzzy matching
         
         return $normalized;
+    }
+
+    /**
+     * Re-run LLM analysis after deduplication
+     */
+    private function reanalyzeProduct(AsinData $product): void
+    {
+        $this->info("🤖 Re-running LLM analysis for {$product->asin}...");
+        
+        try {
+            $reviewAnalysisService = app(ReviewAnalysisService::class);
+            $reviews = $product->getReviewsArray();
+            
+            if (empty($reviews)) {
+                $this->warn("   ⚠️ No reviews to analyze");
+                return;
+            }
+            
+            // Clear existing analysis data
+            $product->openai_result = null;
+            $product->fake_percentage = null;
+            $product->grade = null;
+            $product->adjusted_rating = null;
+            $product->detailed_analysis = null;
+            $product->fake_review_examples = null;
+            
+            // Re-run analysis
+            $result = $reviewAnalysisService->analyzeWithOpenAI($product->asin, $reviews);
+            
+            if ($result) {
+                // Update the product with new analysis
+                $product->openai_result = json_encode($result);
+                $product->fake_percentage = $result['fake_percentage'] ?? null;
+                $product->grade = $result['grade'] ?? null;
+                $product->adjusted_rating = $result['adjusted_rating'] ?? null;
+                $product->detailed_analysis = $result['detailed_analysis'] ?? null;
+                $product->fake_review_examples = $result['fake_review_examples'] ?? null;
+                $product->save();
+                
+                $this->info("   ✅ Analysis updated: {$product->fake_percentage}% fake, Grade: {$product->grade}");
+            } else {
+                $this->warn("   ❌ Analysis failed");
+            }
+            
+        } catch (\Exception $e) {
+            $this->error("   ❌ Analysis error: " . $e->getMessage());
+            LoggingService::log("Re-analysis failed", [
+                'asin' => $product->asin,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 }
