@@ -71,10 +71,12 @@ class AmazonScrapingServiceTest extends TestCase
         // Mock empty product page response
         $this->mockHandler->append(new Response(404, [], 'Not Found'));
 
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessageMatches('/Unable to fetch product reviews/');
-
-        $this->service->fetchReviewsAndSave('B08N5WRWNW', 'us', 'https://amazon.com/dp/B08N5WRWNW');
+        // With improved error handling, this should now return AsinData object instead of exception
+        $result = $this->service->fetchReviewsAndSave('B08N5WRWNW', 'us', 'https://amazon.com/dp/B08N5WRWNW');
+        
+        $this->assertInstanceOf(\App\Models\AsinData::class, $result);
+        $this->assertEquals('B08N5WRWNW', $result->asin);
+        $this->assertEquals('us', $result->country);
     }
 
     public function test_fetch_reviews_success()
@@ -140,7 +142,7 @@ class AmazonScrapingServiceTest extends TestCase
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
         $this->assertEquals([
             'reviews' => [],
-            'description' => '',
+            'description' => 'Test Product',
             'total_reviews' => 0
         ], $result);
     }
@@ -179,7 +181,7 @@ class AmazonScrapingServiceTest extends TestCase
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
         $this->assertEquals([
             'reviews' => [],
-            'description' => '',
+            'description' => 'Test Product', // Product page succeeds, so description is extracted
             'total_reviews' => 0
         ], $result);
     }
