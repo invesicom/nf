@@ -110,7 +110,7 @@ class OllamaProviderTest extends TestCase
         $name = $this->provider->getProviderName();
         
         $this->assertStringContainsString('Ollama', $name);
-        $this->assertStringContainsString('llama3.2:3b', $name);
+        $this->assertStringContainsString('phi4:14b', $name);
     }
 
     public function test_handles_malformed_json_response()
@@ -127,10 +127,12 @@ class OllamaProviderTest extends TestCase
             ])
         ]);
 
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Failed to parse Ollama response');
+        // With improved parsing, malformed JSON now falls back to heuristic parsing
+        $result = $this->provider->analyzeReviews($reviews);
         
-        $this->provider->analyzeReviews($reviews);
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('detailed_scores', $result);
+        // Heuristic parsing should provide some result even with malformed JSON
     }
 
     public function test_uses_configured_timeout()
