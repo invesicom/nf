@@ -192,8 +192,12 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
 
-        // Should return empty array after max retries
-        $this->assertEmpty($result);
+        // Should return structured array after max retries
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     private function getMockClient(): Client

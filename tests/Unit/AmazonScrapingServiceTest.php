@@ -104,7 +104,11 @@ class AmazonScrapingServiceTest extends TestCase
     public function test_fetch_reviews_invalid_asin_format()
     {
         $result = $this->service->fetchReviews('INVALID123', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_product_page_error()
@@ -113,7 +117,11 @@ class AmazonScrapingServiceTest extends TestCase
         $this->mockHandler->append(new Response(500, [], 'Server Error'));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_no_reviews_found()
@@ -130,7 +138,11 @@ class AmazonScrapingServiceTest extends TestCase
         $this->mockHandler->append(new Response(200, [], $emptyReviewsHtml));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_with_cookie_expiration_detection()
@@ -165,7 +177,11 @@ class AmazonScrapingServiceTest extends TestCase
         $this->mockHandler->append(new Response(200, [], $signInHtml));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_handles_multiple_pages()
@@ -205,7 +221,11 @@ class AmazonScrapingServiceTest extends TestCase
         ));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        $this->assertEmpty($result);
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_parses_review_data_correctly()
