@@ -230,6 +230,144 @@ class AmazonScrapingServiceTest extends TestCase
         ], $result);
     }
 
+    public function test_fetch_reviews_detects_captcha_and_sends_alert()
+    {
+        // Mock AlertService to verify specific CAPTCHA alert is sent
+        $alertService = Mockery::mock(AlertService::class);
+        $alertService->shouldReceive('amazonCaptchaDetected')
+            ->once()
+            ->with(
+                Mockery::on(function ($url) {
+                    return str_contains($url, 'amazon.com/dp/B08N5WRWNW');
+                }),
+                Mockery::on(function ($indicators) {
+                    return in_array('validatecaptcha', $indicators) 
+                        && in_array('click the button below to continue', $indicators);
+                }),
+                Mockery::on(function ($context) {
+                    return isset($context['detection_method'])
+                        && $context['detection_method'] === 'enhanced_captcha_detection'
+                        && isset($context['indicators_found']);
+                })
+            );
+
+        $this->app->instance(AlertService::class, $alertService);
+
+        // Create CAPTCHA HTML response
+        $captchaHtml = $this->createMockCaptchaHtml();
+        
+        // Mock product page returning CAPTCHA
+        $this->mockHandler->append(new Response(200, [], $captchaHtml));
+
+        $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
+        
+        // Should return empty result when CAPTCHA is detected
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
+    }
+
+    public function test_fetch_reviews_detects_small_content_with_captcha_indicators()
+    {
+        // Mock AlertService to verify CAPTCHA indicator detection
+        $alertService = Mockery::mock(AlertService::class);
+        $alertService->shouldReceive('amazonCaptchaDetected')
+            ->once()
+            ->with(
+                Mockery::on(function ($url) {
+                    return str_contains($url, 'amazon.com/dp/B08N5WRWNW');
+                }),
+                Mockery::on(function ($indicators) {
+                    return in_array('unusual traffic', $indicators);
+                }),
+                Mockery::on(function ($context) {
+                    return isset($context['detection_method'])
+                        && $context['detection_method'] === 'enhanced_captcha_detection'
+                        && isset($context['indicators_found']);
+                })
+            );
+
+        $this->app->instance(AlertService::class, $alertService);
+
+        // Create small HTML response with CAPTCHA indicator
+        $smallHtml = '<html><body><div>Service temporarily unavailable due to unusual traffic</div></body></html>';
+        
+        // Mock product page returning small content with CAPTCHA indicator
+        $this->mockHandler->append(new Response(200, [], $smallHtml));
+
+        $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
+        
+        // Should return empty result when CAPTCHA indicators are detected
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
+    }
+
+    public function test_fetch_reviews_and_save_handles_captcha()
+    {
+        // Mock AlertService
+        $alertService = Mockery::mock(AlertService::class);
+        $alertService->shouldReceive('amazonCaptchaDetected')->once();
+        $this->app->instance(AlertService::class, $alertService);
+
+        // Mock CAPTCHA response
+        $captchaHtml = $this->createMockCaptchaHtml();
+        $this->mockHandler->append(new Response(200, [], $captchaHtml));
+
+        $result = $this->service->fetchReviewsAndSave('B08N5WRWNW', 'us', 'https://amazon.com/dp/B08N5WRWNW');
+
+        // Should still create AsinData record even with CAPTCHA
+        $this->assertInstanceOf(AsinData::class, $result);
+        $this->assertEquals('B08N5WRWNW', $result->asin);
+        
+        // Should have empty reviews due to CAPTCHA
+        $reviews = json_decode($result->reviews, true);
+        $this->assertEquals([], $reviews);
+    }
+
+    public function test_blocking_detection_with_status_codes()
+    {
+        // Mock AlertService for non-200 blocking
+        $alertService = Mockery::mock(AlertService::class);
+        $alertService->shouldReceive('connectivityIssue')
+            ->once()
+            ->with(
+                'Amazon Direct Scraping',
+                'BLOCKING_DETECTED',
+                Mockery::on(function ($message) {
+                    return str_contains($message, 'Blocking detected') && str_contains($message, 'B08N5WRWNW');
+                }),
+                Mockery::on(function ($context) {
+                    return $context['status_code'] === 503 
+                        && isset($context['blocking_indicator'])
+                        && $context['asin'] === 'B08N5WRWNW';
+                })
+            );
+
+        $this->app->instance(AlertService::class, $alertService);
+
+        // Mock product page response
+        $productHtml = $this->createMockProductHtml('Test Product');
+        $this->mockHandler->append(new Response(200, [], $productHtml));
+
+        // Mock review URL pattern testing (first pattern works but returns blocking)
+        $blockingHtml = '<html><body><div>Service temporarily unavailable due to unusual traffic</div></body></html>';
+        $this->mockHandler->append(new Response(503, [], $blockingHtml));
+
+        $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
+        
+        // Should return empty result due to blocking
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => 'Test Product',
+            'total_reviews' => 0
+        ], $result);
+    }
+
     public function test_parses_review_data_correctly()
     {
         // Mock product page response
@@ -291,6 +429,38 @@ class AmazonScrapingServiceTest extends TestCase
         </body>
         </html>
         ";
+    }
+
+    /**
+     * Create mock CAPTCHA HTML that would trigger detection.
+     */
+    private function createMockCaptchaHtml(): string
+    {
+        return '
+        <!DOCTYPE html>
+        <html class="a-no-js" lang="en-us">
+        <head>
+            <meta charset="utf-8">
+            <title>Amazon.com</title>
+        </head>
+        <body>
+            <div class="a-container a-padding-double-large">
+                <div class="a-row a-spacing-double-large">
+                    <div class="a-box a-alert a-alert-info a-spacing-base">
+                        <div class="a-box-inner">
+                            <h4>Click the button below to continue shopping</h4>
+                        </div>
+                    </div>
+                    <form method="get" action="/errors/validateCaptcha" name="">
+                        <input type="hidden" name="amzn" value="test123" />
+                        <input type="hidden" name="amzn-r" value="&#047;dp&#047;B08N5WRWNW" />
+                        <button type="submit" class="a-button-text">Continue shopping</button>
+                    </form>
+                </div>
+            </div>
+            <script src="https://opfcaptcha.amazon.com/csm-captcha-instrumentation.min.js"></script>
+        </body>
+        </html>';
     }
 
     /**

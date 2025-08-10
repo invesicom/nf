@@ -335,6 +335,12 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                 $originalContent = $response->getBody()->getContents();
                 $originalSize = strlen($originalContent);
                 
+                // Check for CAPTCHA/blocking before processing content
+                if ($this->detectCaptchaInResponse($originalContent, $url)) {
+                    // Return null to trigger appropriate error handling
+                    return null;
+                }
+                
                 // Apply intelligent HTML filtering
                 $filteredContent = $this->filterHtmlForBandwidthOptimization($originalContent);
                 $filteredSize = strlen($filteredContent);
@@ -381,6 +387,70 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             }
             
             return null;
+        }
+    }
+
+    /**
+     * Detect CAPTCHA or blocking response and trigger appropriate alerts.
+     */
+    private function detectCaptchaInResponse(string $html, string $url): bool
+    {
+        // Check for CAPTCHA indicators that return 200 status but contain blocking content
+        $captchaIndicators = [
+            'validateCaptcha',
+            'opfcaptcha.amazon.com',
+            'continue shopping',
+            'csm-captcha-instrumentation',
+            'click the button below to continue',
+            'unusual traffic',
+            'automated requests',
+            'solve this puzzle',
+            'enter the characters you see below',
+            'sorry, we just need to make sure you\'re not a robot'
+        ];
+        
+        $htmlLower = strtolower($html);
+        $foundIndicators = [];
+        
+        foreach ($captchaIndicators as $indicator) {
+            if (strpos($htmlLower, $indicator) !== false) {
+                $foundIndicators[] = $indicator;
+            }
+        }
+        
+        // Only trigger on explicit CAPTCHA indicators, not just small content size
+        // Small content could be legitimate responses for test cases
+        if (!empty($foundIndicators)) {
+            $contentSize = strlen($html);
+            $this->handleCaptchaDetection($url, $foundIndicators, $contentSize);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Handle CAPTCHA detection by logging and sending alerts.
+     */
+    private function handleCaptchaDetection(string $url, array $indicators, int $contentSize): void
+    {
+        $contextData = [
+            'indicators_found' => $indicators,
+            'content_size' => $contentSize,
+            'content_size_formatted' => $this->formatBytes($contentSize),
+            'detection_method' => 'enhanced_captcha_detection',
+            'proxy_type' => $this->currentProxyConfig['type'] ?? 'direct',
+            'timestamp' => now()->toISOString()
+        ];
+        
+        LoggingService::log('CAPTCHA/blocking detected in Amazon response', array_merge($contextData, ['url' => $url]));
+        
+        // Send specific CAPTCHA detection alert
+        app(AlertService::class)->amazonCaptchaDetected($url, $indicators, $contextData);
+        
+        // If using proxy, rotate it
+        if ($this->currentProxyConfig) {
+            $this->rotateProxyAndReconnect();
         }
     }
 
@@ -1332,7 +1402,15 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'proxy_type' => $this->currentProxyConfig['type'] ?? 'direct'
         ]);
         
-        // Check for specific blocking indicators
+        // Use enhanced CAPTCHA detection for 200 status responses
+        if ($statusCode === 200) {
+            if ($this->detectCaptchaInResponse($html, "https://www.amazon.com/dp/{$asin}")) {
+                // CAPTCHA detection will handle alerts and proxy rotation
+                return;
+            }
+        }
+        
+        // Check for specific blocking indicators for non-200 responses
         $blockingIndicators = [
             'blocked',
             'captcha',
@@ -1347,6 +1425,19 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         foreach ($blockingIndicators as $indicator) {
             if (strpos($htmlLower, $indicator) !== false) {
                 LoggingService::log("Blocking indicator found: {$indicator}", ['asin' => $asin]);
+                
+                // Send alert for non-CAPTCHA blocking
+                app(AlertService::class)->connectivityIssue(
+                    'Amazon Direct Scraping',
+                    'BLOCKING_DETECTED',
+                    "Blocking detected for ASIN {$asin}. Status: {$statusCode}, Indicator: {$indicator}",
+                    [
+                        'asin' => $asin,
+                        'status_code' => $statusCode,
+                        'blocking_indicator' => $indicator,
+                        'content_length' => strlen($html)
+                    ]
+                );
                 
                 // Rotate proxy and session
                 $this->rotateProxyAndReconnect();

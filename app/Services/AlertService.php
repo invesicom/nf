@@ -65,6 +65,28 @@ class AlertService
     }
 
     /**
+     * Send Amazon CAPTCHA detected alert
+     */
+    public function amazonCaptchaDetected(string $url, array $indicators, array $context = []): void
+    {
+        $indicatorsList = implode(', ', $indicators);
+        
+        $this->alert(
+            AlertType::AMAZON_SESSION_EXPIRED, // Reuse same alert type but with specific messaging
+            "Amazon CAPTCHA detected - cookies need renewal. URL: {$url}. Indicators found: {$indicatorsList}",
+            array_merge($context, [
+                'error_code' => 'AMAZON_CAPTCHA_DETECTED',
+                'captcha_indicators' => $indicators,
+                'detection_url' => $url,
+                'alert_subtype' => 'captcha_detection'
+            ]),
+            1, // High priority since this directly impacts scraping
+            config('app.url') . '/admin/amazon-config',
+            'Refresh Amazon Cookies'
+        );
+    }
+
+    /**
      * Send OpenAI quota exceeded alert
      */
     public function openaiQuotaExceeded(string $errorMessage, array $context = []): void
