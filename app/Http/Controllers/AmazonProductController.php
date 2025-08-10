@@ -337,24 +337,29 @@ class AmazonProductController extends Controller
             'ip' => $request->ip(),
         ]);
 
-        // Get analyzed products with product data, ordered by most recent first
+        // Get analyzed products using efficient database queries
+        // Filter out products with 0 reviews at database level for consistency with isAnalyzed()
+        // We need to be more precise about filtering empty review arrays
         $products = AsinData::where('status', 'completed')
             ->whereNotNull('fake_percentage')
             ->whereNotNull('grade')
             ->where('have_product_data', true)
             ->whereNotNull('product_title')
+            ->whereNotNull('reviews')
+            ->where('reviews', '!=', '[]')
+            ->where('reviews', '!=', '""')
+            ->where('reviews', '!=', 'null')
+            ->where('reviews', '!=', '"[]"')  // Handle JSON string representation of empty array
+            ->whereRaw("JSON_LENGTH(CASE WHEN JSON_VALID(reviews) THEN reviews ELSE '[]' END) > 0")
             ->orderBy('updated_at', 'desc')
-            ->paginate(100);
+            ->paginate(50);
 
         // Log query results for debugging
         LoggingService::log('Products query results', [
             'total_asin_data' => AsinData::count(),
-            'completed_status' => AsinData::where('status', 'completed')->count(),
-            'with_fake_percentage' => AsinData::whereNotNull('fake_percentage')->count(),
-            'with_grade' => AsinData::whereNotNull('grade')->count(),
-            'with_product_data' => AsinData::where('have_product_data', true)->count(),
-            'with_product_title' => AsinData::whereNotNull('product_title')->count(),
-            'meeting_all_criteria' => $products->total(),
+            'analyzed_products' => $products->total(),
+            'displayed_on_page' => $products->count(),
+            'current_page' => $products->currentPage(),
         ]);
 
         return view('products.index', [

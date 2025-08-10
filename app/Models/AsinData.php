@@ -94,12 +94,16 @@ class AsinData extends Model
      */
     public function isAnalyzed(): bool
     {
-        // Check if we have OpenAI results
-        $openaiResult = is_array($this->openai_result) ? $this->openai_result : json_decode($this->openai_result ?? '[]', true);
-
-        return !empty($openaiResult) &&
-               is_array($openaiResult) &&
-               !empty($this->getReviewsArray());
+        // A product is considered analyzed if it has:
+        // 1. Status is completed AND
+        // 2. Has fake_percentage and grade (key analysis results) AND
+        // 3. Has product data AND
+        // 4. Has at least 1 review (products with 0 reviews aren't useful)
+        return $this->status === 'completed' &&
+               !is_null($this->fake_percentage) &&
+               !is_null($this->grade) &&
+               $this->have_product_data &&
+               count($this->getReviewsArray()) > 0;
     }
 
     /**

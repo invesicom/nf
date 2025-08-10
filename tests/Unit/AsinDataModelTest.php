@@ -207,29 +207,39 @@ class AsinDataModelTest extends TestCase
 
     public function test_is_analyzed_method()
     {
-        // Test with no OpenAI result
+        // Create a product that should not be analyzed - missing required fields
         $asinData = AsinData::create([
             'asin'          => 'B08N5WRWNW',
             'country'       => 'us',
             'reviews'       => [['rating' => 5, 'text' => 'Great']],
-            'openai_result' => null,
+            'status'        => 'pending', // Not completed
         ]);
         $this->assertFalse($asinData->isAnalyzed());
 
-        // Test with empty OpenAI result
-        $asinData->update(['openai_result' => []]);
+        // Test with completed status but missing other required fields
+        $asinData->update([
+            'status' => 'completed',
+        ]);
         $this->assertFalse($asinData->fresh()->isAnalyzed());
 
-        // Test with OpenAI result and reviews
-        $asinData->update(['openai_result' => ['detailed_scores' => []]]);
+        // Test with all required fields - should be analyzed
+        $asinData->update([
+            'status' => 'completed',
+            'fake_percentage' => 25.0,
+            'grade' => 'B',
+            'have_product_data' => true,
+        ]);
         $this->assertTrue($asinData->fresh()->isAnalyzed());
 
-        // Test with OpenAI result but no reviews
+        // Test with all required fields but no reviews - should not be analyzed
         $asinDataNoReviews = AsinData::create([
-            'asin'          => 'B08N5WRWN1',
-            'country'       => 'us',
-            'reviews'       => [],
-            'openai_result' => ['detailed_scores' => []],
+            'asin'              => 'B08N5WRWN1',
+            'country'           => 'us',
+            'reviews'           => [],
+            'status'            => 'completed',
+            'fake_percentage'   => 30.0,
+            'grade'             => 'A',
+            'have_product_data' => true,
         ]);
         $this->assertFalse($asinDataNoReviews->isAnalyzed());
     }
@@ -460,10 +470,14 @@ class AsinDataModelTest extends TestCase
     public function test_is_analyzed_with_string_openai_result()
     {
         $asinData = AsinData::create([
-            'asin'          => 'B08N5WRWNW',
-            'country'       => 'us',
-            'reviews'       => [['rating' => 5, 'text' => 'Great']],
-            'openai_result' => json_encode(['detailed_scores' => [0 => 25]]),
+            'asin'              => 'B08N5WRWNW',
+            'country'           => 'us',
+            'reviews'           => [['rating' => 5, 'text' => 'Great']],
+            'openai_result'     => json_encode(['detailed_scores' => [0 => 25]]),
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
+            'have_product_data' => true,
         ]);
 
         $this->assertTrue($asinData->isAnalyzed());

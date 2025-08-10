@@ -62,6 +62,7 @@ class ProductsPageTest extends TestCase
             'have_product_data' => true,
             'product_title' => 'Complete Test Product',
             'product_image_url' => 'https://example.com/image.jpg',
+            'reviews' => [['rating' => 4, 'text' => 'Good product']], // Ensure non-empty reviews
         ]);
 
         $incompleteProduct1 = AsinData::factory()->create([
@@ -141,6 +142,7 @@ class ProductsPageTest extends TestCase
             'have_product_data' => true,
             'product_title' => 'First Test Product',
             'product_image_url' => 'https://example.com/image1.jpg',
+            'reviews' => [['rating' => 4, 'text' => 'Good product']], // Ensure non-empty reviews
         ]);
         
         sleep(1); // Ensure different timestamps
@@ -153,6 +155,7 @@ class ProductsPageTest extends TestCase
             'have_product_data' => true,
             'product_title' => 'Second Test Product',
             'product_image_url' => 'https://example.com/image2.jpg',
+            'reviews' => [['rating' => 2, 'text' => 'Not great']], // Ensure non-empty reviews
         ]);
         
         sleep(1); // Ensure different timestamps
@@ -165,6 +168,7 @@ class ProductsPageTest extends TestCase
             'have_product_data' => true,
             'product_title' => 'Third Test Product',
             'product_image_url' => 'https://example.com/image3.jpg',
+            'reviews' => [['rating' => 5, 'text' => 'Excellent product']], // Ensure non-empty reviews
         ]);
 
         $response = $this->get('/products');
@@ -191,12 +195,13 @@ class ProductsPageTest extends TestCase
     #[\PHPUnit\Framework\Attributes\Test]
     public function products_page_handles_pagination()
     {
-        // Create more than 100 products to test pagination
-        AsinData::factory()->count(105)->create([
+        // Create more than 50 products to test pagination (updated page size)
+        AsinData::factory()->count(75)->create([
             'status' => 'completed',
             'fake_percentage' => 25.0,
             'grade' => 'B',
             'have_product_data' => true,
+            'reviews' => [['rating' => 5, 'text' => 'Great product']], // Ensure non-empty reviews
         ]);
 
         // Test first page
@@ -204,17 +209,17 @@ class ProductsPageTest extends TestCase
         $response->assertStatus(200);
         
         $products = $response->viewData('products');
-        $this->assertEquals(105, $products->total());
-        $this->assertEquals(100, $products->perPage());
-        $this->assertEquals(100, $products->count()); // Items on current page
+        $this->assertEquals(75, $products->total());
+        $this->assertEquals(50, $products->perPage()); // Updated to 50 per page
+        $this->assertEquals(50, $products->count()); // Items on current page
         
         // Test second page
         $response = $this->get('/products?page=2');
         $response->assertStatus(200);
         
         $products = $response->viewData('products');
-        $this->assertEquals(105, $products->total());
-        $this->assertEquals(5, $products->count()); // Remaining items on page 2
+        $this->assertEquals(75, $products->total());
+        $this->assertEquals(25, $products->count()); // Remaining items on page 2
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -230,6 +235,7 @@ class ProductsPageTest extends TestCase
             'product_image_url' => 'https://example.com/test-image.jpg',
             'amazon_rating' => 4.2,
             'adjusted_rating' => 3.5,
+            'reviews' => [['rating' => 4, 'text' => 'Great product with some issues']], // Ensure non-empty reviews
         ]);
 
         $response = $this->get('/products');
@@ -287,6 +293,7 @@ class ProductsPageTest extends TestCase
             'grade' => 'A',
             'have_product_data' => true,
             'product_title' => 'Grade A Product',
+            'reviews' => [['rating' => 5, 'text' => 'Great product']], // Ensure non-empty reviews
         ]);
 
         $gradeF = AsinData::factory()->create([
@@ -296,6 +303,7 @@ class ProductsPageTest extends TestCase
             'grade' => 'F',
             'have_product_data' => true,
             'product_title' => 'Grade F Product',
+            'reviews' => [['rating' => 1, 'text' => 'Terrible product']], // Ensure non-empty reviews
         ]);
 
         $response = $this->get('/products');
@@ -309,6 +317,62 @@ class ProductsPageTest extends TestCase
         $response->assertSee('Grade F Product');
         $response->assertSee('Grade A');
         $response->assertSee('Grade F');
+    }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function products_page_excludes_zero_review_products()
+    {
+        // Create a valid product with reviews
+        $validProduct = AsinData::factory()->create([
+            'asin' => 'B0VALIDPROD',
+            'status' => 'completed',
+            'fake_percentage' => 25.0,
+            'grade' => 'B',
+            'have_product_data' => true,
+            'product_title' => 'Valid Product with Reviews',
+            'reviews' => [
+                ['rating' => 5, 'text' => 'Great product'],
+                ['rating' => 4, 'text' => 'Good value'],
+            ],
+        ]);
+
+        // Create products with zero reviews in different ways
+        $zeroReviewProduct1 = AsinData::factory()->create([
+            'asin' => 'B0ZEROVIEWS1',
+            'status' => 'completed',
+            'fake_percentage' => 30.0,
+            'grade' => 'C',
+            'have_product_data' => true,
+            'product_title' => 'Zero Reviews Product 1',
+            'reviews' => [], // Empty array
+        ]);
+
+        $zeroReviewProduct2 = AsinData::factory()->create([
+            'asin' => 'B0ZEROVIEWS2',
+            'status' => 'completed',
+            'fake_percentage' => 15.0,
+            'grade' => 'A',
+            'have_product_data' => true,
+            'product_title' => 'Zero Reviews Product 2',
+            'reviews' => null, // Null reviews
+        ]);
+
+        $response = $this->get('/products');
+        
+        $response->assertStatus(200);
+        
+        $products = $response->viewData('products');
+        
+        // Should only show the valid product with reviews
+        $this->assertEquals(1, $products->total());
+        $this->assertEquals('B0VALIDPROD', $products->first()->asin);
+        
+        // Verify valid product is shown
+        $response->assertSee('Valid Product with Reviews');
+        
+        // Verify zero-review products are NOT shown
+        $response->assertDontSee('Zero Reviews Product 1');
+        $response->assertDontSee('Zero Reviews Product 2');
     }
 
     private function mockLoggingService()
