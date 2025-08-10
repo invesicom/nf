@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessProductAnalysis;
 use App\Models\AnalysisSession;
+use App\Services\CaptchaService;
 use App\Services\ReviewAnalysisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,6 +34,9 @@ class AnalysisController extends Controller
         try {
             $productUrl = $request->input('productUrl');
             $userSession = $request->session()->getId();
+            
+            // Validate captcha immediately before processing (tokens expire quickly)
+            $this->validateCaptchaIfRequired($request);
             
             // Extract ASIN from URL
             $analysisService = app(ReviewAnalysisService::class);
@@ -64,17 +68,8 @@ class AnalysisController extends Controller
                 'current_message' => 'Queued for analysis...',
             ]);
 
-            // Prepare captcha data
-            $captchaData = [];
-            if ($request->filled('g_recaptcha_response')) {
-                $captchaData['g_recaptcha_response'] = $request->input('g_recaptcha_response');
-            }
-            if ($request->filled('h_captcha_response')) {
-                $captchaData['h_captcha_response'] = $request->input('h_captcha_response');
-            }
-
-            // Dispatch async job
-            ProcessProductAnalysis::dispatch($session->id, $productUrl, $captchaData)
+            // Dispatch async job (captcha already validated above)
+            ProcessProductAnalysis::dispatch($session->id, $productUrl)
                 ->onConnection('database');
 
             return response()->json([
@@ -182,5 +177,29 @@ class AnalysisController extends Controller
             'success' => true,
             'deleted_sessions' => $deleted,
         ]);
+    }
+
+    /**
+     * Validate captcha if required (skip in local/testing environments).
+     */
+    private function validateCaptchaIfRequired(Request $request): void
+    {
+        if (app()->environment(['local', 'testing'])) {
+            return;
+        }
+
+        $captchaService = app(CaptchaService::class);
+        $provider = $captchaService->getProvider();
+
+        $response = null;
+        if ($provider === 'recaptcha' && $request->filled('g_recaptcha_response')) {
+            $response = $request->input('g_recaptcha_response');
+        } elseif ($provider === 'hcaptcha' && $request->filled('h_captcha_response')) {
+            $response = $request->input('h_captcha_response');
+        }
+
+        if (!$response || !$captchaService->verify($response, $request->ip())) {
+            throw new \Exception('Captcha verification failed');
+        }
     }
 } 

@@ -4,7 +4,6 @@ namespace App\Jobs;
 
 use App\Models\AnalysisSession;
 use App\Models\AsinData;
-use App\Services\CaptchaService;
 use App\Services\LoggingService;
 use App\Services\ReviewAnalysisService;
 use Illuminate\Bus\Queueable;
@@ -24,8 +23,7 @@ class ProcessProductAnalysis implements ShouldQueue
 
     public function __construct(
         private string $sessionId,
-        private string $productUrl,
-        private array $captchaData = []
+        private string $productUrl
     ) {
         // Use dedicated analysis queue
         $this->onQueue('analysis');
@@ -49,9 +47,8 @@ class ProcessProductAnalysis implements ShouldQueue
                 'attempt' => $this->attempts(),
             ]);
 
-            // Step 1: Validate captcha if needed
-            $session->updateProgress(1, 12, 'Validating request...');
-            $this->validateCaptcha();
+            // Step 1: Captcha already validated in controller
+            $session->updateProgress(1, 12, 'Starting analysis...');
 
             // Step 2: Check if product exists in database
             $session->updateProgress(2, 25, 'Checking product database...');
@@ -133,26 +130,7 @@ class ProcessProductAnalysis implements ShouldQueue
         }
     }
 
-    private function validateCaptcha(): void
-    {
-        if (app()->environment(['local', 'testing']) || empty($this->captchaData)) {
-            return;
-        }
 
-        $captchaService = app(CaptchaService::class);
-        $provider = $captchaService->getProvider();
-
-        $response = null;
-        if ($provider === 'recaptcha' && !empty($this->captchaData['g_recaptcha_response'])) {
-            $response = $this->captchaData['g_recaptcha_response'];
-        } elseif ($provider === 'hcaptcha' && !empty($this->captchaData['h_captcha_response'])) {
-            $response = $this->captchaData['h_captcha_response'];
-        }
-
-        if (!$response || !$captchaService->verify($response)) {
-            throw new \Exception('Captcha verification failed');
-        }
-    }
 
     private function determineRedirectUrl(AsinData $asinData): ?string
     {
