@@ -599,15 +599,17 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'total_reviews' => $reviewsData['total_reviews'] ?? 'unknown'
         ]);
 
-        // Save to database - NO OpenAI analysis yet (will be done separately)
-        return AsinData::create([
-            'asin'                => $asin,
-            'country'             => $country,
-            'product_description' => $reviewsData['description'] ?? '',
-            'reviews'             => json_encode($reviewsData['reviews']),
-            'total_reviews_on_amazon' => $reviewsData['total_reviews'] ?? count($reviewsData['reviews'] ?? []),
-            'openai_result'       => null, // Will be populated later
-        ]);
+        // Save to database - use updateOrCreate to handle re-scraping existing ASINs
+        return AsinData::updateOrCreate(
+            ['asin' => $asin],
+            [
+                'country'             => $country,
+                'product_description' => $reviewsData['description'] ?? '',
+                'reviews'             => json_encode($reviewsData['reviews']),
+                'total_reviews_on_amazon' => $reviewsData['total_reviews'] ?? count($reviewsData['reviews'] ?? []),
+                'openai_result'       => null, // Will be populated later
+            ]
+        );
     }
 
     /**
