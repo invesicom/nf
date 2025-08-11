@@ -39,7 +39,7 @@ class CookieSessionManager
         $this->cookieSessions = [];
         
         for ($i = 1; $i <= self::MAX_COOKIE_SESSIONS; $i++) {
-            $cookieString = env("AMAZON_COOKIES_{$i}", '');
+            $cookieString = $this->getEnvironmentVariable("AMAZON_COOKIES_{$i}");
             
             if (!empty($cookieString)) {
                 $this->cookieSessions[$i] = [
@@ -55,6 +55,14 @@ class CookieSessionManager
             'total_sessions' => count($this->cookieSessions),
             'session_indexes' => array_keys($this->cookieSessions)
         ]);
+    }
+    
+    /**
+     * Get environment variable value (can be overridden for testing).
+     */
+    protected function getEnvironmentVariable(string $key, $default = ''): string
+    {
+        return env($key, $default);
     }
     
     /**
