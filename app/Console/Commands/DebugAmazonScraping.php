@@ -215,6 +215,40 @@ class DebugAmazonScraping extends Command
     
     private function setupCookies($cookieJar)
     {
+        // Use the new multi-session cookie manager
+        $cookieSessionManager = new \App\Services\Amazon\CookieSessionManager();
+        
+        $this->info("Available cookie sessions: " . $cookieSessionManager->getSessionCount());
+        
+        // Show session information
+        $sessionInfo = $cookieSessionManager->getSessionInfo();
+        foreach ($sessionInfo as $info) {
+            $healthStatus = $info['is_healthy'] ? 'Healthy' : 'Unhealthy';
+            $currentMark = $info['is_current'] ? ' (current)' : '';
+            $this->line("  {$info['name']}: {$healthStatus}, {$info['cookie_count']} cookies{$currentMark}");
+        }
+        
+        $session = $cookieSessionManager->getNextCookieSession();
+        
+        if (!$session) {
+            $this->warn("No Amazon cookie sessions available - trying legacy AMAZON_COOKIES");
+            $this->setupLegacyCookies($cookieJar);
+            return;
+        }
+        
+        // Replace cookie jar with the one from the session manager
+        $sessionCookieJar = $cookieSessionManager->createCookieJar($session);
+        
+        // Copy cookies from session jar to our jar
+        foreach ($sessionCookieJar as $cookie) {
+            $cookieJar->setCookie($cookie);
+        }
+        
+        $this->info("Using session: {$session['name']} ({$session['env_var']})");
+    }
+    
+    private function setupLegacyCookies($cookieJar)
+    {
         $cookieString = env('AMAZON_COOKIES', '');
         
         if (empty($cookieString)) {
@@ -244,6 +278,6 @@ class DebugAmazonScraping extends Command
             ]));
         }
         
-        $this->line("Loaded " . count($cookies) . " cookies");
+        $this->line("Loaded " . count($cookies) . " cookies from legacy configuration");
     }
 } 

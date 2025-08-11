@@ -12,20 +12,22 @@ use Symfony\Component\DomCrawler\Crawler;
  * Service for scraping Amazon product data (title, description, main image).
  * 
  * This service focuses on extracting basic product information rather than reviews,
- * providing a more reliable and focused approach to product data collection.
+ * using multiple cookie sessions with round-robin rotation to reduce blocking.
  */
 class AmazonProductDataService
 {
     private Client $httpClient;
     private CookieJar $cookieJar;
     private array $headers;
+    private CookieSessionManager $cookieSessionManager;
+    private ?array $currentCookieSession = null;
 
     /**
      * Initialize the service with HTTP client configuration.
      */
     public function __construct()
     {
-        $this->cookieJar = new CookieJar();
+        $this->cookieSessionManager = new CookieSessionManager();
         $this->setupCookies();
         
         $this->headers = [
@@ -66,16 +68,42 @@ class AmazonProductDataService
     }
 
     /**
-     * Setup cookies for Amazon requests.
+     * Setup cookies using the multi-session cookie manager.
      */
     private function setupCookies(): void
+    {
+        // Get the next available cookie session using round-robin rotation
+        $this->currentCookieSession = $this->cookieSessionManager->getNextCookieSession();
+        
+        if (!$this->currentCookieSession) {
+            LoggingService::log('No Amazon cookie sessions available for product data scraping - falling back to legacy AMAZON_COOKIES');
+            $this->setupLegacyCookies();
+            return;
+        }
+        
+        // Create cookie jar from the selected session
+        $this->cookieJar = $this->cookieSessionManager->createCookieJar($this->currentCookieSession);
+        
+        LoggingService::log('Setup product data cookies from multi-session manager', [
+            'session_name' => $this->currentCookieSession['name'],
+            'session_env_var' => $this->currentCookieSession['env_var']
+        ]);
+    }
+    
+    /**
+     * Fallback method to setup cookies from legacy AMAZON_COOKIES environment variable.
+     */
+    private function setupLegacyCookies(): void
     {
         $cookieString = env('AMAZON_COOKIES', '');
         
         if (empty($cookieString)) {
             LoggingService::log('No Amazon cookies configured for product data scraping');
+            $this->cookieJar = new CookieJar();
             return;
         }
+
+        $this->cookieJar = new CookieJar();
 
         // Parse cookie string format: "name1=value1; name2=value2; name3=value3"
         $cookies = explode(';', $cookieString);
@@ -100,7 +128,7 @@ class AmazonProductDataService
             ]));
         }
         
-        LoggingService::log('Loaded ' . count($cookies) . ' Amazon cookies for product data scraping');
+        LoggingService::log('Loaded ' . count($cookies) . ' Amazon cookies from legacy configuration for product data');
     }
 
     /**
