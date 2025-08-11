@@ -61,8 +61,14 @@ class CookieSessionManagerTest extends TestCase
     #[Test]
     public function it_returns_null_when_no_sessions_available()
     {
-        // Don't set any environment variables
-        $manager = new CookieSessionManager();
+        // Create a manager that explicitly returns empty environment variables
+        $manager = new class extends CookieSessionManager {
+            protected function getEnvironmentVariable(string $key, $default = ''): string
+            {
+                // Always return empty for this test
+                return $default;
+            }
+        };
         
         $this->assertEquals(0, $manager->getSessionCount());
         $this->assertFalse($manager->hasAnySessions());
