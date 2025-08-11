@@ -13,8 +13,8 @@ use Symfony\Component\DomCrawler\Crawler;
 /**
  * Service for directly scraping Amazon product reviews.
  * 
- * This service scrapes Amazon reviews directly using the same cookie session
- * that Unwrangle uses, providing a cost-effective alternative to the API.
+ * This service scrapes Amazon reviews directly using multiple cookie sessions
+ * with round-robin rotation to distribute load and reduce CAPTCHA challenges.
  */
 class AmazonScrapingService implements AmazonReviewServiceInterface
 {
@@ -23,6 +23,8 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     private array $headers;
     private ProxyManager $proxyManager;
     private ?array $currentProxyConfig = null;
+    private CookieSessionManager $cookieSessionManager;
+    private ?array $currentCookieSession = null;
     
     /**
      * Initialize the service with HTTP client configuration.
@@ -30,7 +32,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     public function __construct()
     {
         $this->proxyManager = new ProxyManager();
-        $this->cookieJar = new CookieJar();
+        $this->cookieSessionManager = new CookieSessionManager();
         $this->setupCookies();
         
         $this->headers = [
@@ -443,9 +445,25 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'timestamp' => now()->toISOString()
         ];
         
+        // Add current cookie session information to context
+        if ($this->currentCookieSession) {
+            $contextData['cookie_session'] = [
+                'name' => $this->currentCookieSession['name'],
+                'env_var' => $this->currentCookieSession['env_var'],
+                'index' => $this->currentCookieSession['index']
+            ];
+            
+            // Mark this session as unhealthy
+            $this->cookieSessionManager->markSessionUnhealthy(
+                $this->currentCookieSession['index'],
+                'CAPTCHA detected',
+                30 // 30 minute cooldown
+            );
+        }
+        
         LoggingService::log('CAPTCHA/blocking detected in Amazon response', array_merge($contextData, ['url' => $url]));
         
-        // Send specific CAPTCHA detection alert
+        // Send specific CAPTCHA detection alert with session information
         app(AlertService::class)->amazonCaptchaDetected($url, $indicators, $contextData);
         
         // If using proxy, rotate it
@@ -599,17 +617,43 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     }
 
     /**
-     * Setup cookies from environment configuration.
+     * Setup cookies using the multi-session cookie manager.
      */
     private function setupCookies(): void
+    {
+        // Get the next available cookie session using round-robin rotation
+        $this->currentCookieSession = $this->cookieSessionManager->getNextCookieSession();
+        
+        if (!$this->currentCookieSession) {
+            LoggingService::log('No Amazon cookie sessions available - falling back to legacy AMAZON_COOKIES');
+            $this->setupLegacyCookies();
+            return;
+        }
+        
+        // Create cookie jar from the selected session
+        $this->cookieJar = $this->cookieSessionManager->createCookieJar($this->currentCookieSession);
+        
+        LoggingService::log('Setup cookies from multi-session manager', [
+            'session_name' => $this->currentCookieSession['name'],
+            'session_env_var' => $this->currentCookieSession['env_var']
+        ]);
+    }
+    
+    /**
+     * Fallback method to setup cookies from legacy AMAZON_COOKIES environment variable.
+     */
+    private function setupLegacyCookies(): void
     {
         $cookieString = env('AMAZON_COOKIES', '');
         
         if (empty($cookieString)) {
-            LoggingService::log('No Amazon cookies configured in AMAZON_COOKIES environment variable');
+            LoggingService::log('No Amazon cookies configured - neither multi-session nor legacy');
+            $this->cookieJar = new CookieJar();
             return;
         }
 
+        $this->cookieJar = new CookieJar();
+        
         // Parse cookie string format: "name1=value1; name2=value2; name3=value3"
         $cookies = explode(';', $cookieString);
         
@@ -633,7 +677,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             ]));
         }
         
-        LoggingService::log('Loaded ' . count($cookies) . ' Amazon cookies for scraping');
+        LoggingService::log('Loaded ' . count($cookies) . ' Amazon cookies from legacy configuration');
     }
 
     /**
