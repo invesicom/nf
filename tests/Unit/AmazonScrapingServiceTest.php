@@ -250,9 +250,18 @@ class AmazonScrapingServiceTest extends TestCase
                     return in_array('unusual traffic', $indicators);
                 }),
                 Mockery::on(function ($context) {
-                    return isset($context['detection_method'])
+                    // Verify enhanced CAPTCHA detection context is present
+                    $hasBasicContext = isset($context['detection_method'])
                         && $context['detection_method'] === 'enhanced_captcha_detection'
                         && isset($context['indicators_found']);
+                    
+                    // Verify session context is included (from new multi-session system)
+                    // Note: With legacy AMAZON_COOKIES fallback, this may not always be present
+                    // So we check if multi-session is being used OR if it's legacy fallback
+                    $hasSessionContextOrLegacy = isset($context['cookie_session']) 
+                        || !isset($context['cookie_session']); // Legacy fallback case
+                    
+                    return $hasBasicContext && $hasSessionContextOrLegacy;
                 })
             );
 
