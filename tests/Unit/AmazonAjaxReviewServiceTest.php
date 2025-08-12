@@ -205,24 +205,35 @@ class AmazonAjaxReviewServiceTest extends TestCase
     #[Test]
     public function it_falls_back_to_direct_scraping_when_ajax_fails()
     {
+        // Mock the service to control the fallback behavior
+        $mockService = $this->createPartialMock(AmazonAjaxReviewService::class, ['fallbackToDirectScraping']);
+        
+        // Mock the fallback to return a predictable result without HTTP calls
+        $mockService->method('fallbackToDirectScraping')
+                   ->willReturn([
+                       'reviews' => [['review_text' => 'Fallback review', 'rating' => 4]],
+                       'description' => 'Fallback description',
+                       'total_reviews' => 1
+                   ]);
+        
+        // Use reflection to inject the mock HTTP client
+        $reflection = new \ReflectionClass($mockService);
+        $httpClientProperty = $reflection->getProperty('httpClient');
+        $httpClientProperty->setAccessible(true);
+        $httpClientProperty->setValue($mockService, new Client(['handler' => HandlerStack::create($this->mockHandler)]));
+        
         // Mock failed bootstrap (login redirect)
         $loginHtml = '<html><body>You are being redirected to ap/signin</body></html>';
         $this->mockHandler->append(new Response(200, [], $loginHtml));
         
-        // Mock the fallback direct scraping response to prevent real HTTP calls
-        $this->mockHandler->append(new Response(200, [], '<html><body>Mocked fallback response</body></html>'));
-        
-        $result = $this->service->fetchReviews('B123456789');
+        $result = $mockService->fetchReviews('B123456789');
         
         $this->assertIsArray($result);
         $this->assertArrayHasKey('reviews', $result);
         $this->assertArrayHasKey('description', $result);
         $this->assertArrayHasKey('total_reviews', $result);
-        
-        // Fallback returns empty structure when mocked
-        $this->assertTrue(is_array($result['reviews']));
-        $this->assertTrue(is_string($result['description']));
-        $this->assertTrue(is_int($result['total_reviews']));
+        $this->assertEquals('Fallback description', $result['description']);
+        $this->assertEquals(1, $result['total_reviews']);
     }
 
     #[Test]
@@ -280,39 +291,69 @@ class AmazonAjaxReviewServiceTest extends TestCase
     #[Test]
     public function it_detects_captcha_and_marks_session_unhealthy()
     {
+        // Mock the service to control the fallback behavior
+        $mockService = $this->createPartialMock(AmazonAjaxReviewService::class, ['fallbackToDirectScraping']);
+        
+        // Mock the fallback to return empty result when CAPTCHA detected
+        $mockService->method('fallbackToDirectScraping')
+                   ->willReturn([
+                       'reviews' => [],
+                       'description' => '',
+                       'total_reviews' => 0
+                   ]);
+        
+        // Use reflection to inject the mock HTTP client
+        $reflection = new \ReflectionClass($mockService);
+        $httpClientProperty = $reflection->getProperty('httpClient');
+        $httpClientProperty->setAccessible(true);
+        $httpClientProperty->setValue($mockService, new Client(['handler' => HandlerStack::create($this->mockHandler)]));
+        
         // Mock CAPTCHA response
         $captchaHtml = '<html><body>validateCaptcha form - solve this puzzle to continue</body></html>';
         $this->mockHandler->append(new Response(200, [], $captchaHtml));
         
-        // Mock fallback response to prevent real HTTP calls
-        $this->mockHandler->append(new Response(200, [], '<html><body>Mocked fallback</body></html>'));
-        
-        $result = $this->service->fetchReviews('B123456789');
+        $result = $mockService->fetchReviews('B123456789');
         
         // Should fallback to empty result when CAPTCHA detected
         $this->assertIsArray($result);
         $this->assertArrayHasKey('reviews', $result);
         $this->assertArrayHasKey('description', $result);
         $this->assertArrayHasKey('total_reviews', $result);
+        $this->assertEmpty($result['reviews']);
     }
 
     #[Test]
     public function it_detects_login_redirect_and_marks_session_unhealthy()
     {
+        // Mock the service to control the fallback behavior
+        $mockService = $this->createPartialMock(AmazonAjaxReviewService::class, ['fallbackToDirectScraping']);
+        
+        // Mock the fallback to return empty result when login redirect detected
+        $mockService->method('fallbackToDirectScraping')
+                   ->willReturn([
+                       'reviews' => [],
+                       'description' => '',
+                       'total_reviews' => 0
+                   ]);
+        
+        // Use reflection to inject the mock HTTP client
+        $reflection = new \ReflectionClass($mockService);
+        $httpClientProperty = $reflection->getProperty('httpClient');
+        $httpClientProperty->setAccessible(true);
+        $httpClientProperty->setValue($mockService, new Client(['handler' => HandlerStack::create($this->mockHandler)]));
+        
         // Mock login redirect response
         $loginHtml = '<html><body>You are being redirected to ap/signin</body></html>';
         $this->mockHandler->append(new Response(200, [], $loginHtml));
         
-        // Mock fallback response to prevent real HTTP calls
-        $this->mockHandler->append(new Response(200, [], '<html><body>Mocked fallback</body></html>'));
-        
-        $result = $this->service->fetchReviews('B123456789');
+        $result = $mockService->fetchReviews('B123456789');
         
         // Should fallback to empty result when login redirect detected
         $this->assertIsArray($result);
         $this->assertArrayHasKey('reviews', $result);
         $this->assertArrayHasKey('description', $result);
         $this->assertArrayHasKey('total_reviews', $result);
+        $this->assertEmpty($result['reviews']);
     }
 
     #[Test]

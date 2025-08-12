@@ -689,7 +689,7 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
     /**
      * Fallback to direct scraping when AJAX fails.
      */
-    private function fallbackToDirectScraping(string $asin): array
+    protected function fallbackToDirectScraping(string $asin): array
     {
         LoggingService::log('Falling back to direct scraping', [
             'asin' => $asin,
