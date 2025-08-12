@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Services\Amazon\AmazonAjaxReviewService;
+use App\Services\Amazon\BrightDataScraperService;
 use App\Services\Amazon\AmazonFetchService;
 use App\Services\Amazon\AmazonReviewServiceFactory;
 use App\Services\Amazon\AmazonScrapingService;
@@ -15,23 +15,25 @@ use Tests\TestCase;
 class AmazonReviewServiceFactoryIsolatedTest extends TestCase
 {
     #[Test]
-    public function it_creates_ajax_service_when_configured()
+    public function it_creates_brightdata_service_when_configured()
     {
         // Mock the environment temporarily
         $originalEnv = $_ENV['AMAZON_REVIEW_SERVICE'] ?? null;
-        $_ENV['AMAZON_REVIEW_SERVICE'] = 'ajax';
+        $_ENV['AMAZON_REVIEW_SERVICE'] = 'brightdata';
         
         // Create a new factory instance to avoid cached values
         $factory = new class extends AmazonReviewServiceFactory {
             public static function create(): \App\Services\Amazon\AmazonReviewServiceInterface
             {
                 // Use direct $_ENV access to bypass Laravel's caching
-                $serviceType = $_ENV['AMAZON_REVIEW_SERVICE'] ?? 'unwrangle';
+                $serviceType = $_ENV['AMAZON_REVIEW_SERVICE'] ?? 'brightdata';
                 
                 switch (strtolower($serviceType)) {
-                    case 'ajax':
-                    case 'ajax-bypass':
-                        return new AmazonAjaxReviewService();
+                    case 'brightdata':
+                    case 'bright-data':
+                    case 'bd':
+                    default:
+                        return new BrightDataScraperService();
                         
                     case 'scraping':
                     case 'direct':
@@ -40,7 +42,6 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
                         
                     case 'unwrangle':
                     case 'api':
-                    default:
                         return new AmazonFetchService();
                 }
             }
@@ -48,7 +49,7 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
         
         $service = $factory::create();
         
-        $this->assertInstanceOf(AmazonAjaxReviewService::class, $service);
+        $this->assertInstanceOf(BrightDataScraperService::class, $service);
         
         // Restore original environment
         if ($originalEnv !== null) {
@@ -59,22 +60,24 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
     }
 
     #[Test]
-    public function it_creates_ajax_service_with_bypass_alias()
+    public function it_creates_brightdata_service_with_alias()
     {
         // Mock the environment temporarily
         $originalEnv = $_ENV['AMAZON_REVIEW_SERVICE'] ?? null;
-        $_ENV['AMAZON_REVIEW_SERVICE'] = 'ajax-bypass';
+        $_ENV['AMAZON_REVIEW_SERVICE'] = 'bright-data';
         
         // Create a new factory instance to avoid cached values
         $factory = new class extends AmazonReviewServiceFactory {
             public static function create(): \App\Services\Amazon\AmazonReviewServiceInterface
             {
-                $serviceType = $_ENV['AMAZON_REVIEW_SERVICE'] ?? 'unwrangle';
+                $serviceType = $_ENV['AMAZON_REVIEW_SERVICE'] ?? 'brightdata';
                 
                 switch (strtolower($serviceType)) {
-                    case 'ajax':
-                    case 'ajax-bypass':
-                        return new AmazonAjaxReviewService();
+                    case 'brightdata':
+                    case 'bright-data':
+                    case 'bd':
+                    default:
+                        return new BrightDataScraperService();
                         
                     case 'scraping':
                     case 'direct':
@@ -83,7 +86,6 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
                         
                     case 'unwrangle':
                     case 'api':
-                    default:
                         return new AmazonFetchService();
                 }
             }
@@ -91,7 +93,7 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
         
         $service = $factory::create();
         
-        $this->assertInstanceOf(AmazonAjaxReviewService::class, $service);
+        $this->assertInstanceOf(BrightDataScraperService::class, $service);
         
         // Restore original environment
         if ($originalEnv !== null) {
@@ -115,9 +117,11 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
                 $serviceType = $_ENV['AMAZON_REVIEW_SERVICE'] ?? 'unwrangle';
                 
                 switch (strtolower($serviceType)) {
-                    case 'ajax':
-                    case 'ajax-bypass':
-                        return new AmazonAjaxReviewService();
+                    case 'brightdata':
+                    case 'bright-data':
+                    case 'bd':
+                    default:
+                        return new BrightDataScraperService();
                         
                     case 'scraping':
                     case 'direct':
@@ -126,7 +130,6 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
                         
                     case 'unwrangle':
                     case 'api':
-                    default:
                         return new AmazonFetchService();
                 }
             }
@@ -145,16 +148,17 @@ class AmazonReviewServiceFactoryIsolatedTest extends TestCase
     }
 
     #[Test]
-    public function it_verifies_ajax_service_in_available_services()
+    public function it_verifies_brightdata_service_in_available_services()
     {
         $services = AmazonReviewServiceFactory::getAvailableServices();
         
-        $this->assertArrayHasKey('ajax', $services);
+        $this->assertArrayHasKey('brightdata', $services);
         
-        $ajax = $services['ajax'];
-        $this->assertEquals('AJAX Bypass', $ajax['name']);
-        $this->assertEquals(AmazonAjaxReviewService::class, $ajax['class']);
-        $this->assertContains('ajax', $ajax['env_values']);
-        $this->assertContains('ajax-bypass', $ajax['env_values']);
+        $brightdata = $services['brightdata'];
+        $this->assertEquals('BrightData Scraper', $brightdata['name']);
+        $this->assertEquals(\App\Services\Amazon\BrightDataScraperService::class, $brightdata['class']);
+        $this->assertContains('brightdata', $brightdata['env_values']);
+        $this->assertContains('bright-data', $brightdata['env_values']);
+        $this->assertContains('bd', $brightdata['env_values']);
     }
 }

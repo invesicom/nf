@@ -19,13 +19,15 @@ class AmazonReviewServiceFactory
      */
     public static function create(): AmazonReviewServiceInterface
     {
-        $serviceType = env('AMAZON_REVIEW_SERVICE', 'unwrangle');
+        $serviceType = env('AMAZON_REVIEW_SERVICE', 'brightdata');
         
         switch (strtolower($serviceType)) {
-            case 'ajax':
-            case 'ajax-bypass':
-                LoggingService::log('Using Amazon AJAX bypass service');
-                return new AmazonAjaxReviewService();
+            case 'brightdata':
+            case 'bright-data':
+            case 'bd':
+            default:
+                LoggingService::log('Using BrightData scraper service');
+                return new BrightDataScraperService();
                 
             case 'scraping':
             case 'direct':
@@ -35,7 +37,6 @@ class AmazonReviewServiceFactory
                 
             case 'unwrangle':
             case 'api':
-            default:
                 LoggingService::log('Using Unwrangle API service');
                 return new AmazonFetchService();
         }
@@ -48,18 +49,18 @@ class AmazonReviewServiceFactory
      */
     public static function getCurrentServiceType(): string
     {
-        return env('AMAZON_REVIEW_SERVICE', 'unwrangle');
+        return env('AMAZON_REVIEW_SERVICE', 'brightdata');
     }
 
     /**
-     * Check if AJAX bypass is enabled.
+     * Check if BrightData scraper is enabled.
      * 
      * @return bool
      */
-    public static function isAjaxEnabled(): bool
+    public static function isBrightDataEnabled(): bool
     {
-        $serviceType = strtolower(env('AMAZON_REVIEW_SERVICE', 'unwrangle'));
-        return in_array($serviceType, ['ajax', 'ajax-bypass']);
+        $serviceType = strtolower(env('AMAZON_REVIEW_SERVICE', 'brightdata'));
+        return in_array($serviceType, ['brightdata', 'bright-data', 'bd']);
     }
 
     /**
@@ -69,7 +70,7 @@ class AmazonReviewServiceFactory
      */
     public static function isScrapingEnabled(): bool
     {
-        $serviceType = strtolower(env('AMAZON_REVIEW_SERVICE', 'unwrangle'));
+        $serviceType = strtolower(env('AMAZON_REVIEW_SERVICE', 'brightdata'));
         return in_array($serviceType, ['scraping', 'direct', 'scrape']);
     }
 
@@ -80,7 +81,7 @@ class AmazonReviewServiceFactory
      */
     public static function isUnwrangleEnabled(): bool
     {
-        $serviceType = strtolower(env('AMAZON_REVIEW_SERVICE', 'unwrangle'));
+        $serviceType = strtolower(env('AMAZON_REVIEW_SERVICE', 'brightdata'));
         return in_array($serviceType, ['unwrangle', 'api']);
     }
 
@@ -92,11 +93,11 @@ class AmazonReviewServiceFactory
     public static function getAvailableServices(): array
     {
         return [
-            'ajax' => [
-                'name' => 'AJAX Bypass',
-                'description' => 'Uses Amazon AJAX endpoints to bypass direct URL protections (free, requires cookies)',
-                'class' => AmazonAjaxReviewService::class,
-                'env_values' => ['ajax', 'ajax-bypass'],
+            'brightdata' => [
+                'name' => 'BrightData Scraper',
+                'description' => 'Uses BrightData managed scraper API (paid, ~30 reviews per product)',
+                'class' => BrightDataScraperService::class,
+                'env_values' => ['brightdata', 'bright-data', 'bd'],
             ],
             'scraping' => [
                 'name' => 'Direct Scraping',

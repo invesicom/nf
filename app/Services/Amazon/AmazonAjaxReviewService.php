@@ -697,7 +697,7 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
         ]);
 
         try {
-            $directService = new AmazonScrapingService();
+            $directService = app()->make(AmazonScrapingService::class);
             return $directService->fetchReviews($asin);
         } catch (\Exception $e) {
             LoggingService::log('Direct scraping fallback also failed', [
