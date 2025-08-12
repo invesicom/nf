@@ -209,8 +209,9 @@ class AmazonAjaxReviewServiceTest extends TestCase
         $loginHtml = '<html><body>You are being redirected to ap/signin</body></html>';
         $this->mockHandler->append(new Response(200, [], $loginHtml));
         
-        // The service should fall back to direct scraping
-        // In test environment, this might actually succeed or fail depending on cookies
+        // Mock the fallback direct scraping response to prevent real HTTP calls
+        $this->mockHandler->append(new Response(200, [], '<html><body>Mocked fallback response</body></html>'));
+        
         $result = $this->service->fetchReviews('B123456789');
         
         $this->assertIsArray($result);
@@ -218,8 +219,7 @@ class AmazonAjaxReviewServiceTest extends TestCase
         $this->assertArrayHasKey('description', $result);
         $this->assertArrayHasKey('total_reviews', $result);
         
-        // The fallback mechanism works - we just verify the structure is correct
-        // The actual content depends on whether the fallback scraping succeeds
+        // Fallback returns empty structure when mocked
         $this->assertTrue(is_array($result['reviews']));
         $this->assertTrue(is_string($result['description']));
         $this->assertTrue(is_int($result['total_reviews']));
@@ -284,6 +284,9 @@ class AmazonAjaxReviewServiceTest extends TestCase
         $captchaHtml = '<html><body>validateCaptcha form - solve this puzzle to continue</body></html>';
         $this->mockHandler->append(new Response(200, [], $captchaHtml));
         
+        // Mock fallback response to prevent real HTTP calls
+        $this->mockHandler->append(new Response(200, [], '<html><body>Mocked fallback</body></html>'));
+        
         $result = $this->service->fetchReviews('B123456789');
         
         // Should fallback to empty result when CAPTCHA detected
@@ -299,6 +302,9 @@ class AmazonAjaxReviewServiceTest extends TestCase
         // Mock login redirect response
         $loginHtml = '<html><body>You are being redirected to ap/signin</body></html>';
         $this->mockHandler->append(new Response(200, [], $loginHtml));
+        
+        // Mock fallback response to prevent real HTTP calls
+        $this->mockHandler->append(new Response(200, [], '<html><body>Mocked fallback</body></html>'));
         
         $result = $this->service->fetchReviews('B123456789');
         
