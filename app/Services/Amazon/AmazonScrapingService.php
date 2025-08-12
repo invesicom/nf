@@ -36,19 +36,21 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         $this->setupCookies();
         
         $this->headers = [
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language' => 'en-US,en;q=0.9',
-            'Accept-Encoding' => 'gzip, deflate, br',
+            'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language' => 'en-GB,en-US;q=0.9,en;q=0.8',
+            'Accept-Encoding' => 'gzip, deflate, br, zstd',
             'Connection' => 'keep-alive',
             'Upgrade-Insecure-Requests' => '1',
             'Sec-Fetch-Dest' => 'document',
             'Sec-Fetch-Mode' => 'navigate',
             'Sec-Fetch-Site' => 'same-origin',
             'Sec-Fetch-User' => '?1',
-            'Cache-Control' => 'max-age=0',
-            'DNT' => '1',
-            'Sec-GPC' => '1',
+            'Cache-Control' => 'no-cache',
+            'Priority' => 'u=0, i',
+            'sec-ch-ua' => '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'sec-ch-ua-mobile' => '?0',
+            'sec-ch-ua-platform' => '"Linux"',
         ];
 
         $this->initializeHttpClient();
@@ -983,11 +985,11 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'bandwidth_optimization' => 'configurable_limits'
         ]);
         
-        // Try different Amazon review URL patterns, prioritizing the most reliable
+        // Try different Amazon review URL patterns, prioritizing the working pattern from manual testing
         $urlPatterns = [
-            "https://www.amazon.com/gp/product/{$asin}/reviews", // Most reliable
+            "https://www.amazon.com/product-reviews/{$asin}", // Working pattern confirmed by manual testing
+            "https://www.amazon.com/gp/product/{$asin}/reviews",
             "https://www.amazon.com/dp/product-reviews/{$asin}",
-            "https://www.amazon.com/product-reviews/{$asin}",
         ];
         
         $workingBaseUrl = null;
@@ -1050,7 +1052,13 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         for ($page = 1; $page <= $maxPages; $page++) {
             LoggingService::log("Scraping reviews page {$page} for ASIN: {$asin}");
             
-            $url = $workingBaseUrl . "?pageNumber={$page}&sortBy=recent";
+            // Use Amazon's required pagination pattern based on successful manual testing
+            if ($page === 1) {
+                $url = $workingBaseUrl . "?ie=UTF8&reviewerType=all_reviews";
+            } else {
+                // Pattern discovered from successful page 2 request: /ref=cm_cr_arp_d_paging_btm_next_{page}?ie=UTF8&reviewerType=all_reviews&pageNumber={page}
+                $url = $workingBaseUrl . "/ref=cm_cr_arp_d_paging_btm_next_{$page}?ie=UTF8&reviewerType=all_reviews&pageNumber={$page}";
+            }
             
             $retryCount = 0;
             $maxRetries = 3;

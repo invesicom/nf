@@ -22,6 +22,11 @@ class AmazonReviewServiceFactory
         $serviceType = env('AMAZON_REVIEW_SERVICE', 'unwrangle');
         
         switch (strtolower($serviceType)) {
+            case 'ajax':
+            case 'ajax-bypass':
+                LoggingService::log('Using Amazon AJAX bypass service');
+                return new AmazonAjaxReviewService();
+                
             case 'scraping':
             case 'direct':
             case 'scrape':
@@ -44,6 +49,17 @@ class AmazonReviewServiceFactory
     public static function getCurrentServiceType(): string
     {
         return env('AMAZON_REVIEW_SERVICE', 'unwrangle');
+    }
+
+    /**
+     * Check if AJAX bypass is enabled.
+     * 
+     * @return bool
+     */
+    public static function isAjaxEnabled(): bool
+    {
+        $serviceType = strtolower(env('AMAZON_REVIEW_SERVICE', 'unwrangle'));
+        return in_array($serviceType, ['ajax', 'ajax-bypass']);
     }
 
     /**
@@ -76,17 +92,23 @@ class AmazonReviewServiceFactory
     public static function getAvailableServices(): array
     {
         return [
-            'unwrangle' => [
-                'name' => 'Unwrangle API',
-                'description' => 'Uses Unwrangle API service ($90/month)',
-                'class' => AmazonFetchService::class,
-                'env_values' => ['unwrangle', 'api'],
+            'ajax' => [
+                'name' => 'AJAX Bypass',
+                'description' => 'Uses Amazon AJAX endpoints to bypass direct URL protections (free, requires cookies)',
+                'class' => AmazonAjaxReviewService::class,
+                'env_values' => ['ajax', 'ajax-bypass'],
             ],
             'scraping' => [
                 'name' => 'Direct Scraping',
                 'description' => 'Direct Amazon scraping (free, requires cookies)',
                 'class' => AmazonScrapingService::class,
                 'env_values' => ['scraping', 'direct', 'scrape'],
+            ],
+            'unwrangle' => [
+                'name' => 'Unwrangle API',
+                'description' => 'Uses Unwrangle API service ($90/month)',
+                'class' => AmazonFetchService::class,
+                'env_values' => ['unwrangle', 'api'],
             ],
         ];
     }
