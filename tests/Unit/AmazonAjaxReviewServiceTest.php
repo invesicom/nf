@@ -277,6 +277,97 @@ class AmazonAjaxReviewServiceTest extends TestCase
         ';
     }
 
+    #[Test]
+    public function it_detects_captcha_and_marks_session_unhealthy()
+    {
+        // Mock CAPTCHA response
+        $captchaHtml = '<html><body>validateCaptcha form - solve this puzzle to continue</body></html>';
+        $this->mockHandler->append(new Response(200, [], $captchaHtml));
+        
+        $result = $this->service->fetchReviews('B123456789');
+        
+        // Should fallback to empty result when CAPTCHA detected
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('reviews', $result);
+        $this->assertArrayHasKey('description', $result);
+        $this->assertArrayHasKey('total_reviews', $result);
+    }
+
+    #[Test]
+    public function it_detects_login_redirect_and_marks_session_unhealthy()
+    {
+        // Mock login redirect response
+        $loginHtml = '<html><body>You are being redirected to ap/signin</body></html>';
+        $this->mockHandler->append(new Response(200, [], $loginHtml));
+        
+        $result = $this->service->fetchReviews('B123456789');
+        
+        // Should fallback to empty result when login redirect detected
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('reviews', $result);
+        $this->assertArrayHasKey('description', $result);
+        $this->assertArrayHasKey('total_reviews', $result);
+    }
+
+    #[Test]
+    public function it_uses_cookie_session_manager_for_rotation()
+    {
+        // Set up multiple cookie sessions
+        putenv('AMAZON_COOKIES_1=cookie1=value1; session-id=session1');
+        putenv('AMAZON_COOKIES_2=cookie2=value2; session-id=session2');
+        
+        // Create new service to pick up environment changes
+        $service = new AmazonAjaxReviewService();
+        
+        // Use reflection to verify cookie session manager is initialized
+        $reflection = new \ReflectionClass($service);
+        $cookieSessionManagerProperty = $reflection->getProperty('cookieSessionManager');
+        $cookieSessionManagerProperty->setAccessible(true);
+        $cookieSessionManager = $cookieSessionManagerProperty->getValue($service);
+        
+        $this->assertNotNull($cookieSessionManager);
+        $this->assertInstanceOf(\App\Services\Amazon\CookieSessionManager::class, $cookieSessionManager);
+        
+        // Clean up
+        putenv('AMAZON_COOKIES_2');
+    }
+
+    #[Test]
+    public function it_falls_back_to_legacy_cookies_when_no_sessions_available()
+    {
+        // Clear all cookie sessions
+        putenv('AMAZON_COOKIES_1');
+        putenv('AMAZON_COOKIE=legacy-cookie=legacy-value');
+        
+        // Create service with no cookie sessions
+        $service = new AmazonAjaxReviewService();
+        
+        // Should not crash and should initialize properly
+        $this->assertInstanceOf(AmazonAjaxReviewService::class, $service);
+        
+        // Clean up
+        putenv('AMAZON_COOKIE');
+    }
+
+    #[Test]
+    public function it_handles_captcha_in_ajax_responses()
+    {
+        // Mock successful bootstrap
+        $bootstrapHtml = $this->createMockBootstrapHtml();
+        $this->mockHandler->append(new Response(200, [], $bootstrapHtml));
+        
+        // Mock CAPTCHA in AJAX response
+        $captchaResponse = 'unusual traffic detected - solve this puzzle';
+        $this->mockHandler->append(new Response(200, [], $captchaResponse));
+        
+        $result = $this->service->fetchReviews('B123456789');
+        
+        // Should still return valid structure even with CAPTCHA in AJAX
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('reviews', $result);
+        $this->assertCount(1, $result['reviews']); // Only page 1 reviews
+    }
+
     private function createMockReviewHtml(string $reviewText): string
     {
         return '

@@ -23,10 +23,13 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
     private array $headers;
     private ProxyManager $proxyManager;
     private ?array $currentProxyConfig = null;
+    private CookieSessionManager $cookieSessionManager;
+    private ?array $currentCookieSession = null;
     
     public function __construct()
     {
         $this->proxyManager = new ProxyManager();
+        $this->cookieSessionManager = new CookieSessionManager();
         $this->cookieJar = new CookieJar();
         $this->setupCookies();
         
@@ -53,9 +56,32 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
     }
 
     /**
-     * Setup Amazon cookies for authenticated requests.
+     * Setup Amazon cookies using multi-session cookie manager with rotation.
      */
     private function setupCookies(): void
+    {
+        // Get the next available cookie session using round-robin rotation
+        $this->currentCookieSession = $this->cookieSessionManager->getNextCookieSession();
+        
+        if (!$this->currentCookieSession) {
+            LoggingService::log('No Amazon cookie sessions available for AJAX service - falling back to legacy AMAZON_COOKIES');
+            $this->setupLegacyCookies();
+            return;
+        }
+        
+        // Create cookie jar from the selected session
+        $this->cookieJar = $this->cookieSessionManager->createCookieJar($this->currentCookieSession);
+        
+        LoggingService::log('Setup AJAX cookies from multi-session manager', [
+            'session_name' => $this->currentCookieSession['name'],
+            'session_env_var' => $this->currentCookieSession['env_var']
+        ]);
+    }
+    
+    /**
+     * Fallback method to setup cookies from legacy AMAZON_COOKIES environment variable.
+     */
+    private function setupLegacyCookies(): void
     {
         $amazonCookie = env('AMAZON_COOKIES_1') ?? env('AMAZON_COOKIE');
         
@@ -85,7 +111,7 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
             }
         }
         
-        LoggingService::log('Amazon cookies configured for AJAX service', [
+        LoggingService::log('Amazon legacy cookies configured for AJAX service', [
             'cookie_count' => count($cookiePairs),
             'domain' => $domain
         ]);
@@ -229,12 +255,31 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
 
             $html = $response->getBody()->getContents();
             
+            // Check for CAPTCHA or blocking content first
+            if ($this->detectCaptchaInResponse($html, $baseUrl)) {
+                return null; // CAPTCHA detection handles session marking and alerts
+            }
+            
             // Check for login redirect
             if (strpos($html, 'ap/signin') !== false || strpos($html, 'Sign-In') !== false) {
                 LoggingService::log('Bootstrap failed - redirected to login', ['asin' => $asin]);
+                
+                // Mark current session as unhealthy if using session manager
+                if ($this->currentCookieSession) {
+                    $this->cookieSessionManager->markSessionUnhealthy(
+                        $this->currentCookieSession['index'],
+                        'Login redirect detected',
+                        60 // 60 minute cooldown for login issues
+                    );
+                }
+                
                 app(AlertService::class)->amazonSessionExpired(
                     'Amazon AJAX session expired - redirected to login',
-                    ['asin' => $asin, 'service' => 'AmazonAjaxReviewService']
+                    [
+                        'asin' => $asin, 
+                        'service' => 'AmazonAjaxReviewService',
+                        'session_info' => $this->currentCookieSession
+                    ]
                 );
                 return null;
             }
@@ -339,6 +384,11 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
             }
 
             $responseBody = $response->getBody()->getContents();
+            
+            // Check for CAPTCHA in AJAX response
+            if ($this->detectCaptchaInResponse($responseBody, $ajaxUrl)) {
+                return []; // CAPTCHA detection handles session marking and alerts
+            }
             
             // Try to parse as JSON
             $jsonData = json_decode($responseBody, true);
@@ -529,6 +579,111 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
             return (int) str_replace(',', '', $matches[1]);
         }
         return 0;
+    }
+
+    /**
+     * Detect CAPTCHA or blocking response and trigger appropriate alerts.
+     */
+    private function detectCaptchaInResponse(string $html, string $url): bool
+    {
+        // Check for CAPTCHA indicators that return 200 status but contain blocking content
+        $captchaIndicators = [
+            'validateCaptcha',
+            'opfcaptcha.amazon.com',
+            'continue shopping',
+            'csm-captcha-instrumentation',
+            'click the button below to continue',
+            'unusual traffic',
+            'automated requests',
+            'solve this puzzle',
+            'enter the characters you see below',
+            'sorry, we just need to make sure you\'re not a robot'
+        ];
+        
+        $htmlLower = strtolower($html);
+        $foundIndicators = [];
+        
+        foreach ($captchaIndicators as $indicator) {
+            if (strpos($htmlLower, $indicator) !== false) {
+                $foundIndicators[] = $indicator;
+            }
+        }
+        
+        // Only trigger on explicit CAPTCHA indicators, not just small content size
+        if (!empty($foundIndicators)) {
+            $contentSize = strlen($html);
+            $this->handleCaptchaDetection($url, $foundIndicators, $contentSize);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Handle CAPTCHA detection by logging and sending alerts.
+     */
+    private function handleCaptchaDetection(string $url, array $indicators, int $contentSize): void
+    {
+        $contextData = [
+            'indicators_found' => $indicators,
+            'content_size' => $contentSize,
+            'content_size_formatted' => $this->formatBytes($contentSize),
+            'detection_method' => 'ajax_captcha_detection',
+            'service' => 'AmazonAjaxReviewService',
+            'proxy_type' => $this->currentProxyConfig['type'] ?? 'direct',
+            'timestamp' => now()->toISOString()
+        ];
+        
+        // Add current cookie session information to context
+        if ($this->currentCookieSession) {
+            $contextData['cookie_session'] = [
+                'name' => $this->currentCookieSession['name'],
+                'env_var' => $this->currentCookieSession['env_var'],
+                'index' => $this->currentCookieSession['index']
+            ];
+            
+            // Mark this session as unhealthy
+            $this->cookieSessionManager->markSessionUnhealthy(
+                $this->currentCookieSession['index'],
+                'CAPTCHA detected in AJAX service',
+                30 // 30 minute cooldown
+            );
+        }
+        
+        LoggingService::log('CAPTCHA/blocking detected in Amazon AJAX response', array_merge($contextData, ['url' => $url]));
+        
+        // Send specific CAPTCHA detection alert with session information
+        app(AlertService::class)->amazonCaptchaDetected($url, $indicators, $contextData);
+        
+        // If using proxy, rotate it
+        if ($this->currentProxyConfig) {
+            $this->rotateProxyAndReconnect();
+        }
+    }
+    
+    /**
+     * Format bytes for human-readable display.
+     */
+    private function formatBytes(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return number_format($bytes / 1048576, 2) . ' MB';
+        } elseif ($bytes >= 1024) {
+            return number_format($bytes / 1024, 2) . ' KB';
+        }
+        return $bytes . ' bytes';
+    }
+    
+    /**
+     * Rotate proxy and reconnect HTTP client.
+     */
+    private function rotateProxyAndReconnect(): void
+    {
+        if ($this->currentProxyConfig) {
+            LoggingService::log('Rotating proxy due to CAPTCHA detection in AJAX service');
+            $this->proxyManager->rotateSession();
+            $this->initializeHttpClient(); // Reinitialize with new proxy session
+        }
     }
 
     /**
