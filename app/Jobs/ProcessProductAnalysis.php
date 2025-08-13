@@ -134,9 +134,20 @@ class ProcessProductAnalysis implements ShouldQueue
 
     private function determineRedirectUrl(AsinData $asinData): ?string
     {
-        // Async mode: Always redirect to product page since we wait for complete analysis + product data
-        // By this point, product scraping has completed as part of the analysis flow
-        
+        // CRITICAL: Only redirect if the product will actually be displayable to users
+        // Products with 0 reviews should never be shown (per isAnalyzed() requirements)
+        if (!$asinData->isAnalyzed()) {
+            LoggingService::log('Product not analyzed - no redirect URL generated', [
+                'asin' => $asinData->asin,
+                'reviews_count' => count($asinData->getReviewsArray()),
+                'status' => $asinData->status,
+                'fake_percentage' => $asinData->fake_percentage,
+                'have_product_data' => $asinData->have_product_data
+            ]);
+            return null;
+        }
+
+        // Product is fully analyzed and displayable - redirect to product page
         if ($asinData->slug) {
             return route('amazon.product.show.slug', [
                 'asin' => $asinData->asin,

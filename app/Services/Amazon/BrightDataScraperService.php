@@ -401,9 +401,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     LoggingService::log('BrightData job still running', [
                         'job_id' => $jobId,
                         'attempt' => $attempt + 1,
-                        'max_attempts' => $maxAttempts,
-                        'time_elapsed' => ($attempt * $pollInterval) . 's',
-                        'estimated_remaining' => (($maxAttempts - $attempt) * $pollInterval) . 's'
+                        'max_attempts' => $this->maxAttempts,
+                        'time_elapsed' => ($attempt * $this->pollInterval) . 's',
+                        'estimated_remaining' => (($this->maxAttempts - $attempt) * $this->pollInterval) . 's'
                     ]);
                     
                     $attempt++;
@@ -435,8 +435,8 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         LoggingService::log('BrightData polling timeout - job may still be running', [
             'job_id' => $jobId,
             'asin' => $asin,
-            'max_attempts' => $maxAttempts,
-            'total_time' => ($maxAttempts * $pollInterval) . 's',
+            'max_attempts' => $this->maxAttempts,
+            'total_time' => ($this->maxAttempts * $this->pollInterval) . 's',
             'final_status' => $finalProgressInfo['status'] ?? 'unknown',
             'final_rows' => $finalProgressInfo['total_rows'] ?? 0,
             'suggestion' => 'Job may complete later - check progress manually or increase timeout'
