@@ -134,18 +134,22 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     {
         $result = $this->fetchReviews($asin, $country);
         
-        // Save to database
-        $asinData = AsinData::firstOrCreate(['asin' => $asin]);
+        // Save to database using existing columns only
+        $asinData = AsinData::firstOrCreate(
+            ['asin' => $asin, 'country' => $country],
+            ['status' => 'pending_analysis']
+        );
+        
         $asinData->reviews = json_encode($result['reviews']);
-        $asinData->product_description = $result['description'];
-        $asinData->total_reviews_on_amazon = $result['total_reviews'];
+        $asinData->product_description = $result['description'] ?? '';
+        $asinData->total_reviews_on_amazon = $result['total_reviews'] ?? count($result['reviews']);
+        $asinData->country = $country;
+        $asinData->status = 'pending_analysis';
+        $asinData->have_product_data = true; // BrightData provides product metadata
         
         // Extract additional product data if available
         if (!empty($result['product_name'])) {
             $asinData->product_title = $result['product_name'];
-        }
-        if (!empty($result['product_rating'])) {
-            $asinData->product_rating = $result['product_rating'];
         }
         if (!empty($result['product_image_url'])) {
             $asinData->product_image_url = $result['product_image_url'];
@@ -168,7 +172,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'description' => $result['description'] ?? '',
             'price' => $result['price'] ?? '',
             'image_url' => $result['product_image_url'] ?? '',
-            'rating' => $result['product_rating'] ?? 0,
+            'rating' => 0, // Rating not available from BrightData review data
             'total_reviews' => $result['total_reviews'] ?? 0
         ];
     }
@@ -420,7 +424,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             // Extract product-level data from first item
             if (empty($productName) && !empty($item['product_name'])) {
                 $productName = $item['product_name'];
-                $productRating = $item['product_rating'] ?? 0;
                 $totalReviews = $item['product_rating_count'] ?? 0;
                 // BrightData doesn't provide product image or description in review data
                 // These would need to be fetched separately if needed
@@ -475,7 +478,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'description' => $description,
             'total_reviews' => $totalReviews,
             'product_name' => $productName,
-            'product_rating' => $productRating,
             'product_image_url' => $productImageUrl
         ];
     }
