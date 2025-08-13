@@ -178,17 +178,16 @@ class ProcessExistingAsinData extends Command
                     $this->line("\n🔄 Skipped {$asinData->asin}: {$shouldProcess['reason']}");
                 } else {
                     if (!$dryRun) {
-                        // Process directly instead of queuing
+                        // Use the same job approach as the analysis flow for consistency
                         $this->line("\n🔄 Processing {$asinData->asin}...");
                         
-                        $productService = app(AmazonProductDataService::class);
-                        $result = $productService->scrapeAndSaveProductData($asinData);
-                        
-                        if ($result) {
+                        $scrapeJob = new \App\Jobs\ScrapeAmazonProductData($asinData);
+                        try {
+                            $scrapeJob->handle();
                             $scraped++;
                             $this->line("✅ Successfully scraped product data for {$asinData->asin}");
-                        } else {
-                            $this->line("⚠️ Failed to scrape product data for {$asinData->asin}");
+                        } catch (\Exception $e) {
+                            $this->line("⚠️ Failed to scrape product data for {$asinData->asin}: " . $e->getMessage());
                         }
                     } else {
                         $this->line("\n🧪 Would process {$asinData->asin} directly");
