@@ -1,7 +1,7 @@
 # Null Fake
 
 <div align="center">
-  <img src="public/img/nullfake.png" alt="Null Fake Logo" width="200">
+  <img src="https://nullfake.com/img/nullfake.png" alt="Null Fake Logo" width="200">
 </div>
 
 A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. The service supports multiple data collection methods including BrightData's managed web scraping service, direct Amazon scraping, and comprehensive AI analysis with multi-provider support.
