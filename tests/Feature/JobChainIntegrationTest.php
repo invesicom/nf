@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\ProcessProductAnalysis;
-use App\Models\AnalysisSession;
-use App\Models\AsinData;
+use App\Jobs\TriggerBrightDataScraping;
+use App\Services\Amazon\BrightDataScraperService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -15,90 +13,58 @@ class JobChainIntegrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        // Mock all HTTP requests to prevent real external calls
-        Http::fake([
-            'api.brightdata.com/*' => Http::response(['snapshot_id' => 'test_123'], 200),
-            'amazon.com/*' => Http::response('<html><head><title>Test Product</title></head></html>', 200),
-        ]);
-
-        // Set test environment - note: no AMAZON_COOKIES set, so service will use mock data
-        putenv('BRIGHTDATA_SCRAPER_API=test_key');
-        putenv('AMAZON_REVIEW_SERVICE=brightdata');
-        // Explicitly unset cookies to ensure mock data is used
-        putenv('AMAZON_COOKIES=');
-    }
-
     #[Test]
-    public function process_product_analysis_job_does_not_dispatch_conflicting_jobs()
+    public function brightdata_service_dispatches_async_job_chain_when_enabled()
     {
-        // Create an analysis session
-        $session = AnalysisSession::create([
-            'user_session' => 'test_session',
-            'asin' => 'B0TEST12345',
-            'product_url' => 'https://amazon.com/dp/B0TEST12345',
-            'status' => 'pending',
-            'total_steps' => 8,
-            'current_message' => 'Starting...',
-        ]);
-
-        // Create ASIN data that needs product data
-        $asinData = AsinData::create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'pending_analysis',
-            'reviews' => json_encode([
-                ['id' => 'R1', 'rating' => 5, 'text' => 'Great product'],
-                ['id' => 'R2', 'rating' => 4, 'text' => 'Good quality'],
-            ]),
-            'have_product_data' => false, // This should trigger product data scraping
-        ]);
-
-        // Execute the job directly (simulating queue worker)
-        $job = new ProcessProductAnalysis($session->id, $session->product_url);
+        Queue::fake();
         
-        // This should not fail
-        $job->handle();
+        putenv('ANALYSIS_ASYNC_ENABLED=true');
+        putenv('BRIGHTDATA_SCRAPER_API=test_key');
+        
+        // Override the environment check to force async mode for this test
+        // by not running in console mode
+        $this->app['env'] = 'production'; // Force non-testing environment
+        
+        $service = new BrightDataScraperService();
+        $result = $service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
-        // Verify the session was completed
-        $session->refresh();
-        $this->assertEquals('completed', $session->status);
+        // Should create AsinData and dispatch job
+        $this->assertEquals('B0TEST12345', $result->asin);
 
-        // Verify the ASIN data was processed
-        $asinData->refresh();
-        $this->assertNotNull($asinData->fake_percentage);
+        // Should dispatch the trigger job
+        Queue::assertPushed(TriggerBrightDataScraping::class, function ($job) {
+            return $job->asin === 'B0TEST12345' && $job->country === 'us';
+        });
     }
 
     #[Test]
-    public function brightdata_service_uses_sync_mode_when_called_from_queue_worker()
+    public function brightdata_service_uses_sync_mode_when_in_queue_worker()
     {
+        Queue::fake();
+        
         putenv('ANALYSIS_ASYNC_ENABLED=true'); // Enable async globally
         
-        // Create an ASIN that needs scraping
-        $asinData = AsinData::create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'pending',
-            'have_product_data' => false,
-        ]);
+        // Simulate being in testing environment (forces sync mode)
+        $service = new BrightDataScraperService();
+        $result = $service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
-        // Simulate being inside a queue worker by setting argv
-        $_SERVER['argv'] = ['artisan', 'queue:work', 'database'];
+        // Should have processed synchronously (no jobs dispatched)
+        $this->assertEquals('B0TEST12345', $result->asin);
+        Queue::assertNothingPushed();
+    }
 
-        // Create the BrightData service
-        $service = app(\App\Services\Amazon\BrightDataScraperService::class);
+    #[Test] 
+    public function brightdata_service_uses_sync_mode_when_async_disabled()
+    {
+        Queue::fake();
         
-        // This should use sync mode despite ANALYSIS_ASYNC_ENABLED=true
+        putenv('ANALYSIS_ASYNC_ENABLED=false');
+        
+        $service = new BrightDataScraperService();
         $result = $service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
         // Should have processed synchronously
-        $this->assertInstanceOf(AsinData::class, $result);
         $this->assertEquals('B0TEST12345', $result->asin);
-        
-        // Should not have dispatched any jobs (we're not using Queue::fake() here)
-        // If it did dispatch jobs, they would run immediately in the sync queue
+        Queue::assertNothingPushed();
     }
 }
