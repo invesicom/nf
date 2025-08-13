@@ -93,11 +93,17 @@ class ProcessExistingAsinData extends Command
             });
         }
 
-        // Only process records that have been analyzed (have reviews and OpenAI results)
-        $query->whereNotNull('reviews')
-              ->whereNotNull('openai_result')
-              ->where('reviews', '!=', '[]')
-              ->where('openai_result', '!=', '[]');
+        // For field-specific filtering (product data scraping), we don't need full analysis
+        // For default behavior, require analysis to be complete
+        if (!$missingImage && !$missingDescription && !$missingAny) {
+            // Default behavior: only process records that have been analyzed (have reviews and OpenAI results)
+            $query->whereNotNull('reviews')
+                  ->whereNotNull('openai_result')
+                  ->where('reviews', '!=', '[]')
+                  ->where('openai_result', '!=', '[]');
+        }
+        // For product data scraping, we just need valid ASIN records
+        // (no analysis requirements since we're just scraping product metadata)
 
         $totalRecords = $query->count();
 
@@ -282,8 +288,9 @@ class ProcessExistingAsinData extends Command
             }
         }
 
-        // Check if it has been analyzed (has reviews and OpenAI results)
-        if (!$asinData->isAnalyzed()) {
+        // For field-specific filtering, we don't require full analysis (just product data scraping)
+        // For default behavior, require analysis to be complete
+        if (!$missingImage && !$missingDescription && !$missingAny && !$asinData->isAnalyzed()) {
             return [
                 'process' => false,
                 'reason' => 'Not fully analyzed yet'
