@@ -189,19 +189,19 @@ class AmazonProductDataService
             'country' => $country,
         ]);
 
-        // Skip mock data - we can extract from public Amazon pages without cookies
-        // if (!$this->hasCookiesConfigured() && (app()->environment('testing') || app()->environment('local'))) {
-        //     LoggingService::log('No cookies configured in test/dev environment - returning mock data', [
-        //         'asin' => $asin,
-        //         'environment' => app()->environment(),
-        //     ]);
-        //     
-        //     return [
-        //         'title' => "Test Product {$asin}",
-        //         'description' => 'Mock product description for testing',
-        //         'image_url' => 'https://via.placeholder.com/300x300?text=' . $asin,
-        //     ];
-        // }
+        // In testing environment without cookies, return mock data to prevent failures
+        if (!$this->hasCookiesConfigured() && app()->environment('testing')) {
+            LoggingService::log('No cookies configured in test environment - returning mock data', [
+                'asin' => $asin,
+                'environment' => app()->environment(),
+            ]);
+            
+            return [
+                'title' => "Test Product {$asin}",
+                'description' => 'Mock product description for testing',
+                'image_url' => 'https://via.placeholder.com/300x300?text=' . $asin,
+            ];
+        }
 
         // Check cache first - product data doesn't change often
         $cacheKey = "product_data_{$asin}_{$country}";

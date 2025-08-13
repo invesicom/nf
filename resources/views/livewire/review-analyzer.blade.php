@@ -145,70 +145,7 @@
     </div>
     @endif
 
-    {{-- Results section --}}
-    @if($result && !$loading)
-        <div class="bg-white p-6 rounded-lg shadow-lg" data-results-section>
-            <h2 class="text-2xl font-bold mb-4 text-center">Analysis Results</h2>
-            
-            <!-- Fake Percentage Display -->
-            <div class="mb-6 p-4 bg-gray-50 rounded-lg">
-                <div class="text-center">
-                    <div class="text-4xl font-bold {{ $this->getGradeColor() }} mb-2">{{ number_format($fake_percentage, 1) }}%</div>
-                    <p class="text-gray-600">Fake Reviews Detected</p>
-                </div>
-            </div>
-
-            <!-- Grade Display -->
-            <div class="mb-6 text-center">
-                <div class="inline-flex items-center px-6 py-3 rounded-full {{ $this->getGradeBgColor() }}">
-                    <span class="text-2xl font-bold {{ $this->getGradeColor() }}">Grade: {{ $grade }}</span>
-                </div>
-            </div>
-
-            <!-- Ratings Comparison -->
-            <div class="grid md:grid-cols-2 gap-4 mb-6">
-                <div class="bg-blue-50 p-4 rounded-lg text-center">
-                    <h3 class="font-semibold text-blue-800 mb-2">Amazon Rating</h3>
-                    <div class="text-2xl font-bold text-blue-600">{{ number_format($amazon_rating, 2) }}/5</div>
-                    <p class="text-sm text-blue-600">Original Rating</p>
-                </div>
-                <div class="bg-green-50 p-4 rounded-lg text-center">
-                    <h3 class="font-semibold text-green-800 mb-2">Adjusted Rating</h3>
-                    <div class="text-2xl font-bold text-green-600">
-                        {{ number_format($adjusted_rating, 2) }}/5
-                    </div>
-                    <p class="text-sm text-green-600">After Removing Fake Reviews</p>
-                </div>
-            </div>
-
-            <!-- Rating Explanation for when adjusted rating is higher -->
-            @if($adjusted_rating > $amazon_rating)
-                <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
-                    <div class="flex items-start">
-                        <svg class="w-5 h-5 text-blue-500 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
-                        </svg>
-                        <div>
-                            <h4 class="font-semibold text-blue-800 mb-2">Why is the adjusted rating higher?</h4>
-                            <p class="text-sm text-blue-700">
-                                The adjusted rating is higher because the fake reviews included both 
-                                <strong>fake positive reviews</strong> (attempting to boost the score) and 
-                                <strong>fake negative reviews</strong> (attempting to damage the product's reputation). 
-                                When all fake reviews are removed, the remaining genuine customer feedback shows 
-                                a clearer and slightly more positive picture of actual customer satisfaction.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-            <!-- Explanation -->
-            <div class="bg-yellow-50 p-4 rounded-lg">
-                <h3 class="font-semibold text-yellow-800 mb-2">Analysis Summary</h3>
-                <p class="text-yellow-700">{{ $explanation }}</p>
-            </div>
-        </div>
-    @endif
+    {{-- No longer show results on homepage - redirect to dedicated product page instead --}}
 
     {{-- Error display --}}
     @if($error)

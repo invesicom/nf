@@ -134,20 +134,28 @@ class ProcessProductAnalysis implements ShouldQueue
 
     private function determineRedirectUrl(AsinData $asinData): ?string
     {
-        // CRITICAL: Only redirect if the product will actually be displayable to users
-        // Products with 0 reviews should never be shown (per isAnalyzed() requirements)
-        if (!$asinData->isAnalyzed()) {
-            LoggingService::log('Product not analyzed - no redirect URL generated', [
+        // CRITICAL: Only redirect if the product has meaningful analysis results
+        // Products with 0 reviews should never be shown (not useful for users)
+        $hasReviews = count($asinData->getReviewsArray()) > 0;
+        $hasAnalysis = $asinData->status === 'completed' && 
+                       !is_null($asinData->fake_percentage) && 
+                       !is_null($asinData->grade);
+                       
+        if (!$hasReviews || !$hasAnalysis) {
+            LoggingService::log('Product not analyzable - no redirect URL generated', [
                 'asin' => $asinData->asin,
                 'reviews_count' => count($asinData->getReviewsArray()),
                 'status' => $asinData->status,
                 'fake_percentage' => $asinData->fake_percentage,
-                'have_product_data' => $asinData->have_product_data
+                'have_product_data' => $asinData->have_product_data,
+                'has_reviews' => $hasReviews,
+                'has_analysis' => $hasAnalysis
             ]);
             return null;
         }
 
-        // Product is fully analyzed and displayable - redirect to product page
+        // Product has analysis results and reviews - redirect even if product data is incomplete
+        // (The product page can handle missing images/descriptions gracefully)
         if ($asinData->slug) {
             return route('amazon.product.show.slug', [
                 'asin' => $asinData->asin,
