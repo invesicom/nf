@@ -19,7 +19,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     public function __construct()
     {
         $this->httpClient = new Client([
-            'timeout' => 900, // 15 minutes - BrightData jobs can take a long time
+            'timeout' => 1200, // 20 minutes - BrightData jobs can take a long time
             'connect_timeout' => 30,
             'http_errors' => false,
         ]);
@@ -257,7 +257,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
      */
     private function pollForResults(string $jobId, string $asin): array
     {
-        $maxAttempts = 20; // 10 minutes with 30-second intervals
+        $maxAttempts = 40; // 20 minutes with 30-second intervals
         $attempt = 0;
         $pollInterval = 30; // seconds - BrightData recommends 30s intervals
 
@@ -282,11 +282,19 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 if ($statusCode === 202) {
                     // 202 means job is still running, this is expected
                     $responseData = json_decode($body, true);
+                    
+                    // Get more detailed status from progress API
+                    $progressInfo = $this->getJobProgressInfo($jobId);
+                    
                     LoggingService::log('BrightData job still running', [
                         'job_id' => $jobId,
                         'attempt' => $attempt + 1,
+                        'max_attempts' => $maxAttempts,
+                        'time_elapsed' => ($attempt * $pollInterval) . 's',
+                        'estimated_remaining' => (($maxAttempts - $attempt) * $pollInterval) . 's',
                         'status' => $responseData['status'] ?? 'running',
-                        'message' => $responseData['message'] ?? 'Processing...'
+                        'message' => $responseData['message'] ?? 'Processing...',
+                        'progress_info' => $progressInfo
                     ]);
                     
                     $attempt++;
@@ -325,9 +333,26 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                         'data' => $data
                     ]);
                     return [];
+                } elseif ($status === 'unknown' && $attempt >= 5) {
+                    // BrightData API sometimes returns 'unknown' status even when data is ready
+                    // After 5 attempts (2.5 minutes), try to fetch data anyway
+                    LoggingService::log('Attempting to fetch BrightData data despite unknown status', [
+                        'job_id' => $jobId,
+                        'attempt' => $attempt + 1,
+                        'reason' => 'Status API shows unknown but data might be ready'
+                    ]);
+                    
+                    $dataResult = $this->fetchJobData($jobId);
+                    if (!empty($dataResult)) {
+                        LoggingService::log('Successfully retrieved data despite unknown status', [
+                            'job_id' => $jobId,
+                            'records_found' => count($dataResult)
+                        ]);
+                        return $dataResult;
+                    }
                 }
 
-                // Job still running, continue polling
+                // Job still running or unknown, continue polling
                 $attempt++;
                 sleep($pollInterval);
 
@@ -343,10 +368,17 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             }
         }
 
-        LoggingService::log('BrightData polling timeout', [
+        // Get final status before giving up
+        $finalProgressInfo = $this->getJobProgressInfo($jobId);
+        
+        LoggingService::log('BrightData polling timeout - job may still be running', [
             'job_id' => $jobId,
             'asin' => $asin,
-            'attempts' => $maxAttempts
+            'max_attempts' => $maxAttempts,
+            'total_time' => ($maxAttempts * $pollInterval) . 's',
+            'final_status' => $finalProgressInfo['status'] ?? 'unknown',
+            'final_rows' => $finalProgressInfo['total_rows'] ?? 0,
+            'suggestion' => 'Job may complete later - check progress manually or increase timeout'
         ]);
 
         return [];
@@ -510,6 +542,38 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             ]);
             return [];
         }
+    }
+
+    /**
+     * Get detailed progress information for a specific job.
+     */
+    private function getJobProgressInfo(string $jobId): array
+    {
+        try {
+            $response = $this->httpClient->get("{$this->baseUrl}/progress/{$jobId}", [
+                'headers' => [
+                    'Authorization' => "Bearer {$this->apiKey}",
+                ]
+            ]);
+
+            if ($response->getStatusCode() === 200) {
+                $progressData = json_decode($response->getBody()->getContents(), true);
+                
+                // Response is directly for the specific job
+                if (is_array($progressData)) {
+                    return [
+                        'status' => $progressData['status'] ?? 'unknown',
+                        'total_rows' => $progressData['records'] ?? 0,
+                        'created_at' => $progressData['created_at'] ?? null,
+                        'updated_at' => $progressData['updated_at'] ?? null
+                    ];
+                }
+            }
+        } catch (\Exception $e) {
+            // Don't log progress API errors as they're supplemental
+        }
+
+        return ['status' => 'unknown', 'total_rows' => 0];
     }
 
 }

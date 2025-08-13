@@ -8,7 +8,7 @@ use App\Services\LoggingService;
 
 class TestBrightDataScraper extends Command
 {
-    protected $signature = 'test:brightdata-scraper {asin} {--country=us} {--save} {--timeout=900}';
+    protected $signature = 'test:brightdata-scraper {asin} {--country=us} {--save} {--timeout=1200}';
     protected $description = 'Test BrightData scraper with a specific ASIN';
 
     public function handle()

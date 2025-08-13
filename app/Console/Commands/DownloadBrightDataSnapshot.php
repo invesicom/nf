@@ -28,9 +28,12 @@ class DownloadBrightDataSnapshot extends Command
         try {
             $client = new Client(['timeout' => 30]);
 
-            $response = $client->get("https://api.brightdata.com/datasets/v3/snapshot/{$snapshotId}/data", [
+            $response = $client->get("https://api.brightdata.com/datasets/v3/snapshot/{$snapshotId}", [
                 'headers' => [
                     'Authorization' => "Bearer {$apiKey}",
+                ],
+                'query' => [
+                    'format' => 'json'
                 ]
             ]);
 

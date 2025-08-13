@@ -17,9 +17,9 @@ class ProcessProductAnalysis implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public $tries = 3;
-    public $timeout = 300; // 5 minutes total timeout
-    public $backoff = [30, 60, 120]; // Backoff delays for retries
+    public $tries = 2;
+    public $timeout = 1800; // 30 minutes total timeout for BrightData processing
+    public $backoff = [60, 300]; // Backoff delays for retries
 
     public function __construct(
         private string $sessionId,
