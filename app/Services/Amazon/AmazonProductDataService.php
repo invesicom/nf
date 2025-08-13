@@ -189,19 +189,19 @@ class AmazonProductDataService
             'country' => $country,
         ]);
 
-        // In testing/development without cookies, return mock data to prevent failures
-        if (!$this->hasCookiesConfigured() && (app()->environment('testing') || app()->environment('local'))) {
-            LoggingService::log('No cookies configured in test/dev environment - returning mock data', [
-                'asin' => $asin,
-                'environment' => app()->environment(),
-            ]);
-            
-            return [
-                'title' => "Test Product {$asin}",
-                'description' => 'Mock product description for testing',
-                'image_url' => 'https://via.placeholder.com/300x300?text=' . $asin,
-            ];
-        }
+        // Skip mock data - we can extract from public Amazon pages without cookies
+        // if (!$this->hasCookiesConfigured() && (app()->environment('testing') || app()->environment('local'))) {
+        //     LoggingService::log('No cookies configured in test/dev environment - returning mock data', [
+        //         'asin' => $asin,
+        //         'environment' => app()->environment(),
+        //     ]);
+        //     
+        //     return [
+        //         'title' => "Test Product {$asin}",
+        //         'description' => 'Mock product description for testing',
+        //         'image_url' => 'https://via.placeholder.com/300x300?text=' . $asin,
+        //     ];
+        // }
 
         // Check cache first - product data doesn't change often
         $cacheKey = "product_data_{$asin}_{$country}";
@@ -375,6 +375,45 @@ class AmazonProductDataService
      */
     private function extractProductTitle(Crawler $crawler): ?string
     {
+        // First try meta tags (most reliable for social sharing)
+        $metaSelectors = [
+            'meta[name="title"]',
+            'meta[property="og:title"]',
+            'meta[name="twitter:title"]',
+            'title',
+        ];
+
+        foreach ($metaSelectors as $selector) {
+            try {
+                $element = $crawler->filter($selector);
+                if ($element->count() > 0) {
+                    $title = '';
+                    if ($selector === 'title') {
+                        $title = trim($element->text());
+                    } else {
+                        $title = trim($element->attr('content'));
+                    }
+                    
+                    if (!empty($title)) {
+                        // Clean up Amazon-specific prefixes/suffixes
+                        $title = preg_replace('/^Amazon\.com:\s*/', '', $title);
+                        $title = preg_replace('/\s*:\s*[^:]*&\s*[^:]*$/', '', $title); // Remove " : Category & Subcategory"
+                        $title = trim($title);
+                        
+                        LoggingService::log('Found product title from meta', [
+                            'selector' => $selector,
+                            'title_length' => strlen($title),
+                        ]);
+                        return $title;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Continue to next selector
+                continue;
+            }
+        }
+
+        // Fallback to traditional selectors
         $titleSelectors = [
             '#productTitle',
             '.product-title',
@@ -390,7 +429,7 @@ class AmazonProductDataService
                 if ($element->count() > 0) {
                     $title = trim($element->text());
                     if (!empty($title)) {
-                        LoggingService::log('Found product title', [
+                        LoggingService::log('Found product title from DOM', [
                             'selector' => $selector,
                             'title_length' => strlen($title),
                         ]);
@@ -412,6 +451,58 @@ class AmazonProductDataService
      */
     private function extractProductImage(Crawler $crawler): ?string
     {
+        // First try meta tags (most reliable for social sharing)
+        $metaImageSelectors = [
+            'meta[property="og:image"]',
+            'meta[name="twitter:image"]',
+            'meta[property="og:image:url"]',
+        ];
+
+        foreach ($metaImageSelectors as $selector) {
+            try {
+                $element = $crawler->filter($selector);
+                if ($element->count() > 0) {
+                    $imageUrl = trim($element->attr('content'));
+                    if (!empty($imageUrl) && filter_var($imageUrl, FILTER_VALIDATE_URL)) {
+                        LoggingService::log('Found product image from meta', [
+                            'selector' => $selector,
+                            'image_url' => $imageUrl,
+                        ]);
+                        return $imageUrl;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Continue to next selector
+                continue;
+            }
+        }
+
+        // Try to extract from JSON data-a-state script (modern Amazon)
+        try {
+            $scriptElements = $crawler->filter('script[type="a-state"]');
+            foreach ($scriptElements as $script) {
+                $dataState = $script->getAttribute('data-a-state');
+                if (!empty($dataState)) {
+                    $decodedState = json_decode(html_entity_decode($dataState), true);
+                    if (isset($decodedState['key']) && $decodedState['key'] === 'desktop-landing-image-data') {
+                        $scriptContent = trim($script->textContent);
+                        if (!empty($scriptContent)) {
+                            $imageData = json_decode($scriptContent, true);
+                            if (isset($imageData['landingImageUrl']) && filter_var($imageData['landingImageUrl'], FILTER_VALIDATE_URL)) {
+                                LoggingService::log('Found product image from a-state data', [
+                                    'image_url' => $imageData['landingImageUrl'],
+                                ]);
+                                return $imageData['landingImageUrl'];
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            LoggingService::log('Error extracting image from a-state data', ['error' => $e->getMessage()]);
+        }
+
+        // Fallback to traditional selectors
         $imageSelectors = [
             '#landingImage',
             '#imgBlkFront',
@@ -467,6 +558,33 @@ class AmazonProductDataService
      */
     private function extractProductDescription(Crawler $crawler): ?string
     {
+        // First try meta tags (most reliable for social sharing)
+        $metaDescriptionSelectors = [
+            'meta[name="description"]',
+            'meta[property="og:description"]',
+            'meta[name="twitter:description"]',
+        ];
+
+        foreach ($metaDescriptionSelectors as $selector) {
+            try {
+                $element = $crawler->filter($selector);
+                if ($element->count() > 0) {
+                    $description = trim($element->attr('content'));
+                    if (!empty($description) && strlen($description) > 20) {
+                        LoggingService::log('Found product description from meta', [
+                            'selector' => $selector,
+                            'description_length' => strlen($description),
+                        ]);
+                        return $description;
+                    }
+                }
+            } catch (\Exception $e) {
+                // Continue to next selector
+                continue;
+            }
+        }
+
+        // Fallback to traditional selectors
         $descriptionSelectors = [
             '#feature-bullets ul',
             '#aplus_feature_div',
@@ -481,7 +599,7 @@ class AmazonProductDataService
                 if ($element->count() > 0) {
                     $description = trim($element->text());
                     if (!empty($description) && strlen($description) > 20) {
-                        LoggingService::log('Found product description', [
+                        LoggingService::log('Found product description from DOM', [
                             'selector' => $selector,
                             'description_length' => strlen($description),
                         ]);
