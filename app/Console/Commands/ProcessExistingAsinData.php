@@ -23,7 +23,8 @@ class ProcessExistingAsinData extends Command
                             {--dry-run : Show what would be processed without actually processing}
                             {--missing-image : Only process products missing product_image_url}
                             {--missing-description : Only process products missing product_description}
-                            {--missing-any : Process products missing ANY product data (image, description, or title)}';
+                            {--missing-any : Process products missing ANY product data (image, description, or title)}
+                            {--asin= : Process only this specific ASIN}';
 
     /**
      * The console command description.
@@ -44,6 +45,7 @@ class ProcessExistingAsinData extends Command
         $missingImage = $this->option('missing-image');
         $missingDescription = $this->option('missing-description');
         $missingAny = $this->option('missing-any');
+        $singleAsin = $this->option('asin');
 
         $this->info('🚀 Starting ASIN Data Processing');
         $this->info('=====================================');
@@ -51,8 +53,11 @@ class ProcessExistingAsinData extends Command
         // Build query for records that need processing
         $query = AsinData::query();
         
-        // Apply filtering based on options
-        if ($missingImage || $missingDescription || $missingAny) {
+        // Handle single ASIN processing
+        if ($singleAsin) {
+            $query->where('asin', $singleAsin);
+            $this->info("🎯 Processing single ASIN: {$singleAsin}");
+        } elseif ($missingImage || $missingDescription || $missingAny) {
             // Specific field-based filtering
             $query->where(function ($q) use ($missingImage, $missingDescription, $missingAny) {
                 if ($missingImage && !$missingDescription && !$missingAny) {
@@ -95,7 +100,7 @@ class ProcessExistingAsinData extends Command
 
         // For field-specific filtering (product data scraping), we don't need full analysis
         // For default behavior, require analysis to be complete
-        if (!$missingImage && !$missingDescription && !$missingAny) {
+        if (!$singleAsin && !$missingImage && !$missingDescription && !$missingAny) {
             // Default behavior: only process records that have been analyzed (have reviews and OpenAI results)
             $query->whereNotNull('reviews')
                   ->whereNotNull('openai_result')
@@ -287,7 +292,8 @@ class ProcessExistingAsinData extends Command
 
         // For field-specific filtering, we don't require full analysis (just product data scraping)
         // For default behavior, require analysis to be complete
-        if (!$missingImage && !$missingDescription && !$missingAny && !$asinData->isAnalyzed()) {
+        $singleAsin = $this->option('asin');
+        if (!$singleAsin && !$missingImage && !$missingDescription && !$missingAny && !$asinData->isAnalyzed()) {
             return [
                 'process' => false,
                 'reason' => 'Not fully analyzed yet'
