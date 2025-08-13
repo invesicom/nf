@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\AsinData;
 use App\Services\LoggingService;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class AmazonProductController extends Controller
 {
@@ -132,7 +131,7 @@ class AmazonProductController extends Controller
     /**
      * Render the product page view.
      */
-    private function renderProductPage(AsinData $asinData): View
+    private function renderProductPage(AsinData $asinData)
     {
         LoggingService::log('Rendering analyzed product page', [
             'asin' => $asinData->asin,
@@ -146,14 +145,17 @@ class AmazonProductController extends Controller
         $seoData = $this->generateSeoData($asinData);
 
         // Display the full product analysis
-        return view('amazon.product-show', [
-            'asinData' => $asinData,
-            'amazon_url' => $this->buildAmazonUrl($asinData->asin),
-            'meta_title' => $this->generateMetaTitle($asinData),
-            'meta_description' => $this->generateMetaDescription($asinData),
-            'canonical_url' => $asinData->seo_url,
-            'seo_data' => $seoData,
-        ]);
+        return response()
+            ->view('amazon.product-show', [
+                'asinData' => $asinData,
+                'amazon_url' => $this->buildAmazonUrl($asinData->asin),
+                'meta_title' => $this->generateMetaTitle($asinData),
+                'meta_description' => $this->generateMetaDescription($asinData),
+                'canonical_url' => $asinData->seo_url,
+                'seo_data' => $seoData,
+            ])
+            ->header('Cache-Control', 'public, max-age=900') // 15 minutes cache
+            ->header('Vary', 'Accept-Encoding'); // Handle compression variations
     }
 
     /**
@@ -329,7 +331,7 @@ class AmazonProductController extends Controller
     /**
      * Display a paginated list of all analyzed products.
      */
-    public function index(Request $request): View
+    public function index(Request $request)
     {
         LoggingService::log('Displaying products listing page', [
             'page' => $request->get('page', 1),
@@ -362,8 +364,11 @@ class AmazonProductController extends Controller
             'current_page' => $products->currentPage(),
         ]);
 
-        return view('products.index', [
-            'products' => $products,
-        ]);
+        return response()
+            ->view('products.index', [
+                'products' => $products,
+            ])
+            ->header('Cache-Control', 'public, max-age=300') // 5 minutes cache
+            ->header('Vary', 'Accept-Encoding'); // Handle compression variations
     }
 }

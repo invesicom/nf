@@ -1,39 +1,111 @@
 # Null Fake
 
-A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. The service fetches reviews via direct Amazon scraping with bandwidth optimization, analyzes them with OpenAI, and provides authenticity scores.
+![Null Fake Logo](http://faker.local/img/nullfake.png)
 
-# Visit [nullfake.com](https://nullfake.com) to try it out.
-# Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot-to-null-fake-navigating-the-evolving-landscape-of-fake-reviews/)
+A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. The service supports multiple data collection methods including BrightData's managed web scraping service, direct Amazon scraping, and comprehensive AI analysis with multi-provider support.
+
+Visit [nullfake.com](https://nullfake.com) to try it out.
+
+Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot-to-null-fake-navigating-the-evolving-landscape-of-fake-reviews/)
 
 ## How It Works
 
 1. User submits an Amazon product URL and completes a captcha
 2. Null Fake retrieves the ASIN and country from the URL
-3. Database check: If a review analysis for the given ASIN and country exists in the database (and is less than 30 days old), the cached OpenAI analysis is returned instantly. If not, the service fetches reviews using direct Amazon scraping with proxy support, analyzes them with OpenAI, and saves the entire interaction to the database for future requests
-4. Results are displayed to the user, including a fake review percentage, grade, explanation, and ratings
+3. Database check: If a review analysis for the given ASIN and country exists in the database (and is less than 30 days old), the cached analysis is returned instantly
+4. If fresh data is needed, the service fetches reviews using the configured data collection method (BrightData, direct scraping, or AJAX bypass)
+5. Reviews are analyzed using AI with configurable thresholds for fake review detection
+6. Results are displayed including fake review percentage, grade, explanation, and ratings
 
 ## Features
 
-- Amazon review fetching via direct scraping with proxy support
-- Bandwidth optimization with resource blocking and smart caching
-- Product validation before analysis
-- Multi-provider AI analysis (OpenAI, DeepSeek, or self-hosted Ollama)
-- Database caching for fast repeat lookups
-- Captcha protection (reCAPTCHA and hCaptcha support)
-- Real-time progress tracking during analysis
-- Comprehensive alerting system for API errors and issues
+### Review Collection
+- **BrightData Integration**: Professional web scraping with managed infrastructure and anti-bot protection
+- **Direct Amazon Scraping**: Custom scraping with proxy support and session management
+- **AJAX Bypass**: Alternative method using Amazon's internal endpoints
+- **Multi-session Management**: Cookie rotation across multiple Amazon sessions for reliability
+- **Rate Limiting**: Configurable delays and request throttling
+
+### AI Analysis
+- **Multi-provider Support**: OpenAI, DeepSeek, or self-hosted Ollama
+- **Configurable Thresholds**: Adjustable fake review detection sensitivity (default: 85+ score)
+- **Comprehensive Scoring**: Heuristic analysis combined with LLM evaluation
+- **Grade System**: Letter grades (A-F) with detailed explanations
+
+### User Experience
+- **Real-time Progress**: Job-based processing with live progress updates
+- **Asynchronous Processing**: Queue-based analysis for better performance
+- **Captcha Protection**: reCAPTCHA and hCaptcha support with session persistence
+- **Product Metadata**: Title, image, and description extraction for complete product pages
+- **Shareable URLs**: SEO-optimized product analysis pages
+
+### Infrastructure
+- **Database Caching**: Fast repeat lookups with 30-day cache validity
+- **Comprehensive Alerting**: Pushover notifications for API errors and system issues
+- **Command Line Tools**: Management commands for data processing and system maintenance
+- **Test Coverage**: Extensive test suite with 396+ tests covering all major functionality
+
+## Data Collection Methods
+
+The application supports three primary methods for collecting Amazon review data:
+
+### BrightData Web Scraper (Recommended)
+
+Professional managed scraping service with enterprise-grade infrastructure:
+
+```bash
+AMAZON_REVIEW_SERVICE=brightdata
+BRIGHTDATA_SCRAPER_API=your-api-key-here
+```
+
+Benefits:
+- Managed anti-bot protection
+- High success rates for data collection
+- Professional infrastructure
+- Built-in retry mechanisms
+
+### Direct Amazon Scraping
+
+Custom scraping implementation with advanced session management:
+
+```bash
+AMAZON_REVIEW_SERVICE=scraping
+AMAZON_COOKIES_1=your-session-cookies-here
+AMAZON_COOKIES_2=your-session-cookies-here
+# Up to AMAZON_COOKIES_10 for rotation
+```
+
+Features:
+- Multi-session cookie rotation
+- CAPTCHA detection and alerting
+- Proxy integration support
+- Bandwidth optimization
+
+### AJAX Bypass (Experimental)
+
+Alternative method using Amazon's internal AJAX endpoints:
+
+```bash
+AMAZON_REVIEW_SERVICE=ajax
+```
+
+Note: Currently disabled pending optimization. Uses Amazon's review rendering endpoints to bypass traditional page scraping.
 
 ## Database Schema
 
 The `asin_data` table stores:
 - `asin` - Amazon Standard Identification Number
 - `country` - Country code (e.g., 'us', 'ca')
+- `product_title` - Product title from Amazon
 - `product_description` - Product description from Amazon
-- `reviews` - JSON array of fetched reviews from Amazon scraping
-- `openai_result` - JSON of full OpenAI analysis with detailed scores
+- `product_image_url` - Product image URL
+- `reviews` - JSON array of fetched reviews
+- `openai_result` - JSON of full AI analysis with detailed scores
+- `total_reviews_on_amazon` - Total review count reported by Amazon
+- `have_product_data` - Boolean indicating complete product metadata
 
 The model calculates:
-- `fake_percentage` - Percentage of reviews flagged as potentially fake (score ≥ 70)
+- `fake_percentage` - Percentage of reviews flagged as potentially fake (score ≥ 85)
 - `grade` - Letter grade (A-F) based on fake review percentage
 - `explanation` - Human-readable analysis summary
 - `amazon_rating` - Original average rating from all reviews
@@ -41,11 +113,13 @@ The model calculates:
 
 ## Technology Stack
 
-- Laravel 12 with Livewire 3
-- Direct Amazon scraping with proxy support and bandwidth optimization
-- Multi-provider LLM support: OpenAI, DeepSeek, or self-hosted Ollama
-- MySQL/PostgreSQL with JSON columns
-- reCAPTCHA/hCaptcha integration
+- **Backend**: Laravel 12 with Livewire 3
+- **Database**: MySQL/PostgreSQL with JSON columns
+- **Queue System**: Database-driven job processing for asynchronous analysis
+- **Session Management**: Multi-provider session rotation for Amazon access
+- **AI Integration**: Multi-provider LLM support with automatic failover
+- **Security**: reCAPTCHA/hCaptcha integration with session persistence
+- **Monitoring**: Comprehensive alerting via Pushover for system health
 
 ## Configuration
 
@@ -78,23 +152,77 @@ OLLAMA_MODEL=qwen2.5:7b
 ```
 
 #### Multi-Provider Fallback
-Enable automatic fallback between providers:
 ```bash
 LLM_AUTO_FALLBACK=true
 ```
 
-### Management Commands
+### Asynchronous Processing
+
+Control job-based vs immediate processing:
+
+```bash
+ANALYSIS_ASYNC_ENABLED=true  # Use job queues (recommended for production)
+QUEUE_CONNECTION=database    # Database-backed job processing
+```
+
+For immediate processing (development):
+```bash
+ANALYSIS_ASYNC_ENABLED=false
+```
+
+## Management Commands
+
+### LLM Management
 - Check provider status: `php artisan llm:manage status`
 - Switch providers: `php artisan llm:manage switch --provider=ollama`
 - Compare costs: `php artisan llm:manage costs --reviews=100`
 - Test providers: `php artisan llm:manage test`
 
+### Data Processing
+- Process existing products: `php artisan asin:process-existing --missing-any`
+- Clean zero-review products: `php artisan products:cleanup-zero-reviews`
+- Backfill total review counts: `php artisan backfill:total-review-counts`
+
+### Session Management
+- Check Amazon sessions: `php artisan amazon:cookie-sessions`
+- Test scraping functionality: `php artisan test:amazon-scraping`
+- Debug proxy connections: `php artisan debug:amazon-scraping`
+
+### Queue Processing
+- Start queue worker: `php artisan queue:work --queue=analysis`
+- Restart workers: `php artisan queue:restart`
+
 ## Usage
 
 1. Enter an Amazon product URL
-2. Complete the captcha
-3. View the analysis results including fake review percentage, letter grade, detailed explanation, and original vs adjusted ratings
-4. Submit another URL as needed
+2. Complete the captcha (production only)
+3. View real-time progress as analysis processes
+4. Review detailed results including:
+   - Fake review percentage with adjustable thresholds
+   - Letter grade (A-F) based on authenticity
+   - Detailed explanation of findings
+   - Original vs adjusted ratings
+   - Product metadata and images
+
+## Development
+
+### Testing
+Run the comprehensive test suite:
+```bash
+php artisan test
+```
+
+The application includes 396+ tests covering:
+- Unit tests for all major services
+- Feature tests for user workflows
+- Integration tests for external services
+- Mock-based testing to prevent external API calls
+
+### Code Style
+Maintain code quality with Laravel Pint:
+```bash
+./vendor/bin/pint
+```
 
 ## License
 
@@ -102,5 +230,4 @@ MIT
 
 ## Shift8
 
-This was developed in Toronto Canada by [Shift8 Web](https://shift8web.ca)
-
+Developed in Toronto, Canada by [Shift8 Web](https://shift8web.ca)
