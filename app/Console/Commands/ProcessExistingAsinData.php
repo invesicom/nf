@@ -140,11 +140,8 @@ class ProcessExistingAsinData extends Command
             $this->warn('🧪 DRY RUN MODE: No actual processing will occur');
         }
 
-        // Ask for confirmation unless it's a dry run
-        if (!$dryRun && !$this->confirm('Do you want to continue?')) {
-            $this->info('❌ Operation cancelled.');
-            return Command::FAILURE;
-        }
+        // Skip confirmation for automated processing
+        // Users can use --dry-run to preview what will be processed
 
         // Process records in batches
         $processed = 0;
