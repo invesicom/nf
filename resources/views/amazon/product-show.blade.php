@@ -344,6 +344,14 @@
             {{ $asinData->product_title ?? 'Amazon Product Analysis' }}
           </h1>
           
+          @if($asinData->product_description && !empty(trim($asinData->product_description)))
+          <div class="mb-4">
+            <p class="text-gray-700 leading-relaxed">
+              {{ $asinData->product_description }}
+            </p>
+          </div>
+          @endif
+          
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <span class="text-sm text-gray-600">ASIN:</span>

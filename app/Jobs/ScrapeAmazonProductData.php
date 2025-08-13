@@ -73,13 +73,34 @@ class ScrapeAmazonProductData implements ShouldQueue
                 throw new \Exception('Failed to scrape product data - no data returned');
             }
 
-            // Update the database record
-            $this->asinData->update([
-                'product_title' => $productData['title'] ?? null,
-                'product_image_url' => $productData['image_url'] ?? null,
-                'have_product_data' => true,
+            // Only update fields that are actually missing or empty
+            // Don't overwrite existing good data with fallback/mock data
+            $updateData = [
                 'product_data_scraped_at' => now(),
-            ]);
+            ];
+            
+            // Only update title if we don't have one or if the scraped data is better than placeholder
+            if (empty($this->asinData->product_title) || 
+                (str_starts_with($this->asinData->product_title, 'Test Product') && 
+                 !empty($productData['title']) && 
+                 !str_starts_with($productData['title'], 'Test Product'))) {
+                $updateData['product_title'] = $productData['title'] ?? null;
+            }
+            
+            // Only update image if we don't have one or if the scraped data is better than placeholder
+            if (empty($this->asinData->product_image_url) || 
+                (str_contains($this->asinData->product_image_url, 'placeholder') && 
+                 !empty($productData['image_url']) && 
+                 !str_contains($productData['image_url'], 'placeholder'))) {
+                $updateData['product_image_url'] = $productData['image_url'] ?? null;
+            }
+            
+            // Set have_product_data = true if we have both title and image now
+            $hasTitle = !empty($this->asinData->product_title) || !empty($updateData['product_title']);
+            $hasImage = !empty($this->asinData->product_image_url) || !empty($updateData['product_image_url']);
+            $updateData['have_product_data'] = $hasTitle && $hasImage;
+            
+            $this->asinData->update($updateData);
 
             // Clear sitemap cache since product data affects SEO URLs and priorities
             \App\Http\Controllers\SitemapController::clearCache();

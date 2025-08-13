@@ -387,7 +387,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     'job_id' => $jobId,
                     'attempt' => $attempt + 1,
                     'status' => $status,
-                    'total_rows' => $progressData['total_rows'] ?? 0
+                    'total_rows' => $progressData['records'] ?? 0
                 ]);
 
                 if ($status === 'ready') {
