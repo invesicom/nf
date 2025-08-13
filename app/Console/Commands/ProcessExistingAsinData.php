@@ -20,14 +20,17 @@ class ProcessExistingAsinData extends Command
                             {--batch-size=10 : Number of records to process in each batch}
                             {--delay=5 : Delay in seconds between batches to avoid rate limiting}
                             {--force : Process all records, even those already processed}
-                            {--dry-run : Show what would be processed without actually processing}';
+                            {--dry-run : Show what would be processed without actually processing}
+                            {--missing-image : Only process products missing product_image_url}
+                            {--missing-description : Only process products missing product_description}
+                            {--missing-any : Process products missing ANY product data (image, description, or title)}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Retroactively process existing ASIN records to scrape product data directly';
+    protected $description = 'Retroactively process existing ASIN records to scrape product data (title, image, description) directly';
 
     /**
      * Execute the console command.
@@ -38,6 +41,9 @@ class ProcessExistingAsinData extends Command
         $delay = (int) $this->option('delay');
         $force = $this->option('force');
         $dryRun = $this->option('dry-run');
+        $missingImage = $this->option('missing-image');
+        $missingDescription = $this->option('missing-description');
+        $missingAny = $this->option('missing-any');
 
         $this->info('🚀 Starting ASIN Data Processing');
         $this->info('=====================================');
@@ -45,8 +51,42 @@ class ProcessExistingAsinData extends Command
         // Build query for records that need processing
         $query = AsinData::query();
         
-        if (!$force) {
-            // Only process records that don't have product data yet
+        // Apply filtering based on options
+        if ($missingImage || $missingDescription || $missingAny) {
+            // Specific field-based filtering
+            $query->where(function ($q) use ($missingImage, $missingDescription, $missingAny) {
+                if ($missingImage && !$missingDescription && !$missingAny) {
+                    // Only missing image
+                    $q->whereNull('product_image_url')
+                      ->orWhere('product_image_url', '');
+                } elseif ($missingDescription && !$missingImage && !$missingAny) {
+                    // Only missing description
+                    $q->whereNull('product_description')
+                      ->orWhere('product_description', '');
+                } elseif ($missingAny) {
+                    // Missing any product data
+                    $q->where(function ($subQ) {
+                        $subQ->whereNull('product_image_url')
+                             ->orWhere('product_image_url', '')
+                             ->orWhereNull('product_description')
+                             ->orWhere('product_description', '')
+                             ->orWhereNull('product_title')
+                             ->orWhere('product_title', '')
+                             ->orWhere('product_title', 'Amazon.com'); // Filter out mock/default titles
+                    });
+                } else {
+                    // Both missing image AND description
+                    $q->where(function ($subQ) {
+                        $subQ->whereNull('product_image_url')
+                             ->orWhere('product_image_url', '');
+                    })->where(function ($subQ) {
+                        $subQ->whereNull('product_description')
+                             ->orWhere('product_description', '');
+                    });
+                }
+            });
+        } elseif (!$force) {
+            // Default behavior: only process records that don't have product data yet
             $query->where(function ($q) {
                 $q->where('have_product_data', false)
                   ->orWhereNull('have_product_data');
@@ -70,6 +110,21 @@ class ProcessExistingAsinData extends Command
         $this->info("⚙️  Batch size: {$batchSize}");
         $this->info("⏱️  Delay between batches: {$delay} seconds");
         $this->info("⚡ Processing: Direct (no queuing)");
+        
+        // Show filtering mode
+        if ($missingImage && !$missingDescription && !$missingAny) {
+            $this->info("🖼️  Filter: Products missing images only");
+        } elseif ($missingDescription && !$missingImage && !$missingAny) {
+            $this->info("📝 Filter: Products missing descriptions only");
+        } elseif ($missingAny) {
+            $this->info("🔍 Filter: Products missing ANY product data (image, description, or valid title)");
+        } elseif ($missingImage && $missingDescription) {
+            $this->info("🖼️📝 Filter: Products missing BOTH images AND descriptions");
+        } elseif (!$force) {
+            $this->info("📋 Filter: Products with have_product_data=false");
+        } else {
+            $this->info("🌐 Filter: ALL products (force mode)");
+        }
         
         if ($force) {
             $this->warn('⚠️  Force mode: Processing ALL records (including already processed)');
@@ -188,12 +243,43 @@ class ProcessExistingAsinData extends Command
      */
     private function shouldProcessRecord(AsinData $asinData): array
     {
-        // Check if already has product data (unless force mode)
-        if ($asinData->have_product_data && !$this->option('force')) {
-            return [
-                'process' => false,
-                'reason' => 'Already has product data'
-            ];
+        $missingImage = $this->option('missing-image');
+        $missingDescription = $this->option('missing-description');
+        $missingAny = $this->option('missing-any');
+        $force = $this->option('force');
+
+        // Check specific field requirements if field-specific options are used
+        if ($missingImage || $missingDescription || $missingAny) {
+            $hasImage = !empty($asinData->product_image_url);
+            $hasDescription = !empty($asinData->product_description);
+            $hasValidTitle = !empty($asinData->product_title) && $asinData->product_title !== 'Amazon.com';
+
+            if ($missingImage && !$missingDescription && !$missingAny) {
+                // Only checking for missing images
+                if ($hasImage && !$force) {
+                    return ['process' => false, 'reason' => 'Already has product image'];
+                }
+            } elseif ($missingDescription && !$missingImage && !$missingAny) {
+                // Only checking for missing descriptions
+                if ($hasDescription && !$force) {
+                    return ['process' => false, 'reason' => 'Already has product description'];
+                }
+            } elseif ($missingAny) {
+                // Check if missing ANY product data
+                if ($hasImage && $hasDescription && $hasValidTitle && !$force) {
+                    return ['process' => false, 'reason' => 'Has all product data'];
+                }
+            } else {
+                // Both missing image AND description
+                if ($hasImage && $hasDescription && !$force) {
+                    return ['process' => false, 'reason' => 'Already has both image and description'];
+                }
+            }
+        } else {
+            // Default behavior: check if already has product data (unless force mode)
+            if ($asinData->have_product_data && !$force) {
+                return ['process' => false, 'reason' => 'Already has product data'];
+            }
         }
 
         // Check if it has been analyzed (has reviews and OpenAI results)
@@ -206,16 +292,27 @@ class ProcessExistingAsinData extends Command
 
         // Check if recently scraped (within last 24 hours) to avoid duplicates
         if ($asinData->product_data_scraped_at && 
-            $asinData->product_data_scraped_at->diffInHours(now()) < 24) {
+            $asinData->product_data_scraped_at->diffInHours(now()) < 24 &&
+            !$force) {
             return [
                 'process' => false,
                 'reason' => 'Recently scraped (within 24 hours)'
             ];
         }
 
+        // Determine what needs to be processed
+        $needsImage = empty($asinData->product_image_url);
+        $needsDescription = empty($asinData->product_description);
+        $needsValidTitle = empty($asinData->product_title) || $asinData->product_title === 'Amazon.com';
+        
+        $reasons = [];
+        if ($needsImage) $reasons[] = 'image';
+        if ($needsDescription) $reasons[] = 'description';
+        if ($needsValidTitle) $reasons[] = 'valid title';
+
         return [
             'process' => true,
-            'reason' => 'Ready for processing'
+            'reason' => 'Needs: ' . implode(', ', $reasons ?: ['product data'])
         ];
     }
 
