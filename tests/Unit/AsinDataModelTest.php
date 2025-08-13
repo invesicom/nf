@@ -227,7 +227,6 @@ class AsinDataModelTest extends TestCase
             'status' => 'completed',
             'fake_percentage' => 25.0,
             'grade' => 'B',
-            'have_product_data' => true,
         ]);
         $this->assertTrue($asinData->fresh()->isAnalyzed());
 
@@ -239,7 +238,6 @@ class AsinDataModelTest extends TestCase
             'status'            => 'completed',
             'fake_percentage'   => 30.0,
             'grade'             => 'A',
-            'have_product_data' => true,
         ]);
         $this->assertFalse($asinDataNoReviews->isAnalyzed());
     }
@@ -477,7 +475,6 @@ class AsinDataModelTest extends TestCase
             'status'            => 'completed',
             'fake_percentage'   => 25.0,
             'grade'             => 'B',
-            'have_product_data' => true,
         ]);
 
         $this->assertTrue($asinData->isAnalyzed());

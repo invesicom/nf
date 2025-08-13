@@ -97,12 +97,12 @@ class AsinData extends Model
         // A product is considered analyzed if it has:
         // 1. Status is completed AND
         // 2. Has fake_percentage and grade (key analysis results) AND
-        // 3. Has product data AND
-        // 4. Has at least 1 review (products with 0 reviews aren't useful)
+        // 3. Has at least 1 review (products with 0 reviews aren't useful)
+        // Note: We don't require have_product_data because analysis can be complete
+        // even if product title/image scraping failed - the review analysis is what matters
         return $this->status === 'completed' &&
                !is_null($this->fake_percentage) &&
                !is_null($this->grade) &&
-               $this->have_product_data &&
                count($this->getReviewsArray()) > 0;
     }
 

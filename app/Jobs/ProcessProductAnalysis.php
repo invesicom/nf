@@ -101,6 +101,21 @@ class ProcessProductAnalysis implements ShouldQueue
             // Step 7: Complete analysis with full product data available
             $session->updateProgress(7, 98, 'Generating final report...');
             
+            // Check if we extracted any reviews - if not, this is a scraping failure
+            $hasReviews = count($asinData->getReviewsArray()) > 0;
+            if (!$hasReviews) {
+                // Mark as failed - no reviews extracted means scraping didn't work
+                $session->markAsFailed('Unable to extract reviews for this product. This may be due to Amazon\'s anti-bot protections or the product having restricted access. Please try again later or with a different product.');
+                
+                LoggingService::log('Analysis failed - no reviews extracted', [
+                    'asin' => $asinData->asin,
+                    'session_id' => $this->sessionId,
+                    'reviews_count' => count($asinData->getReviewsArray()),
+                    'status' => $asinData->status,
+                ]);
+                return;
+            }
+            
             // Prepare final result
             $redirectUrl = $this->determineRedirectUrl($asinData);
             

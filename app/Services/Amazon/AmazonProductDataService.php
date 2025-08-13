@@ -31,17 +31,21 @@ class AmazonProductDataService
         $this->setupCookies();
         
         $this->headers = [
-            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language' => 'en-US,en;q=0.9',
-            'Accept-Encoding' => 'gzip, deflate, br',
+            'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language' => 'en-GB,en-US;q=0.9,en;q=0.8',
+            'Accept-Encoding' => 'gzip, deflate, br, zstd',
             'Connection' => 'keep-alive',
             'Upgrade-Insecure-Requests' => '1',
             'Sec-Fetch-Dest' => 'document',
             'Sec-Fetch-Mode' => 'navigate',
             'Sec-Fetch-Site' => 'same-origin',
             'Sec-Fetch-User' => '?1',
-            'Cache-Control' => 'max-age=0',
+            'Cache-Control' => 'no-cache',
+            'Priority' => 'u=0, i',
+            'sec-ch-ua' => '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+            'sec-ch-ua-mobile' => '?0',
+            'sec-ch-ua-platform' => '"Linux"',
         ];
 
         $this->initializeHttpClient();
@@ -153,6 +157,7 @@ class AmazonProductDataService
             // Update the database record
             $asinData->update([
                 'product_title' => $productData['title'] ?? null,
+                'product_description' => $productData['description'] ?? null,
                 'product_image_url' => $productData['image_url'] ?? null,
                 'have_product_data' => true,
                 'product_data_scraped_at' => now(),
@@ -571,11 +576,15 @@ class AmazonProductDataService
                 if ($element->count() > 0) {
                     $description = trim($element->attr('content'));
                     if (!empty($description) && strlen($description) > 20) {
-                        LoggingService::log('Found product description from meta', [
-                            'selector' => $selector,
-                            'description_length' => strlen($description),
-                        ]);
-                        return $description;
+                        $cleanedDescription = $this->cleanProductDescription($description);
+                        if (!empty($cleanedDescription)) {
+                            LoggingService::log('Found product description from meta', [
+                                'selector' => $selector,
+                                'description_length' => strlen($cleanedDescription),
+                                'original_length' => strlen($description),
+                            ]);
+                            return $cleanedDescription;
+                        }
                     }
                 }
             } catch (\Exception $e) {
@@ -599,11 +608,15 @@ class AmazonProductDataService
                 if ($element->count() > 0) {
                     $description = trim($element->text());
                     if (!empty($description) && strlen($description) > 20) {
-                        LoggingService::log('Found product description from DOM', [
-                            'selector' => $selector,
-                            'description_length' => strlen($description),
-                        ]);
-                        return $description;
+                        $cleanedDescription = $this->cleanProductDescription($description);
+                        if (!empty($cleanedDescription)) {
+                            LoggingService::log('Found product description from DOM', [
+                                'selector' => $selector,
+                                'description_length' => strlen($cleanedDescription),
+                                'original_length' => strlen($description),
+                            ]);
+                            return $cleanedDescription;
+                        }
                     }
                 }
             } catch (\Exception $e) {
@@ -614,5 +627,25 @@ class AmazonProductDataService
 
         LoggingService::log('No product description found with any selector');
         return null;
+    }
+
+    /**
+     * Clean product description by removing Amazon domain prefixes.
+     */
+    private function cleanProductDescription(string $description): ?string
+    {
+        // Use regex to remove Amazon domain prefixes (case-insensitive)
+        // This pattern matches "Amazon" followed by optional country domains, then ":" and optional space
+        $pattern = '/^Amazon(?:\.(?:com|ca|co\.uk|de|fr|it|es|com\.au|in|com\.br|com\.mx|co\.jp))?\s*:\s*/i';
+        
+        $cleaned = preg_replace($pattern, '', $description);
+        $cleaned = trim($cleaned);
+
+        // If the cleaned description is too short or empty, return null
+        if (empty($cleaned) || strlen($cleaned) < 20) {
+            return null;
+        }
+
+        return $cleaned;
     }
 } 
