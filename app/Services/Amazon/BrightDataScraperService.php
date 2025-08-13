@@ -257,7 +257,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
      */
     private function pollForResults(string $jobId, string $asin): array
     {
-        $maxAttempts = 40; // 20 minutes with 30-second intervals
+        $maxAttempts = 20; // 10 minutes with 30-second intervals  
         $attempt = 0;
         $pollInterval = 30; // seconds - BrightData recommends 30s intervals
 
@@ -333,9 +333,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                         'data' => $data
                     ]);
                     return [];
-                } elseif ($status === 'unknown' && $attempt >= 5) {
+                } elseif ($status === 'unknown' && $attempt >= 3) {
                     // BrightData API sometimes returns 'unknown' status even when data is ready
-                    // After 5 attempts (2.5 minutes), try to fetch data anyway
+                    // After 3 attempts (1.5 minutes), try to fetch data anyway
                     LoggingService::log('Attempting to fetch BrightData data despite unknown status', [
                         'job_id' => $jobId,
                         'attempt' => $attempt + 1,
