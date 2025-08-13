@@ -145,13 +145,11 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         // CRITICAL: If we're already running inside a queue job, always use sync mode
         // to avoid dispatching jobs from within jobs
         if (app()->runningInConsole() && 
-            (str_contains(implode(' ', $_SERVER['argv'] ?? []), 'queue:work') || 
-             app()->environment('testing'))) {
-            LoggingService::log('BrightData forced to sync mode - running inside queue worker or testing', [
+            str_contains(implode(' ', $_SERVER['argv'] ?? []), 'queue:work')) {
+            LoggingService::log('BrightData forced to sync mode - running inside queue worker', [
                 'asin' => $asin,
                 'country' => $country,
-                'argv' => $_SERVER['argv'] ?? [],
-                'environment' => app()->environment()
+                'argv' => $_SERVER['argv'] ?? []
             ]);
             return $this->fetchReviewsSync($asin, $country);
         }
@@ -179,11 +177,16 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'country' => $country
         ]);
 
-        // Create or get existing AsinData record
+        // Create or get existing AsinData record and set it to processing for async mode
         $asinData = AsinData::firstOrCreate(
             ['asin' => $asin, 'country' => $country],
             ['status' => 'processing']
         );
+        
+        // Always set to processing status for async mode
+        if ($asinData->status !== 'processing') {
+            $asinData->update(['status' => 'processing']);
+        }
 
         // Dispatch the job chain
         \App\Jobs\TriggerBrightDataScraping::dispatch($asin, $country);

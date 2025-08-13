@@ -44,7 +44,9 @@ class JobChainIntegrationTest extends TestCase
         
         putenv('ANALYSIS_ASYNC_ENABLED=true'); // Enable async globally
         
-        // Simulate being in testing environment (forces sync mode)
+        // Simulate being in a queue worker by setting argv to include queue:work
+        $_SERVER['argv'] = ['artisan', 'queue:work'];
+        
         $service = new BrightDataScraperService();
         $result = $service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
@@ -58,7 +60,10 @@ class JobChainIntegrationTest extends TestCase
     {
         Queue::fake();
         
+        // Set environment to ensure async is disabled
+        config(['analysis.async_enabled' => false]);
         putenv('ANALYSIS_ASYNC_ENABLED=false');
+        putenv('APP_ENV=local'); // Ensure not production
         
         $service = new BrightDataScraperService();
         $result = $service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
