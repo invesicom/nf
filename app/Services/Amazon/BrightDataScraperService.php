@@ -15,18 +15,28 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     private string $apiKey;
     private string $datasetId;
     private string $baseUrl;
+    private int $pollInterval;
+    private int $maxAttempts;
 
-    public function __construct()
-    {
-        $this->httpClient = new Client([
+    public function __construct(
+        ?Client $httpClient = null,
+        ?string $apiKey = null,
+        ?string $datasetId = null,
+        ?string $baseUrl = null,
+        ?int $pollInterval = null,
+        ?int $maxAttempts = null
+    ) {
+        $this->httpClient = $httpClient ?? new Client([
             'timeout' => 1200, // 20 minutes - BrightData jobs can take a long time
             'connect_timeout' => 30,
             'http_errors' => false,
         ]);
 
-        $this->apiKey = env('BRIGHTDATA_SCRAPER_API');
-        $this->datasetId = env('BRIGHTDATA_DATASET_ID', 'gd_le8e811kzy4ggddlq');
-        $this->baseUrl = 'https://api.brightdata.com/datasets/v3';
+        $this->apiKey = $apiKey ?? env('BRIGHTDATA_SCRAPER_API', '');
+        $this->datasetId = $datasetId ?? env('BRIGHTDATA_DATASET_ID', 'gd_le8e811kzy4ggddlq');
+        $this->baseUrl = $baseUrl ?? 'https://api.brightdata.com/datasets/v3';
+        $this->pollInterval = $pollInterval ?? (app()->environment('testing') ? 0 : 30);
+        $this->maxAttempts = $maxAttempts ?? (app()->environment('testing') ? 3 : 10);
 
         if (empty($this->apiKey)) {
             LoggingService::log('BrightData API key not configured', [
@@ -128,9 +138,49 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     }
 
     /**
-     * Fetch reviews and save to database.
+     * Fetch reviews and save to database using job chain (async).
      */
     public function fetchReviewsAndSave(string $asin, string $country, string $productUrl): AsinData
+    {
+        // For async processing, dispatch the job chain
+        $asyncEnabled = config('analysis.async_enabled') ?? 
+                       filter_var(env('ANALYSIS_ASYNC_ENABLED'), FILTER_VALIDATE_BOOLEAN) ?? 
+                       (env('APP_ENV') === 'production');
+        
+        if ($asyncEnabled) {
+            return $this->fetchReviewsAsync($asin, $country);
+        }
+        
+        // Synchronous fallback for testing or when async is disabled
+        return $this->fetchReviewsSync($asin, $country);
+    }
+
+    /**
+     * Fetch reviews asynchronously using job chain.
+     */
+    public function fetchReviewsAsync(string $asin, string $country): AsinData
+    {
+        LoggingService::log('Starting BrightData async job chain', [
+            'asin' => $asin,
+            'country' => $country
+        ]);
+
+        // Create or get existing AsinData record
+        $asinData = AsinData::firstOrCreate(
+            ['asin' => $asin, 'country' => $country],
+            ['status' => 'processing']
+        );
+
+        // Dispatch the job chain
+        \App\Jobs\TriggerBrightDataScraping::dispatch($asin, $country);
+
+        return $asinData;
+    }
+
+    /**
+     * Fetch reviews synchronously (for testing or fallback).
+     */
+    private function fetchReviewsSync(string $asin, string $country): AsinData
     {
         $result = $this->fetchReviews($asin, $country);
         
@@ -145,15 +195,31 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         $asinData->total_reviews_on_amazon = $result['total_reviews'] ?? count($result['reviews']);
         $asinData->country = $country;
         $asinData->status = 'pending_analysis';
-        $asinData->have_product_data = true; // BrightData provides product metadata
         
-        // Extract additional product data if available
+        // Extract product data if available from BrightData
+        $hasProductTitle = false;
+        $hasProductImage = false;
+        
         if (!empty($result['product_name'])) {
             $asinData->product_title = $result['product_name'];
+            $hasProductTitle = true;
         }
         if (!empty($result['product_image_url'])) {
             $asinData->product_image_url = $result['product_image_url'];
+            $hasProductImage = true;
         }
+        
+        // Only set have_product_data = true if we actually have both title and image
+        // If BrightData doesn't provide complete product metadata, let AmazonProductDataService handle it
+        $asinData->have_product_data = $hasProductTitle && $hasProductImage;
+        
+        LoggingService::log('BrightData product data extraction results', [
+            'asin' => $asin,
+            'has_product_title' => $hasProductTitle,
+            'has_product_image' => $hasProductImage,
+            'have_product_data' => $asinData->have_product_data,
+            'will_trigger_separate_scraping' => !$asinData->have_product_data
+        ]);
         
         $asinData->save();
 
@@ -261,18 +327,16 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
      */
     private function pollForResults(string $jobId, string $asin): array
     {
-        $maxAttempts = 10; // 5 minutes with 30-second intervals
         $attempt = 0;
-        $pollInterval = 30; // seconds - BrightData recommends 30s intervals
 
         LoggingService::log('Starting to poll for BrightData results', [
             'job_id' => $jobId,
             'asin' => $asin,
-            'max_attempts' => $maxAttempts,
-            'poll_interval' => $pollInterval
+            'max_attempts' => $this->maxAttempts,
+            'poll_interval' => $this->pollInterval
         ]);
 
-        while ($attempt < $maxAttempts) {
+        while ($attempt < $this->maxAttempts) {
             try {
                 // Use the correct progress API endpoint to check job status
                 $response = $this->httpClient->get("{$this->baseUrl}/progress/{$jobId}", [
@@ -293,7 +357,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     ]);
                     
                     $attempt++;
-                    sleep($pollInterval);
+                    if ($this->pollInterval > 0) {
+                        sleep($this->pollInterval);
+                    }
                     continue;
                 }
 
@@ -327,7 +393,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     ]);
                     
                     $attempt++;
-                    sleep($pollInterval);
+                    if ($this->pollInterval > 0) {
+                        sleep($this->pollInterval);
+                    }
                     continue;
                 }
 
@@ -425,8 +493,11 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             if (empty($productName) && !empty($item['product_name'])) {
                 $productName = $item['product_name'];
                 $totalReviews = $item['product_rating_count'] ?? 0;
-                // BrightData doesn't provide product image or description in review data
-                // These would need to be fetched separately if needed
+                
+                // Extract product image URL if provided by BrightData
+                if (empty($productImageUrl) && !empty($item['product_image_url'])) {
+                    $productImageUrl = $item['product_image_url'];
+                }
             }
 
             // Transform review data - BrightData provides very rich data

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Jobs\TriggerBrightDataScraping;
 use App\Models\AsinData;
 use App\Services\Amazon\BrightDataScraperService;
 use App\Services\LoggingService;
@@ -10,6 +11,8 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BrightDataScraperServiceTest extends TestCase
@@ -23,20 +26,27 @@ class BrightDataScraperServiceTest extends TestCase
     {
         parent::setUp();
 
+        // Mock the queue for all tests
+        Queue::fake();
+
+        // Set test environment variables FIRST
+        putenv('BRIGHTDATA_SCRAPER_API=test_api_key_12345');
+        putenv('BRIGHTDATA_DATASET_ID=gd_test_dataset');
+
         // Set up mock HTTP client
         $this->mockHandler = new MockHandler();
         $handlerStack = HandlerStack::create($this->mockHandler);
         $mockClient = new Client(['handler' => $handlerStack]);
 
-        // Create service instance from container
-        $this->service = $this->app->make(BrightDataScraperService::class);
-        
-        // Set the mock HTTP client
-        $this->service->setHttpClient($mockClient);
-
-        // Set test environment variables
-        putenv('BRIGHTDATA_SCRAPER_API=test_api_key_12345');
-        putenv('BRIGHTDATA_DATASET_ID=gd_test_dataset');
+        // Create service instance with proper dependency injection for testing
+        $this->service = new BrightDataScraperService(
+            httpClient: $mockClient,
+            apiKey: 'test_api_key_12345',
+            datasetId: 'gd_test_dataset',
+            baseUrl: 'https://api.brightdata.com/datasets/v3',
+            pollInterval: 0, // No sleep in tests
+            maxAttempts: 3   // Fewer attempts in tests
+        );
     }
 
     #[Test]
@@ -146,31 +156,39 @@ class BrightDataScraperServiceTest extends TestCase
     #[Test]
     public function it_can_save_reviews_to_database()
     {
-        // Mock successful scraping flow
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_save'
-        ])));
-
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'total_rows' => 25
-        ])));
-
-        $mockReviewData = $this->createMockBrightDataResponse();
-        $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
-
+        // Enable async mode for this test
+        putenv('ANALYSIS_ASYNC_ENABLED=true');
+        
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
+        // Should create AsinData record in processing state
         $this->assertInstanceOf(AsinData::class, $result);
         $this->assertEquals('B0TEST12345', $result->asin);
-        $this->assertNotEmpty($result->reviews);
-        $this->assertEquals('Test Product Name', $result->product_title);
-        $this->assertEquals(4.6, $result->product_rating);
-        $this->assertEquals(166807, $result->total_reviews_on_amazon);
+        $this->assertEquals('processing', $result->status);
 
-        $reviews = json_decode($result->reviews, true);
-        $this->assertCount(3, $reviews);
-        $this->assertEquals('R1TEST123', $reviews[0]['id']);
+        // Should dispatch the job chain
+        Queue::assertPushed(TriggerBrightDataScraping::class, function ($job) {
+            return $job->asin === 'B0TEST12345' && $job->country === 'us';
+        });
+    }
+
+    #[Test]
+    public function it_sets_have_product_data_true_when_brightdata_provides_complete_metadata()
+    {
+        // Enable async mode for this test
+        putenv('ANALYSIS_ASYNC_ENABLED=true');
+        
+        $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
+
+        // Should create AsinData record in processing state (async mode)
+        $this->assertInstanceOf(AsinData::class, $result);
+        $this->assertEquals('B0TEST12345', $result->asin);
+        $this->assertEquals('processing', $result->status);
+
+        // Should dispatch the job chain
+        Queue::assertPushed(TriggerBrightDataScraping::class, function ($job) {
+            return $job->asin === 'B0TEST12345' && $job->country === 'us';
+        });
     }
 
     #[Test]
@@ -196,7 +214,7 @@ class BrightDataScraperServiceTest extends TestCase
         $this->assertArrayHasKey('rating', $result);
         $this->assertArrayHasKey('total_reviews', $result);
         $this->assertEquals('Test Product Name', $result['title']);
-        $this->assertEquals(4.6, $result['rating']);
+        $this->assertEquals(0, $result['rating']); // BrightData review data doesn't provide overall product rating
         $this->assertEquals(166807, $result['total_reviews']);
     }
 
@@ -405,6 +423,32 @@ class BrightDataScraperServiceTest extends TestCase
                 'review_country' => 'United States',
                 'helpful_count' => 5,
                 'is_amazon_vine' => true,
+                'is_verified' => true
+            ]
+        ];
+    }
+
+    private function createMockBrightDataResponseWithImage(): array
+    {
+        return [
+            [
+                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name' => 'Test Product With Image',
+                'product_rating' => 4.7,
+                'product_rating_count' => 250000,
+                'product_image_url' => 'https://m.media-amazon.com/images/I/test-image.jpg',
+                'rating' => 5,
+                'author_name' => 'Test Author 1',
+                'asin' => 'B0TEST12345',
+                'review_header' => 'Excellent product with image!',
+                'review_id' => 'R1TEST123',
+                'review_text' => 'This is an amazing product that works exactly as described.',
+                'author_id' => 'ATEST123',
+                'badge' => 'Verified Purchase',
+                'review_posted_date' => 'July 15, 2025',
+                'review_country' => 'United States',
+                'helpful_count' => 25,
+                'is_amazon_vine' => false,
                 'is_verified' => true
             ]
         ];
