@@ -1,12 +1,43 @@
 # Null Fake
 
-![Null Fake Logo](http://faker.local/img/nullfake.png)
+<div align="center">
+  <img src="public/img/nullfake.png" alt="Null Fake Logo" width="200">
+</div>
 
 A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. The service supports multiple data collection methods including BrightData's managed web scraping service, direct Amazon scraping, and comprehensive AI analysis with multi-provider support.
 
 Visit [nullfake.com](https://nullfake.com) to try it out.
 
 Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot-to-null-fake-navigating-the-evolving-landscape-of-fake-reviews/)
+
+## Table of Contents
+
+- [How It Works](#how-it-works)
+- [Features](#features)
+  - [Review Collection](#review-collection)
+  - [AI Analysis](#ai-analysis)
+  - [User Experience](#user-experience)
+  - [Infrastructure](#infrastructure)
+- [Data Collection Methods](#data-collection-methods)
+  - [BrightData Web Scraper](#brightdata-web-scraper-recommended)
+  - [Direct Amazon Scraping](#direct-amazon-scraping)
+  - [AJAX Bypass](#ajax-bypass-experimental)
+- [Database Schema](#database-schema)
+- [Technology Stack](#technology-stack)
+- [Configuration](#configuration)
+  - [LLM Provider Setup](#llm-provider-setup)
+  - [Asynchronous Processing](#asynchronous-processing)
+- [Management Commands](#management-commands)
+  - [LLM Management](#llm-management)
+  - [Data Processing](#data-processing)
+  - [Session Management](#session-management)
+  - [Queue Processing](#queue-processing)
+- [Usage](#usage)
+- [Development](#development)
+  - [Testing](#testing)
+  - [Code Style](#code-style)
+- [License](#license)
+- [Shift8](#shift8)
 
 ## How It Works
 
