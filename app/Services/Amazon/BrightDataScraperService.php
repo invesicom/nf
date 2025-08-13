@@ -142,6 +142,20 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
      */
     public function fetchReviewsAndSave(string $asin, string $country, string $productUrl): AsinData
     {
+        // CRITICAL: If we're already running inside a queue job, always use sync mode
+        // to avoid dispatching jobs from within jobs
+        if (app()->runningInConsole() && 
+            (str_contains(implode(' ', $_SERVER['argv'] ?? []), 'queue:work') || 
+             app()->environment('testing'))) {
+            LoggingService::log('BrightData forced to sync mode - running inside queue worker or testing', [
+                'asin' => $asin,
+                'country' => $country,
+                'argv' => $_SERVER['argv'] ?? [],
+                'environment' => app()->environment()
+            ]);
+            return $this->fetchReviewsSync($asin, $country);
+        }
+        
         // For async processing, dispatch the job chain
         $asyncEnabled = config('analysis.async_enabled') ?? 
                        filter_var(env('ANALYSIS_ASYNC_ENABLED'), FILTER_VALIDATE_BOOLEAN) ?? 
