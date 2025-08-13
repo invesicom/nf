@@ -51,20 +51,20 @@ class LLMEfficacyComparisonTest extends TestCase
                 'expected_score_range' => [40, 69]
             ],
             
-            // Known fake reviews (expected scores: 70-100)
+            // Known fake reviews (expected scores: 85-100)
             [
                 'id' => 'fake_1',
                 'text' => 'AMAZING! BEST PRODUCT EVER!!! BUY NOW!!! 100% RECOMMEND!!! PERFECT IN EVERY WAY!!! NO COMPLAINTS!!!',
                 'rating' => 5,
                 'expected_category' => 'fake',
-                'expected_score_range' => [70, 100]
+                'expected_score_range' => [85, 100]
             ],
             [
                 'id' => 'fake_2',
                 'text' => 'This is the most incredible, outstanding, phenomenal, exceptional, marvelous product I have ever purchased in my entire life. Words cannot express how satisfied I am.',
                 'rating' => 5,
                 'expected_category' => 'fake',
-                'expected_score_range' => [70, 100]
+                'expected_score_range' => [85, 100]
             ],
         ];
     }

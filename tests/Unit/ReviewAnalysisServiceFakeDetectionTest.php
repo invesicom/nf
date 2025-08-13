@@ -21,7 +21,7 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
     }
 
     #[Test]
-    public function it_correctly_applies_fake_review_threshold_of_70()
+    public function it_correctly_applies_fake_review_threshold_of_85()
     {
         // Create test ASIN data with reviews and OpenAI scores
         $reviews = [
@@ -33,10 +33,10 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
 
         $openaiResult = [
             'detailed_scores' => [
-                'review_1' => 65, // Should be genuine (< 70)
-                'review_2' => 45, // Should be genuine (< 70)
-                'review_3' => 85, // Should be fake (>= 70)
-                'review_4' => 25, // Should be genuine (< 70)
+                'review_1' => 65, // Should be genuine (< 85)
+                'review_2' => 45, // Should be genuine (< 85)
+                'review_3' => 90, // Should be fake (>= 85)
+                'review_4' => 25, // Should be genuine (< 85)
             ]
         ];
 
@@ -124,7 +124,7 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
         // Should complete without errors
         $this->assertIsArray($result);
         $this->assertArrayHasKey('fake_percentage', $result);
-        $this->assertEquals(0.0, $result['fake_percentage']); // No reviews >= 70
+        $this->assertEquals(0.0, $result['fake_percentage']); // No reviews >= 85
     }
 
     #[Test]
@@ -139,7 +139,7 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
 
         $openaiResult = [
             'detailed_scores' => [
-                'review_1' => 75, // Fake - should be excluded from rating calculation
+                'review_1' => 90, // Fake - should be excluded from rating calculation
                 'review_2' => 45, // Genuine
                 'review_3' => 30, // Genuine  
                 'review_4' => 25, // Genuine

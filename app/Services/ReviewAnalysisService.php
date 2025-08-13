@@ -230,7 +230,7 @@ class ReviewAnalysisService
 
                 $fakeScore = $detailedScores[$reviewId] ?? 0;
 
-                if ($fakeScore >= 70) {
+                if ($fakeScore >= 85) {
                     $fakeCount++;
                     $fakeReviews[] = [
                         'id'         => $reviewId,
@@ -499,7 +499,7 @@ class ReviewAnalysisService
 
             $fakeScore = $detailedScores[$reviewId] ?? 0;
 
-            if ($fakeScore >= 70) {
+            if ($fakeScore >= 85) {
                 $fakeCount++;
                 if ($fakeCount <= 8) { // Only log first 8 fake reviews to reduce log spam
                     LoggingService::log("FAKE REVIEW: ID={$reviewId}, Rating={$rating}, Score={$fakeScore}");
@@ -716,9 +716,9 @@ class ReviewAnalysisService
             $reviewsById[$review['id']] = $review;
         }
         
-        // Find high-scoring fake reviews (70+) with good explanations
+        // Find high-scoring fake reviews (85+) with good explanations
         $highFakeReviews = array_filter($detailedScores, function($analysis) {
-            return ($analysis['score'] ?? 0) >= 70 && !empty($analysis['explanation']);
+            return ($analysis['score'] ?? 0) >= 85 && !empty($analysis['explanation']);
         });
         
         // Sort by score (highest first) and take top 5 examples
@@ -1138,7 +1138,7 @@ class ReviewAnalysisService
 
     private function scoreToGrade(float $score): string
     {
-        return $score >= 90 ? 'A' : ($score >= 80 ? 'B' : ($score >= 70 ? 'C' : ($score >= 60 ? 'D' : 'F')));
+        return $score >= 90 ? 'A' : ($score >= 80 ? 'B' : ($score >= 65 ? 'C' : ($score >= 50 ? 'D' : 'F')));
     }
 
     private function buildSummaryText(string $grade, array $pros, array $cons, array $keyword, array $timeline, array $vocabulary): string
@@ -1173,7 +1173,7 @@ class ReviewAnalysisService
     {
         if ($score >= 85) {
             return "HIGH TRUST: Strong indicators suggest authentic reviews. Safe to rely on this product's rating.";
-        } elseif ($score >= 70) {
+        } elseif ($score >= 65) {
             return "MODERATE TRUST: Generally positive indicators with minor concerns. Consider reviews carefully.";
         } elseif ($score >= 55) {
             return "LOW TRUST: Mixed signals detected. Research additional sources before purchasing.";

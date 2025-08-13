@@ -52,8 +52,8 @@ class AsinDataModelTest extends TestCase
                 'detailed_scores' => [
                     0 => 30, // genuine
                     1 => 45, // genuine
-                    2 => 85, // fake (>= 70)
-                    3 => 75,  // fake (>= 70)
+                    2 => 90, // fake (>= 85)
+                    3 => 87,  // fake (>= 85)
                 ],
             ],
             'fake_percentage' => 50.0, // Now stored directly in database
