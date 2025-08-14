@@ -3,7 +3,7 @@
 namespace App\Services\Amazon;
 
 use App\Models\AsinData;
-use App\Services\AlertService;
+use App\Services\AlertManager;
 use App\Services\Amazon\AmazonReviewServiceInterface;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
@@ -130,8 +130,14 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Only alert on critical failures - single ASIN failures are expected (P3 - log only)
-            // This follows tiered alerting strategy: individual failures are logged but not alerted
+            // Use context-aware alerting - let AlertManager determine if notification is needed
+            app(AlertManager::class)->recordFailure(
+                'BrightData Web Scraper',
+                'SCRAPING_FAILED',
+                $e->getMessage(),
+                ['asin' => $asin],
+                $e
+            );
 
             return [
                 'reviews' => [],
@@ -355,20 +361,17 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null
             ]);
 
-            // Send HIGH priority alert for API connection failures (P1)
-            // Job trigger failures indicate potential service-wide issues
-            app(AlertService::class)->connectivityIssue(
+            // Use context-aware alerting for API trigger failures
+            app(AlertManager::class)->recordFailure(
                 'BrightData API',
                 'JOB_TRIGGER_FAILED',
-                "API connection failed - may affect all analysis: {$e->getMessage()}",
+                $e->getMessage(),
                 [
-                    'severity' => 'HIGH_P1',
-                    'business_impact' => 'All new analysis requests may fail',
                     'dataset_id' => $this->datasetId,
                     'urls_count' => count($urls),
-                    'response' => $e->hasResponse() ? substr($e->getResponse()->getBody()->getContents(), 0, 200) : null,
-                    'recommended_action' => 'Check BrightData API status and authentication'
-                ]
+                    'response' => $e->hasResponse() ? substr($e->getResponse()->getBody()->getContents(), 0, 200) : null
+                ],
+                $e
             );
 
             return null;
@@ -463,23 +466,18 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     'error' => $e->getMessage()
                 ]);
 
-                // Send MEDIUM priority alert for repeated polling failures (P2)
-                // Pattern-based alerting: only alert after multiple failures
-                if ($attempt >= 3) {
-                    app(AlertService::class)->connectivityIssue(
-                        'BrightData API',
-                        'POLLING_PATTERN_FAILURE',
-                        "Repeated polling failures detected - job may be stuck: {$e->getMessage()}",
-                        [
-                            'severity' => 'MEDIUM_P2',
-                            'business_impact' => 'Single analysis job may fail, others likely unaffected',
-                            'job_id' => $jobId,
-                            'failure_count' => $attempt + 1,
-                            'max_attempts' => $this->maxAttempts,
-                            'recommended_action' => 'Monitor for pattern, check if job completes manually'
-                        ]
-                    );
-                }
+                // Record polling failure - AlertManager handles pattern detection automatically
+                app(AlertManager::class)->recordFailure(
+                    'BrightData API',
+                    'POLLING_FAILED',
+                    $e->getMessage(),
+                    [
+                        'job_id' => $jobId,
+                        'attempt' => $attempt + 1,
+                        'max_attempts' => $this->maxAttempts
+                    ],
+                    $e
+                );
                 
                 $attempt++;
                 sleep($pollInterval);
@@ -499,20 +497,18 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'suggestion' => 'Job may complete later - check progress manually or increase timeout'
         ]);
 
-        // Send MEDIUM priority alert for polling timeout (P2)
-        // Timeout doesn't necessarily mean failure - job may complete later
-        app(AlertService::class)->apiTimeout(
+        // Record timeout failure - AlertManager will determine appropriate response
+        app(AlertManager::class)->recordFailure(
             'BrightData Web Scraper',
-            $asin,
-            $this->maxAttempts * $this->pollInterval,
+            'POLLING_TIMEOUT',
+            "Job polling timed out after {$this->maxAttempts} attempts",
             [
-                'severity' => 'MEDIUM_P2',
-                'business_impact' => 'Single analysis may be delayed, job might complete later',
                 'job_id' => $jobId,
+                'asin' => $asin,
+                'timeout_duration' => $this->maxAttempts * $this->pollInterval,
                 'max_attempts' => $this->maxAttempts,
                 'final_status' => $finalProgressInfo['status'] ?? 'unknown',
-                'final_rows' => $finalProgressInfo['total_rows'] ?? 0,
-                'recommended_action' => 'Check job status manually, consider increasing timeout if pattern emerges'
+                'final_rows' => $finalProgressInfo['total_rows'] ?? 0
             ]
         );
 

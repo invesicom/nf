@@ -3,7 +3,7 @@
 namespace App\Services\Amazon;
 
 use App\Models\AsinData;
-use App\Services\AlertService;
+use App\Services\AlertManager;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
@@ -273,7 +273,9 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
                     );
                 }
                 
-                app(AlertService::class)->amazonSessionExpired(
+                app(AlertManager::class)->recordFailure(
+                    'Amazon AJAX Service',
+                    'SESSION_EXPIRED',
                     'Amazon AJAX session expired - redirected to login',
                     [
                         'asin' => $asin, 

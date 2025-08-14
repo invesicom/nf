@@ -4,7 +4,7 @@ namespace Tests\Unit;
 
 use App\Models\AsinData;
 use App\Services\Amazon\AmazonScrapingService;
-use App\Services\AlertService;
+use App\Services\AlertManager;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -149,11 +149,13 @@ class AmazonScrapingServiceTest extends TestCase
 
     public function test_fetch_reviews_with_cookie_expiration_detection()
     {
-        // Mock AlertService to verify cookie expiration alert
-        $alertService = Mockery::mock(AlertService::class);
-        $alertService->shouldReceive('amazonSessionExpired')
+        // Mock AlertManager to verify failure recording
+        $alertManager = Mockery::mock(AlertManager::class);
+        $alertManager->shouldReceive('recordFailure')
             ->once()
             ->with(
+                'Amazon Direct Scraping',
+                'SESSION_EXPIRED',
                 'Amazon scraping session may have expired - no reviews found',
                 Mockery::on(function ($context) {
                     return $context['asin'] === 'B08N5WRWNW' 
@@ -162,7 +164,7 @@ class AmazonScrapingServiceTest extends TestCase
                 })
             );
 
-        $this->app->instance(AlertService::class, $alertService);
+        $this->app->instance(AlertManager::class, $alertManager);
 
         // Mock product page response
         $productHtml = $this->createMockProductHtml('Test Product');

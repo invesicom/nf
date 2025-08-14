@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Services\AlertService;
+use App\Services\AlertManager;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -100,16 +100,27 @@ class OpenAIService
                     $errorMessage = $errorData['error']['message'] ?? 'Rate limit exceeded';
                     
                     if (str_contains($errorMessage, 'quota')) {
-                        app(AlertService::class)->openaiQuotaExceeded($errorMessage, [
-                            'status_code' => $statusCode,
-                            'response_body' => substr($responseBody, 0, 500),
-                        ]);
+                        app(AlertManager::class)->recordFailure(
+                            'OpenAI Service',
+                            'QUOTA_EXCEEDED',
+                            $errorMessage,
+                            [
+                                'status_code' => $statusCode,
+                                'response_body' => substr($responseBody, 0, 500),
+                            ]
+                        );
                     }
                 } elseif ($statusCode >= 500) {
                     $errorMessage = $this->getErrorMessage($statusCode, $responseBody);
-                    app(AlertService::class)->openaiApiError($errorMessage, $statusCode, [
-                        'response_body' => substr($responseBody, 0, 500),
-                    ]);
+                    app(AlertManager::class)->recordFailure(
+                        'OpenAI Service',
+                        'API_ERROR',
+                        $errorMessage,
+                        [
+                            'status_code' => $statusCode,
+                            'response_body' => substr($responseBody, 0, 500),
+                        ]
+                    );
                 }
 
                 // Handle specific error types with user-friendly messages
@@ -123,11 +134,17 @@ class OpenAIService
             if (str_contains($e->getMessage(), 'HTTP request returned status code 429')) {
                 $errorMessage = $e->getMessage();
                 if (str_contains($errorMessage, 'quota')) {
-                    app(AlertService::class)->openaiQuotaExceeded($errorMessage, [
-                        'status_code' => 429,
-                        'error_type' => 'quota_exceeded',
-                        'source' => 'http_exception'
-                    ]);
+                    app(AlertManager::class)->recordFailure(
+                        'OpenAI Service',
+                        'QUOTA_EXCEEDED',
+                        $errorMessage,
+                        [
+                            'status_code' => 429,
+                            'error_type' => 'quota_exceeded',
+                            'source' => 'http_exception'
+                        ],
+                        $e
+                    );
                 }
             }
 
