@@ -12,6 +12,12 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
 
 ## Table of Contents
 
+- [Getting Started](#getting-started)
+  - [Prerequisites](#prerequisites)
+  - [Installation](#installation)
+  - [Environment Setup](#environment-setup)
+  - [Database Setup](#database-setup)
+  - [Running the Application](#running-the-application)
 - [How It Works](#how-it-works)
 - [Supported Countries](#supported-countries)
 - [Features](#features)
@@ -39,6 +45,225 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
   - [Code Style](#code-style)
 - [License](#license)
 - [Shift8](#shift8)
+
+## Getting Started
+
+### Prerequisites
+
+Before setting up Null Fake, ensure you have the following installed:
+
+- **PHP 8.2 or higher** with the following extensions:
+  - BCMath
+  - Ctype
+  - cURL
+  - DOM
+  - Fileinfo
+  - JSON
+  - Mbstring
+  - OpenSSL
+  - PCRE
+  - PDO
+  - Tokenizer
+  - XML
+- **Composer** (for PHP dependency management)
+- **Node.js 18+ and npm** (for frontend asset compilation)
+- **MySQL 8.0+** or **PostgreSQL 13+**
+- **Redis** (optional, for caching and queue management)
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/stardothosting/nullfake.git
+   cd nullfake
+   ```
+
+2. **Install PHP dependencies:**
+   ```bash
+   composer install
+   ```
+
+3. **Install Node.js dependencies:**
+   ```bash
+   npm install
+   ```
+
+4. **Build frontend assets:**
+   ```bash
+   npm run build
+   ```
+
+### Environment Setup
+
+1. **Copy the environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Generate application key:**
+   ```bash
+   php artisan key:generate
+   ```
+
+3. **Configure your `.env` file with the following essential settings:**
+
+   ```bash
+   # Application
+   APP_NAME="Null Fake"
+   APP_ENV=local
+   APP_DEBUG=true
+   APP_URL=http://localhost:8000
+
+   # Database
+   DB_CONNECTION=mysql
+   DB_HOST=127.0.0.1
+   DB_PORT=3306
+   DB_DATABASE=nullfake
+   DB_USERNAME=your_db_user
+   DB_PASSWORD=your_db_password
+
+   # Queue Configuration
+   QUEUE_CONNECTION=database
+   ANALYSIS_ASYNC_ENABLED=true
+
+   # Choose your LLM provider (required for analysis)
+   # Option 1: OpenAI
+   LLM_PRIMARY_PROVIDER=openai
+   OPENAI_API_KEY=sk-proj-your-openai-key-here
+   OPENAI_MODEL=gpt-4o-mini
+
+   # Option 2: DeepSeek (cost-effective)
+   # LLM_PRIMARY_PROVIDER=deepseek
+   # DEEPSEEK_API_KEY=sk-your-deepseek-key-here
+   # DEEPSEEK_MODEL=deepseek-v3
+
+   # Option 3: Self-hosted Ollama (free)
+   # LLM_PRIMARY_PROVIDER=ollama
+   # OLLAMA_BASE_URL=http://localhost:11434
+   # OLLAMA_MODEL=qwen2.5:7b
+
+   # Amazon Review Service (choose one)
+   AMAZON_REVIEW_SERVICE=brightdata  # or 'scraping' or 'ajax'
+   
+   # If using BrightData
+   BRIGHTDATA_SCRAPER_API=your-brightdata-api-key
+
+   # If using direct scraping (add multiple sessions for rotation)
+   # AMAZON_COOKIES_1=your-session-cookies-here
+   # AMAZON_COOKIES_2=your-session-cookies-here
+
+   # Captcha (for production)
+   CAPTCHA_ENABLED=false  # Set to true in production
+   # RECAPTCHA_SITE_KEY=your-recaptcha-site-key
+   # RECAPTCHA_SECRET_KEY=your-recaptcha-secret-key
+   ```
+
+### Database Setup
+
+1. **Create your database:**
+   ```bash
+   # For MySQL
+   mysql -u root -p -e "CREATE DATABASE nullfake CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   
+   # For PostgreSQL
+   createdb nullfake
+   ```
+
+2. **Run migrations:**
+   ```bash
+   php artisan migrate
+   ```
+
+3. **Seed the database (optional):**
+   ```bash
+   php artisan db:seed
+   ```
+
+### Running the Application
+
+1. **Start the Laravel development server:**
+   ```bash
+   php artisan serve
+   ```
+   The application will be available at `http://localhost:8000`
+
+2. **Start the queue worker (in a separate terminal):**
+   ```bash
+   php artisan queue:work --queue=analysis
+   ```
+
+3. **For development with hot reloading (optional, in a separate terminal):**
+   ```bash
+   npm run dev
+   ```
+
+### Quick Test
+
+1. Visit `http://localhost:8000`
+2. Enter an Amazon product URL (e.g., `https://amazon.com/dp/B08N5WRWNW`)
+3. Complete the captcha if enabled
+4. Watch the analysis process in real-time
+
+### LLM Provider Setup
+
+Choose one of the following AI providers for review analysis:
+
+#### Ollama (Free, Self-hosted)
+Perfect for development and cost-conscious deployments:
+
+1. **Install Ollama:**
+   ```bash
+   curl -fsSL https://ollama.com/install.sh | sh
+   ```
+
+2. **Pull a model:**
+   ```bash
+   # Lightweight model (3B parameters)
+   ollama pull llama3.2:3b
+   
+   # Better quality model (7B parameters) 
+   ollama pull qwen2.5:7b
+   ```
+
+3. **Configure in `.env`:**
+   ```bash
+   LLM_PRIMARY_PROVIDER=ollama
+   OLLAMA_BASE_URL=http://localhost:11434
+   OLLAMA_MODEL=qwen2.5:7b
+   ```
+
+#### OpenAI (Default)
+Most reliable, requires API key:
+
+```bash
+LLM_PRIMARY_PROVIDER=openai
+OPENAI_API_KEY=sk-proj-your-openai-key-here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+#### DeepSeek (Cost-effective)
+94% cheaper than OpenAI with comparable quality:
+
+```bash
+LLM_PRIMARY_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sk-your-deepseek-key-here
+DEEPSEEK_MODEL=deepseek-v3
+```
+
+### Troubleshooting
+
+**Common Issues:**
+
+1. **"Class not found" errors:** Run `composer dump-autoload`
+2. **Permission errors:** Ensure `storage/` and `bootstrap/cache/` are writable
+3. **Queue jobs not processing:** Make sure `php artisan queue:work` is running
+4. **LLM provider errors:** Test your provider with `php artisan llm:manage test`
+5. **Amazon scraping fails:** Check your cookies/API keys and test with `php artisan test:amazon-scraping`
+
+**Logs and Debugging:**
+- Application logs: `storage/logs/laravel.log`
+- Queue jobs: `php artisan queue:failed` to see failed jobs
+- Debug mode: Set `APP_DEBUG=true` in `.env`
 
 ## How It Works
 
