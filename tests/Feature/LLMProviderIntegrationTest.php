@@ -15,14 +15,16 @@ class LLMProviderIntegrationTest extends TestCase
     {
         parent::setUp();
         
-        // Set up test configuration for both providers
+        // Set up test configuration for all providers
         config([
             'services.openai.api_key' => 'test_openai_key',
             'services.openai.model' => 'gpt-4o-mini',
             'services.deepseek.api_key' => 'test_deepseek_key',
             'services.deepseek.model' => 'deepseek-v3',
+            'services.ollama.base_url' => 'http://localhost:11434',
+            'services.ollama.model' => 'qwen2.5:7b',
             'services.llm.primary_provider' => 'openai',
-            'services.llm.fallback_order' => ['deepseek', 'openai'],
+            'services.llm.fallback_order' => ['deepseek', 'ollama', 'openai'],
         ]);
     }
 
@@ -167,5 +169,67 @@ class LLMProviderIntegrationTest extends TestCase
         
         $optimal = $manager->getOptimalProvider();
         $this->assertStringContainsString('OpenAI', $optimal->getProviderName());
+    }
+
+    public function test_ollama_multilingual_support_integration()
+    {
+        config(['services.llm.primary_provider' => 'ollama']);
+        
+        Http::fake([
+            'localhost:11434/api/tags' => Http::response(['models' => [['name' => 'qwen2.5:7b']]], 200),
+            'localhost:11434/api/generate' => Http::response([
+                'model' => 'qwen2.5:7b',
+                'response' => '[{"id":"es1","score":92},{"id":"de1","score":88},{"id":"jp1","score":95}]',
+                'done' => true,
+            ])
+        ]);
+
+        $multilingualReviews = [
+            ['id' => 'es1', 'rating' => 5, 'review_text' => '¡Increíble! ¡Perfecto!', 'meta_data' => ['verified_purchase' => false]],
+            ['id' => 'de1', 'rating' => 5, 'review_text' => 'Absolut fantastisch!', 'meta_data' => ['verified_purchase' => false]],
+            ['id' => 'jp1', 'rating' => 5, 'review_text' => '素晴らしい！完璧です！', 'meta_data' => ['verified_purchase' => false]],
+        ];
+
+        $manager = app(LLMServiceManager::class);
+        $result = $manager->analyzeReviews($multilingualReviews);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertArrayHasKey('analysis_provider', $result);
+        $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
+        
+        // Verify multilingual fake detection
+        $this->assertEquals(92, $result['detailed_scores']['es1']); // Spanish fake
+        $this->assertEquals(88, $result['detailed_scores']['de1']); // German fake  
+        $this->assertEquals(95, $result['detailed_scores']['jp1']); // Japanese fake
+    }
+
+    public function test_failover_to_ollama_when_other_providers_fail()
+    {
+        Http::fake([
+            // OpenAI and DeepSeek fail
+            'api.openai.com/*' => Http::response(['error' => 'Service unavailable'], 503),
+            'api.deepseek.com/*' => Http::response(['error' => 'Service unavailable'], 503),
+            // Ollama succeeds
+            'localhost:11434/api/tags' => Http::response(['models' => []], 200),
+            'localhost:11434/api/generate' => Http::response([
+                'model' => 'qwen2.5:7b',
+                'response' => '[{"id":"1","score":40}]',
+                'done' => true,
+            ])
+        ]);
+
+        $reviews = [
+            ['id' => '1', 'text' => 'Decent product for the price', 'rating' => 4],
+        ];
+
+        $manager = app(LLMServiceManager::class);
+        $result = $manager->analyzeReviews($reviews);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertArrayHasKey('analysis_provider', $result);
+        $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
+        $this->assertEquals(40, $result['detailed_scores']['1']);
     }
 }

@@ -15,7 +15,7 @@ class OllamaProvider implements LLMProviderInterface
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
-        $this->model = config('services.ollama.model', 'qwen2.5:7b'); // Use configured model
+        $this->model = config('services.ollama.model') ?: 'qwen2.5:7b'; // Use configured model or fallback
         $this->timeout = config('services.ollama.timeout', 300);
     }
     
