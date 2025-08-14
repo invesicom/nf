@@ -15,7 +15,7 @@ class OllamaProvider implements LLMProviderInterface
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
-        $this->model = 'llama3.2:3b'; // Balanced 3B model - good speed and accuracy
+        $this->model = config('services.ollama.model') ?: 'qwen2.5:7b'; // Use configured model or fallback
         $this->timeout = config('services.ollama.timeout', 300);
     }
     
@@ -86,11 +86,13 @@ class OllamaProvider implements LLMProviderInterface
     private function buildOptimizedPrompt($reviews): string
     {
         $prompt = "You are an AGGRESSIVE Amazon review fraud detector. Score 0-100 (0=genuine, 100=fake). BE EXTREMELY SUSPICIOUS! Most reviews are fake! Return ONLY JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
-        $prompt .= "FAKE THRESHOLD: Any review with 'Amazing!', 'Highly recommend!', 'Perfect!', 'Best ever!', 'Life changing!' = SCORE 85-95!\n";
+        $prompt .= "MULTILINGUAL SUPPORT: Analyze reviews in ANY language (English, Spanish, French, German, Italian, Japanese, Korean, Portuguese, Dutch, etc.)\n";
+        $prompt .= "FAKE PATTERNS (any language): Generic praise, excessive enthusiasm, promotional language, template-like structure\n";
+        $prompt .= "FAKE THRESHOLD: Reviews with excessive praise like 'Amazing!', 'Perfect!', 'Incredible!', '素晴らしい!', '¡Increíble!', 'Fantastique!' = SCORE 85-95!\n";
         $prompt .= "UNVERIFIED + GENERIC PRAISE = AUTOMATIC 80+ SCORE!\n";
         $prompt .= "5-STAR + SHORT TEXT + NO SPECIFICS = 90+ SCORE!\n";
-        $prompt .= "REAL REVIEWS: Have specific complaints, balanced views, detailed product info, realistic problems\n\n";
-        $prompt .= "SCORE AGGRESSIVELY - if it sounds too good to be true, it's fake!\n";
+        $prompt .= "REAL REVIEWS: Have specific complaints, balanced views, detailed product info, realistic problems (regardless of language)\n\n";
+        $prompt .= "SCORE AGGRESSIVELY - if it sounds too good to be true in ANY language, it's fake!\n";
         $prompt .= "Key: V=Verified, U=Unverified\n\n";
 
         foreach ($reviews as $review) {
@@ -147,7 +149,11 @@ class OllamaProvider implements LLMProviderInterface
                 $results[$item['id']] = (int)$item['score'];
             }
         }
-        return ['detailed_scores' => $results];
+        return [
+            'detailed_scores' => $results,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost' => 0.0
+        ];
     }
 
     private function parseStructuredTextResponse(string $response): array
@@ -175,7 +181,11 @@ class OllamaProvider implements LLMProviderInterface
             throw new \Exception('Failed to parse Ollama response');
         }
         
-        return ['detailed_scores' => $results];
+        return [
+            'detailed_scores' => $results,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost' => 0.0
+        ];
     }
 
     private function heuristicScore(string $text): float

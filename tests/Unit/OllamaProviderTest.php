@@ -16,7 +16,7 @@ class OllamaProviderTest extends TestCase
         
         config([
             'services.ollama.base_url' => 'http://localhost:11434',
-            'services.ollama.model' => 'llama3.2:3b',
+            'services.ollama.model' => 'qwen2.5:7b',
             'services.ollama.timeout' => 300,
         ]);
         
@@ -32,7 +32,7 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'llama3.2:3b',
+                'model' => 'qwen2.5:7b',
                 'response' => '[{"id": 1, "score": 15}, {"id": 2, "score": 25}]',
                 'done' => true,
                 'total_duration' => 5000000000,
@@ -43,7 +43,11 @@ class OllamaProviderTest extends TestCase
         
         $this->assertIsArray($result);
         $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertArrayHasKey('analysis_provider', $result);
+        $this->assertArrayHasKey('total_cost', $result);
         $this->assertCount(2, $result['detailed_scores']);
+        $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
+        $this->assertEquals(0.0, $result['total_cost']);
     }
 
     public function test_handles_connection_errors_gracefully()
@@ -110,7 +114,7 @@ class OllamaProviderTest extends TestCase
         $name = $this->provider->getProviderName();
         
         $this->assertStringContainsString('Ollama', $name);
-        $this->assertStringContainsString('llama3.2:3b', $name);
+        $this->assertStringContainsString('qwen2.5:7b', $name);
     }
 
     public function test_handles_malformed_json_response()
@@ -121,7 +125,7 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'llama3.2:3b',
+                'model' => 'qwen2.5:7b',
                 'response' => 'invalid json {',
                 'done' => true,
             ])
@@ -143,8 +147,8 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'llama3.2:3b',
-                'response' => json_encode(['results' => []]),
+                'model' => 'qwen2.5:7b',
+                'response' => '[{"id": 1, "score": 50}]',
                 'done' => true,
             ])
         ]);
@@ -155,5 +159,166 @@ class OllamaProviderTest extends TestCase
         Http::assertSent(function ($request) {
             return $request->url() === 'http://localhost:11434/api/generate';
         });
+    }
+
+    public function test_analyzes_spanish_reviews_with_qwen_model()
+    {
+        $spanishReviews = [
+            ['id' => 'es1', 'rating' => 5, 'review_text' => '¡Increíble! ¡Perfecto! ¡Lo mejor!', 'meta_data' => ['verified_purchase' => false]],
+            ['id' => 'es2', 'rating' => 2, 'review_text' => 'No me gustó para nada. La calidad es muy mala y no funciona como esperaba.', 'meta_data' => ['verified_purchase' => true]],
+        ];
+
+        Http::fake([
+            'localhost:11434/api/generate' => Http::response([
+                'model' => 'qwen2.5:7b',
+                'response' => '[{"id": "es1", "score": 92}, {"id": "es2", "score": 18}]',
+                'done' => true,
+            ])
+        ]);
+
+        $result = $this->provider->analyzeReviews($spanishReviews);
+        
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertEquals(92, $result['detailed_scores']['es1']); // Fake pattern detected
+        $this->assertEquals(18, $result['detailed_scores']['es2']); // Genuine criticism
+        $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
+    }
+
+    public function test_analyzes_japanese_reviews_with_qwen_model()
+    {
+        $japaneseReviews = [
+            ['id' => 'jp1', 'rating' => 5, 'review_text' => '素晴らしい！完璧です！', 'meta_data' => ['verified_purchase' => false]],
+            ['id' => 'jp2', 'rating' => 3, 'review_text' => 'まあまあの商品です。品質はそれなりですが、価格を考えると妥当だと思います。', 'meta_data' => ['verified_purchase' => true]],
+        ];
+
+        Http::fake([
+            'localhost:11434/api/generate' => Http::response([
+                'model' => 'qwen2.5:7b',
+                'response' => '[{"id": "jp1", "score": 95}, {"id": "jp2", "score": 30}]',
+                'done' => true,
+            ])
+        ]);
+
+        $result = $this->provider->analyzeReviews($japaneseReviews);
+        
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertEquals(95, $result['detailed_scores']['jp1']); // Suspicious praise
+        $this->assertEquals(30, $result['detailed_scores']['jp2']); // Balanced review
+    }
+
+    public function test_analyzes_german_reviews_with_qwen_model()
+    {
+        $germanReviews = [
+            ['id' => 'de1', 'rating' => 5, 'review_text' => 'Absolut fantastisch! Sehr empfehlenswert!', 'meta_data' => ['verified_purchase' => false]],
+            ['id' => 'de2', 'rating' => 3, 'review_text' => 'Das Produkt ist in Ordnung. Die Verarbeitung könnte besser sein, aber für den Preis ist es akzeptabel.', 'meta_data' => ['verified_purchase' => true]],
+        ];
+
+        Http::fake([
+            'localhost:11434/api/generate' => Http::response([
+                'model' => 'qwen2.5:7b',
+                'response' => '[{"id": "de1", "score": 88}, {"id": "de2", "score": 25}]',
+                'done' => true,
+            ])
+        ]);
+
+        $result = $this->provider->analyzeReviews($germanReviews);
+        
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertEquals(88, $result['detailed_scores']['de1']);
+        $this->assertEquals(25, $result['detailed_scores']['de2']);
+    }
+
+    public function test_analyzes_mixed_language_reviews()
+    {
+        $mixedReviews = [
+            ['id' => 'mix1', 'rating' => 5, 'review_text' => 'Amazing! ¡Excelente! Très bien!', 'meta_data' => ['verified_purchase' => false]],
+            ['id' => 'mix2', 'rating' => 2, 'review_text' => 'Poor quality. Mala calidad. Mauvaise qualité.', 'meta_data' => ['verified_purchase' => true]],
+        ];
+
+        Http::fake([
+            'localhost:11434/api/generate' => Http::response([
+                'model' => 'qwen2.5:7b',
+                'response' => '[{"id": "mix1", "score": 90}, {"id": "mix2", "score": 22}]',
+                'done' => true,
+            ])
+        ]);
+
+        $result = $this->provider->analyzeReviews($mixedReviews);
+        
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertEquals(90, $result['detailed_scores']['mix1']); // Mixed language fake
+        $this->assertEquals(22, $result['detailed_scores']['mix2']); // Mixed language genuine
+    }
+
+    public function test_prompt_includes_multilingual_instructions()
+    {
+        $reviews = [
+            ['id' => 1, 'rating' => 5, 'review_text' => 'Test', 'meta_data' => ['verified_purchase' => true]]
+        ];
+        
+        Http::fake([
+            'localhost:11434/api/generate' => function ($request) {
+                $body = json_decode($request->body(), true);
+                $prompt = $body['prompt'];
+                
+                // Verify multilingual support is mentioned in prompt
+                $this->assertStringContainsString('MULTILINGUAL SUPPORT', $prompt);
+                $this->assertStringContainsString('ANY language', $prompt);
+                $this->assertStringContainsString('Spanish, French, German, Italian, Japanese', $prompt);
+                $this->assertStringContainsString('素晴らしい', $prompt); // Japanese example
+                $this->assertStringContainsString('¡Increíble!', $prompt); // Spanish example
+                $this->assertStringContainsString('Fantastique!', $prompt); // French example
+                
+                return Http::response([
+                    'model' => 'qwen2.5:7b',
+                    'response' => '[{"id": 1, "score": 15}]',
+                    'done' => true,
+                ]);
+            }
+        ]);
+
+        $this->provider->analyzeReviews($reviews);
+    }
+
+    public function test_uses_configured_model_from_config()
+    {
+        // Test that the provider uses the configured model, not hardcoded
+        config(['services.ollama.model' => 'custom-model:latest']);
+        
+        $provider = new OllamaProvider();
+        $this->assertEquals('Ollama-custom-model:latest', $provider->getProviderName());
+    }
+
+    public function test_fallback_model_when_config_missing()
+    {
+        // Test fallback to qwen2.5:7b when config is not set
+        config(['services.ollama.model' => '']);
+        
+        $provider = new OllamaProvider();
+        $this->assertEquals('Ollama-qwen2.5:7b', $provider->getProviderName());
+    }
+
+    public function test_heuristic_parsing_includes_provider_info()
+    {
+        $reviews = [
+            ['id' => 1, 'text' => 'Test review', 'rating' => 5],
+        ];
+
+        // Mock a response that will trigger heuristic parsing
+        Http::fake([
+            'localhost:11434/api/generate' => Http::response([
+                'model' => 'qwen2.5:7b',
+                'response' => 'ID: 1 - This review appears genuine with specific details',
+                'done' => true,
+            ])
+        ]);
+
+        $result = $this->provider->analyzeReviews($reviews);
+        
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertArrayHasKey('analysis_provider', $result);
+        $this->assertArrayHasKey('total_cost', $result);
+        $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
+        $this->assertEquals(0.0, $result['total_cost']);
     }
 }
