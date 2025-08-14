@@ -125,7 +125,7 @@ class AmazonProductDataService
             $this->cookieJar->setCookie(new \GuzzleHttp\Cookie\SetCookie([
                 'Name' => $name,
                 'Value' => $value,
-                'Domain' => '.amazon.com',
+                'Domain' => '.amazon.com', // Note: cookies might not work for international domains without session management
                 'Path' => '/',
                 'Secure' => true,
                 'HttpOnly' => true,
@@ -283,11 +283,39 @@ class AmazonProductDataService
      */
     private function scrapeFromWebsite(string $asin, string $country): array
     {
-        $url = "https://www.amazon.com/dp/{$asin}";
+        // Build country-specific Amazon URL
+        $domains = [
+            'us' => 'amazon.com',
+            'gb' => 'amazon.co.uk',
+            'ca' => 'amazon.ca',
+            'de' => 'amazon.de',
+            'fr' => 'amazon.fr',
+            'it' => 'amazon.it',
+            'es' => 'amazon.es',
+            'jp' => 'amazon.co.jp',
+            'au' => 'amazon.com.au',
+            'mx' => 'amazon.com.mx',
+            'in' => 'amazon.in',
+            'sg' => 'amazon.sg',
+            'br' => 'amazon.com.br',
+            'nl' => 'amazon.nl',
+            'tr' => 'amazon.com.tr',
+            'ae' => 'amazon.ae',
+            'sa' => 'amazon.sa',
+            'se' => 'amazon.se',
+            'pl' => 'amazon.pl',
+            'eg' => 'amazon.eg',
+            'be' => 'amazon.be'
+        ];
+        
+        $domain = $domains[$country] ?? $domains['us'];
+        $url = "https://www.{$domain}/dp/{$asin}";
         
         LoggingService::log('Scraping product data from website', [
             'url' => $url,
             'asin' => $asin,
+            'country' => $country,
+            'domain' => $domain,
         ]);
 
         try {
@@ -560,25 +588,33 @@ class AmazonProductDataService
 
     /**
      * Extract product description from HTML.
+     * Prioritizes detailed content like feature bullets over short meta descriptions.
      */
     private function extractProductDescription(Crawler $crawler): ?string
     {
-        // First try meta tags (most reliable for social sharing)
-        $metaDescriptionSelectors = [
-            'meta[name="description"]',
-            'meta[property="og:description"]',
-            'meta[name="twitter:description"]',
+        // First try detailed content selectors (feature bullets, product details, etc.)
+        $detailedContentSelectors = [
+            '#feature-bullets ul',  // Feature bullets list
+            '#feature-bullets',     // Feature bullets container
+            '[data-feature-name="featurebullets"]',  // Modern feature bullets
+            '#productDescription',  // Product description section
+            '#aplus_feature_div',   // Enhanced brand content
+            '.a-unordered-list.a-vertical.a-spacing-mini',  // Bullet points
+            '[data-feature-name="productDescription"]',  // Product description attribute
+            '#bookDescription_feature_div',  // Book descriptions
+            '#productDetails_feature_div',   // Product details
+            '.a-section.a-spacing-medium.bucketDivider',  // Product sections
         ];
 
-        foreach ($metaDescriptionSelectors as $selector) {
+        foreach ($detailedContentSelectors as $selector) {
             try {
                 $element = $crawler->filter($selector);
                 if ($element->count() > 0) {
-                    $description = trim($element->attr('content'));
-                    if (!empty($description) && strlen($description) > 20) {
+                    $description = trim($element->text());
+                    if (!empty($description) && strlen($description) > 50) {
                         $cleanedDescription = $this->cleanProductDescription($description);
-                        if (!empty($cleanedDescription)) {
-                            LoggingService::log('Found product description from meta', [
+                        if (!empty($cleanedDescription) && strlen($cleanedDescription) > 50) {
+                            LoggingService::log('Found detailed product content', [
                                 'selector' => $selector,
                                 'description_length' => strlen($cleanedDescription),
                                 'original_length' => strlen($description),
@@ -593,24 +629,22 @@ class AmazonProductDataService
             }
         }
 
-        // Fallback to traditional selectors
-        $descriptionSelectors = [
-            '#feature-bullets ul',
-            '#aplus_feature_div',
-            '#productDescription',
-            '.a-unordered-list.a-vertical.a-spacing-mini',
-            '[data-feature-name="featurebullets"]',
+        // Fallback to meta tags (shorter descriptions)
+        $metaDescriptionSelectors = [
+            'meta[name="description"]',
+            'meta[property="og:description"]',
+            'meta[name="twitter:description"]',
         ];
 
-        foreach ($descriptionSelectors as $selector) {
+        foreach ($metaDescriptionSelectors as $selector) {
             try {
                 $element = $crawler->filter($selector);
                 if ($element->count() > 0) {
-                    $description = trim($element->text());
+                    $description = trim($element->attr('content'));
                     if (!empty($description) && strlen($description) > 20) {
                         $cleanedDescription = $this->cleanProductDescription($description);
                         if (!empty($cleanedDescription)) {
-                            LoggingService::log('Found product description from DOM', [
+                            LoggingService::log('Found product description from meta (fallback)', [
                                 'selector' => $selector,
                                 'description_length' => strlen($cleanedDescription),
                                 'original_length' => strlen($description),
@@ -630,7 +664,7 @@ class AmazonProductDataService
     }
 
     /**
-     * Clean product description by removing Amazon domain prefixes.
+     * Clean product description by removing Amazon domain prefixes and formatting.
      */
     private function cleanProductDescription(string $description): ?string
     {
@@ -639,6 +673,25 @@ class AmazonProductDataService
         $pattern = '/^Amazon(?:\.(?:com|ca|co\.uk|de|fr|it|es|com\.au|in|com\.br|com\.mx|co\.jp))?\s*:\s*/i';
         
         $cleaned = preg_replace($pattern, '', $description);
+        $cleaned = trim($cleaned);
+
+        // Remove common Amazon boilerplate text
+        $boilerplatePatterns = [
+            '/Visit the .+ Store/',
+            '/Brand: .+?\n/',
+            '/\n\s*Learn more\s*$/',
+            '/\n\s*See more\s*$/',
+            '/\n\s*Read more\s*$/',
+            '/\s*\[.*?\]\s*/', // Remove bracketed text like [See more]
+        ];
+
+        foreach ($boilerplatePatterns as $pattern) {
+            $cleaned = preg_replace($pattern, '', $cleaned);
+        }
+
+        // Clean up excessive whitespace and normalize line breaks
+        $cleaned = preg_replace('/\s{3,}/', ' ', $cleaned); // Multiple spaces to single
+        $cleaned = preg_replace('/\n{3,}/', "\n\n", $cleaned); // Multiple newlines to double
         $cleaned = trim($cleaned);
 
         // If the cleaned description is too short or empty, return null

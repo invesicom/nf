@@ -71,16 +71,9 @@ class AlertService
     {
         $indicatorsList = implode(', ', $indicators);
         
-        // Build session-specific message
-        $sessionInfo = '';
-        if (isset($context['cookie_session'])) {
-            $session = $context['cookie_session'];
-            $sessionInfo = " Session: {$session['name']} ({$session['env_var']})";
-        }
-        
         $this->alert(
             AlertType::AMAZON_SESSION_EXPIRED, // Reuse same alert type but with specific messaging
-            "Amazon CAPTCHA detected - cookies need renewal.{$sessionInfo} URL: {$url}. Indicators found: {$indicatorsList}",
+            "Amazon CAPTCHA detected - cookies need renewal. URL: {$url}. Indicators found: {$indicatorsList}",
             array_merge($context, [
                 'error_code' => 'AMAZON_CAPTCHA_DETECTED',
                 'captcha_indicators' => $indicators,

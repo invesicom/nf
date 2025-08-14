@@ -38,11 +38,30 @@ class TriggerBrightDataScraping implements ShouldQueue
         try {
             $brightDataService = $this->mockService ?? new BrightDataScraperService();
             
-            // Build Amazon URL
+            // Build Amazon URL using the same domain mapping as BrightDataScraperService
             $domains = [
                 'us' => 'amazon.com',
-                'uk' => 'amazon.co.uk',
-                'ca' => 'amazon.ca'
+                'gb' => 'amazon.co.uk',
+                'uk' => 'amazon.co.uk',  // Backward compatibility
+                'ca' => 'amazon.ca',
+                'de' => 'amazon.de',
+                'fr' => 'amazon.fr',
+                'it' => 'amazon.it',
+                'es' => 'amazon.es',
+                'jp' => 'amazon.co.jp',
+                'au' => 'amazon.com.au',
+                'mx' => 'amazon.com.mx',  // Mexico
+                'in' => 'amazon.in',      // India
+                'sg' => 'amazon.sg',      // Singapore
+                'br' => 'amazon.com.br',  // Brazil
+                'nl' => 'amazon.nl',
+                'tr' => 'amazon.com.tr',
+                'ae' => 'amazon.ae',
+                'sa' => 'amazon.sa',
+                'se' => 'amazon.se',
+                'pl' => 'amazon.pl',
+                'eg' => 'amazon.eg',
+                'be' => 'amazon.be'
             ];
             $domain = $domains[$this->country] ?? $domains['us'];
             $productUrl = "https://www.{$domain}/dp/{$this->asin}/";

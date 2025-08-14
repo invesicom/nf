@@ -30,8 +30,8 @@ class AmazonScrapingServiceTest extends TestCase
         $handlerStack = HandlerStack::create($this->mockHandler);
         $mockClient = new Client(['handler' => $handlerStack]);
 
-        // Create service instance from container to ensure proper dependency injection
-        $this->service = $this->app->make(AmazonScrapingService::class);
+        // Create service instance and inject mock client
+        $this->service = new AmazonScrapingService();
         
         // Set the mock HTTP client
         $this->service->setHttpClient($mockClient);
@@ -232,8 +232,41 @@ class AmazonScrapingServiceTest extends TestCase
 
     public function test_fetch_reviews_detects_captcha_and_sends_alert()
     {
-        // Skip this test as it's testing legacy functionality that may have changed
-        $this->markTestSkipped('CAPTCHA detection alerts may not be triggered in current implementation');
+        // Mock AlertService to verify specific CAPTCHA alert is sent
+        $alertService = Mockery::mock(AlertService::class);
+        $alertService->shouldReceive('amazonCaptchaDetected')
+            ->once()
+            ->with(
+                Mockery::on(function ($url) {
+                    return str_contains($url, 'amazon.com/dp/B08N5WRWNW');
+                }),
+                Mockery::on(function ($indicators) {
+                    return in_array('validatecaptcha', $indicators) 
+                        && in_array('click the button below to continue', $indicators);
+                }),
+                Mockery::on(function ($context) {
+                    return isset($context['detection_method'])
+                        && $context['detection_method'] === 'enhanced_captcha_detection'
+                        && isset($context['indicators_found']);
+                })
+            );
+
+        $this->app->instance(AlertService::class, $alertService);
+
+        // Create CAPTCHA HTML response
+        $captchaHtml = $this->createMockCaptchaHtml();
+        
+        // Mock product page returning CAPTCHA
+        $this->mockHandler->append(new Response(200, [], $captchaHtml));
+
+        $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
+        
+        // Should return empty result when CAPTCHA is detected
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => '',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_fetch_reviews_detects_small_content_with_captcha_indicators()
@@ -250,18 +283,9 @@ class AmazonScrapingServiceTest extends TestCase
                     return in_array('unusual traffic', $indicators);
                 }),
                 Mockery::on(function ($context) {
-                    // Verify enhanced CAPTCHA detection context is present
-                    $hasBasicContext = isset($context['detection_method'])
+                    return isset($context['detection_method'])
                         && $context['detection_method'] === 'enhanced_captcha_detection'
                         && isset($context['indicators_found']);
-                    
-                    // Verify session context is included (from new multi-session system)
-                    // Note: With legacy AMAZON_COOKIES fallback, this may not always be present
-                    // So we check if multi-session is being used OR if it's legacy fallback
-                    $hasSessionContextOrLegacy = isset($context['cookie_session']) 
-                        || !isset($context['cookie_session']); // Legacy fallback case
-                    
-                    return $hasBasicContext && $hasSessionContextOrLegacy;
                 })
             );
 
@@ -307,8 +331,41 @@ class AmazonScrapingServiceTest extends TestCase
 
     public function test_blocking_detection_with_status_codes()
     {
-        // Skip this test as it's testing legacy functionality that may have changed
-        $this->markTestSkipped('Blocking detection alerts may not be triggered in current implementation');
+        // Mock AlertService for non-200 blocking
+        $alertService = Mockery::mock(AlertService::class);
+        $alertService->shouldReceive('connectivityIssue')
+            ->once()
+            ->with(
+                'Amazon Direct Scraping',
+                'BLOCKING_DETECTED',
+                Mockery::on(function ($message) {
+                    return str_contains($message, 'Blocking detected') && str_contains($message, 'B08N5WRWNW');
+                }),
+                Mockery::on(function ($context) {
+                    return $context['status_code'] === 503 
+                        && isset($context['blocking_indicator'])
+                        && $context['asin'] === 'B08N5WRWNW';
+                })
+            );
+
+        $this->app->instance(AlertService::class, $alertService);
+
+        // Mock product page response
+        $productHtml = $this->createMockProductHtml('Test Product');
+        $this->mockHandler->append(new Response(200, [], $productHtml));
+
+        // Mock review URL pattern testing (first pattern works but returns blocking)
+        $blockingHtml = '<html><body><div>Service temporarily unavailable due to unusual traffic</div></body></html>';
+        $this->mockHandler->append(new Response(503, [], $blockingHtml));
+
+        $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
+        
+        // Should return empty result due to blocking
+        $this->assertEquals([
+            'reviews' => [],
+            'description' => 'Test Product',
+            'total_reviews' => 0
+        ], $result);
     }
 
     public function test_parses_review_data_correctly()

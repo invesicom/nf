@@ -6,7 +6,7 @@
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Null Fake - Amazon Review Analysis</title>
   <meta name="description" content="Null Fake is an AI-powered tool that analyzes Amazon product reviews for authenticity. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product. Built for shoppers and sellers who want to make informed decisions." />
-  <meta name="keywords" content="Amazon review analysis, fake review detector, AI review analysis, Amazon authenticity checker, product review trust, Amazon Canada, Amazon US, review analyzer, AI fake review, e-commerce trust, product authenticity, review scoring" />
+  <meta name="keywords" content="Amazon review analysis, fake review detector, AI review analysis, Amazon authenticity checker, product review trust, Amazon international, Amazon US, Amazon Canada, Amazon Germany, Amazon France, Amazon UK, Amazon Japan, Amazon Mexico, Amazon Brazil, Amazon India, Amazon Singapore, review analyzer, AI fake review, e-commerce trust, product authenticity, review scoring" />
   <meta name="author" content="shift8 web" />
   
   <!-- SEO and Robots Configuration -->
@@ -100,7 +100,7 @@
   </header>
 
   <main class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded shadow">
-  <div class="pb-4 text-sm">AI-powered review analyzer. Easily detect fake, AI-generated or suspicious reviews and get a trust score for any product. Currently only US products are supported.</div>
+  <div class="pb-4 text-sm">AI-powered review analyzer. Easily detect fake, AI-generated or suspicious reviews and get a trust score for any product. Supports Amazon products from US, Canada, Germany, France, UK, Spain, Italy, India, Japan, Mexico, Brazil, Singapore, Australia, and more.</div>
 
     {{-- Livewire Review Analyzer replaces the form --}}
     <livewire:review-analyzer />
