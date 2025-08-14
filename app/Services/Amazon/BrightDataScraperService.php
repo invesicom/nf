@@ -3,6 +3,7 @@
 namespace App\Services\Amazon;
 
 use App\Models\AsinData;
+use App\Services\AlertManager;
 use App\Services\Amazon\AmazonReviewServiceInterface;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
@@ -128,6 +129,15 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
+            // Use context-aware alerting - let AlertManager determine if notification is needed
+            app(AlertManager::class)->recordFailure(
+                'BrightData Web Scraper',
+                'SCRAPING_FAILED',
+                $e->getMessage(),
+                ['asin' => $asin],
+                $e
+            );
 
             return [
                 'reviews' => [],
@@ -350,6 +360,20 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 'error' => $e->getMessage(),
                 'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null
             ]);
+
+            // Use context-aware alerting for API trigger failures
+            app(AlertManager::class)->recordFailure(
+                'BrightData API',
+                'JOB_TRIGGER_FAILED',
+                $e->getMessage(),
+                [
+                    'dataset_id' => $this->datasetId,
+                    'urls_count' => count($urls),
+                    'response' => $e->hasResponse() ? substr($e->getResponse()->getBody()->getContents(), 0, 200) : null
+                ],
+                $e
+            );
+
             return null;
         }
     }
@@ -441,6 +465,19 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     'attempt' => $attempt + 1,
                     'error' => $e->getMessage()
                 ]);
+
+                // Record polling failure - AlertManager handles pattern detection automatically
+                app(AlertManager::class)->recordFailure(
+                    'BrightData API',
+                    'POLLING_FAILED',
+                    $e->getMessage(),
+                    [
+                        'job_id' => $jobId,
+                        'attempt' => $attempt + 1,
+                        'max_attempts' => $this->maxAttempts
+                    ],
+                    $e
+                );
                 
                 $attempt++;
                 sleep($pollInterval);
@@ -459,6 +496,21 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'final_rows' => $finalProgressInfo['total_rows'] ?? 0,
             'suggestion' => 'Job may complete later - check progress manually or increase timeout'
         ]);
+
+        // Record timeout failure - AlertManager will determine appropriate response
+        app(AlertManager::class)->recordFailure(
+            'BrightData Web Scraper',
+            'POLLING_TIMEOUT',
+            "Job polling timed out after {$this->maxAttempts} attempts",
+            [
+                'job_id' => $jobId,
+                'asin' => $asin,
+                'timeout_duration' => $this->maxAttempts * $this->pollInterval,
+                'max_attempts' => $this->maxAttempts,
+                'final_status' => $finalProgressInfo['status'] ?? 'unknown',
+                'final_rows' => $finalProgressInfo['total_rows'] ?? 0
+            ]
+        );
 
         return [];
     }

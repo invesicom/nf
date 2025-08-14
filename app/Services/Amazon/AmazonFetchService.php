@@ -3,7 +3,7 @@
 namespace App\Services\Amazon;
 
 use App\Models\AsinData;
-use App\Services\AlertService;
+use App\Services\AlertManager;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
@@ -98,8 +98,8 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
             if (!$this->testApiConnectivity()) {
                 LoggingService::log('API connectivity test failed - network or DNS issues');
                 
-                // Send connectivity alert
-                app(AlertService::class)->connectivityIssue(
+                // Record connectivity failure
+                app(AlertManager::class)->recordFailure(
                     'Unwrangle API',
                     'CONNECTIVITY_TEST_FAILED',
                     'Basic connectivity test to Unwrangle API failed',
@@ -177,7 +177,9 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
                     // Check for Amazon session/cookie expired errors
                     $data = json_decode($body, true);
                     if ($data && $this->isAmazonCookieExpiredError($data)) {
-                        app(AlertService::class)->amazonSessionExpired(
+                        app(AlertManager::class)->recordFailure(
+                            'Unwrangle API',
+                            'SESSION_EXPIRED',
                             $data['message'] ?? 'Amazon session/cookie has expired',
                             [
                                 'asin' => $asin,
@@ -202,7 +204,9 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
 
                     // Check for Amazon cookie expiration even on success=false responses
                     if ($data && $this->isAmazonCookieExpiredError($data)) {
-                        app(AlertService::class)->amazonSessionExpired(
+                        app(AlertManager::class)->recordFailure(
+                            'Unwrangle API',
+                            'SESSION_EXPIRED',
                             $data['message'] ?? 'Amazon session/cookie has expired',
                             [
                                 'asin' => $asin,
@@ -244,18 +248,20 @@ Please try again in a few minutes. If the problem persists, verify the Amazon UR
 
                 // Send alerts for specific error types
                 if ($errorType === 'CONNECTION_TIMEOUT_NO_DATA') {
-                    app(AlertService::class)->apiTimeout(
+                    app(AlertManager::class)->recordFailure(
                         'Unwrangle API',
-                        $asin,
-                        $attempt['timeout'],
+                        'CONNECTION_TIMEOUT_NO_DATA',
+                        $errorMessage,
                         [
+                            'asin' => $asin,
+                            'timeout_duration' => $attempt['timeout'],
                             'attempt' => $attemptIndex + 1,
                             'max_pages' => $attempt['max_pages'],
                             'error_details' => $errorMessage
                         ]
                     );
                 } elseif (in_array($errorType, ['CONNECTION_FAILED', 'DNS_RESOLUTION_FAILED'])) {
-                    app(AlertService::class)->connectivityIssue(
+                    app(AlertManager::class)->recordFailure(
                         'Unwrangle API',
                         $errorType,
                         $errorMessage,

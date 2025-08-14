@@ -3,7 +3,7 @@
 namespace App\Services\Amazon;
 
 use App\Models\AsinData;
-use App\Services\AlertService;
+use App\Services\AlertManager;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
@@ -718,7 +718,9 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                 
                 // Check if this might be due to cookie expiration
                 if ($this->detectCookieExpiration($asin)) {
-                    app(AlertService::class)->amazonSessionExpired(
+                    app(AlertManager::class)->recordFailure(
+                        'Amazon Direct Scraping',
+                        'SESSION_EXPIRED',
                         'Amazon scraping session may have expired - no reviews found',
                         [
                             'asin' => $asin,
@@ -752,12 +754,13 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
                 'trace' => $e->getTraceAsString()
             ]);
 
-            // Send alert for scraping failures
-            app(AlertService::class)->connectivityIssue(
+            // Use context-aware alerting for direct scraping failures
+            app(AlertManager::class)->recordFailure(
                 'Amazon Direct Scraping',
                 'SCRAPING_FAILED',
                 $e->getMessage(),
-                ['asin' => $asin]
+                ['asin' => $asin],
+                $e
             );
 
             return [];
