@@ -39,16 +39,16 @@
               <a href="{{ route('amazon.product.show.slug', ['asin' => $product->asin, 'slug' => $product->slug ?? 'product']) }}" class="block">
                 <!-- Product Image -->
                 @if($product->product_image_url)
-                  <div class="aspect-square mb-3 bg-white rounded overflow-hidden">
+                  <div class="h-48 mb-3 bg-white rounded overflow-hidden flex items-center justify-center">
                     <img 
                       src="{{ $product->product_image_url }}" 
                       alt="{{ $product->product_title }}"
-                      class="w-full h-full object-contain"
+                      class="max-w-full max-h-full object-contain"
                       loading="lazy"
                     />
                   </div>
                 @else
-                  <div class="aspect-square mb-3 bg-gray-200 rounded flex items-center justify-center">
+                  <div class="h-48 mb-3 bg-gray-200 rounded flex items-center justify-center">
                     <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
                     </svg>
