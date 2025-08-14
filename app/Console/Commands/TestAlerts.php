@@ -2,168 +2,95 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\AlertType;
-use App\Services\AlertService;
+use App\Services\AlertManager;
 use Illuminate\Console\Command;
+use Exception;
 
 class TestAlerts extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'alerts:test {type?} {--dry-run : Only log alerts, don\'t send notifications}';
+    protected $signature = 'alerts:test 
+                           {--service=Test Service : Service name to test}
+                           {--level=low : Alert level (low, medium, high, critical)}
+                           {--count=1 : Number of failures to trigger}
+                           {--type=API_ERROR : Error type}';
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Test the alerting system by sending sample alerts';
+    protected $description = 'Test the AlertManager system with different scenarios';
 
-    /**
-     * Execute the console command.
-     */
-    public function handle(AlertService $alertService): int
+    public function handle()
     {
-        $type = $this->argument('type');
-        $dryRun = $this->option('dry-run');
+        $service = $this->option('service');
+        $level = $this->option('level');
+        $count = (int) $this->option('count');
+        $errorType = $this->option('type');
 
-        if ($dryRun) {
-            $this->info('Running in dry-run mode - alerts will only be logged');
-            config(['alerts.development.log_only' => true]);
+        $this->info("🧪 Testing AlertManager with:");
+        $this->line("   Service: {$service}");
+        $this->line("   Level: {$level}");
+        $this->line("   Count: {$count}");
+        $this->line("   Error Type: {$errorType}");
+        $this->newLine();
+
+        $alertManager = app(AlertManager::class);
+
+        // Get the failure count needed for the requested level
+        $neededCount = $this->getFailureCountForLevel($level);
+        $actualCount = max($count, $neededCount);
+
+        $this->line("📊 Triggering {$actualCount} failures to reach {$level} level...");
+        $this->newLine();
+
+        // Generate test failures
+        for ($i = 0; $i < $actualCount; $i++) {
+            $context = [
+                'test_run' => true,
+                'failure_number' => $i + 1,
+                'total_failures' => $actualCount,
+                'timestamp' => now()->toISOString(),
+                'test_data' => [
+                    'endpoint' => 'https://api.example.com/test',
+                    'user_id' => 'test_user_123',
+                    'request_id' => 'req_' . uniqid(),
+                ]
+            ];
+
+            $message = "Test failure #" . ($i + 1) . " - Simulated {$errorType}";
+            $exception = new Exception("Simulated exception for testing");
+
+            try {
+                $alertManager->recordFailure($service, $errorType, $message, $context, $exception);
+                
+                $this->line("  ✓ Recorded failure #" . ($i + 1));
+                
+                // Small delay to simulate real-world timing
+                usleep(100000); // 0.1 seconds
+                
+            } catch (Exception $e) {
+                $this->error("  ✗ Failed to record failure #" . ($i + 1) . ": " . $e->getMessage());
+            }
         }
 
-        if ($type) {
-            $this->testSpecificAlert($alertService, $type);
-        } else {
-            $this->testAllAlerts($alertService);
-        }
-
-        return 0;
-    }
-
-    /**
-     * Test a specific alert type
-     */
-    private function testSpecificAlert(AlertService $alertService, string $type): void
-    {
-        $alertType = $this->getAlertTypeFromString($type);
+        $this->newLine();
+        $this->info("🎯 Test complete! Check your notification channels for alerts.");
         
-        if (!$alertType) {
-            $this->error("Invalid alert type: {$type}");
-            $this->info('Available types: amazon_session_expired, openai_quota_exceeded, openai_api_error, system_error, database_error, security_alert');
-            return;
-        }
+        // Show error rate information
+        $errorRate = $alertManager->getErrorRate($service, $errorType, 15);
+        $this->line("📈 Error Rate Summary:");
+        $this->line("   Failures in last 15 min: {$errorRate['failures']}");
+        $this->line("   Rate per minute: {$errorRate['rate_per_minute']}");
+        $this->line("   Timestamps recorded: " . count($errorRate['timestamps']));
 
-        $this->info("Testing {$alertType->getDisplayName()} alert...");
-        $this->sendTestAlert($alertService, $alertType);
-        $this->info("✅ {$alertType->getDisplayName()} alert sent successfully");
+        $this->newLine();
+        $this->comment("💡 Pro tip: Check your Pushover app or configured notification channels!");
     }
 
-    /**
-     * Test all alert types
-     */
-    private function testAllAlerts(AlertService $alertService): void
+    private function getFailureCountForLevel(string $level): int
     {
-        $this->info('Testing all alert types...');
-        
-        $alertTypes = [
-            AlertType::AMAZON_SESSION_EXPIRED,
-            AlertType::OPENAI_QUOTA_EXCEEDED,
-            AlertType::OPENAI_API_ERROR,
-            AlertType::SYSTEM_ERROR,
-            AlertType::DATABASE_ERROR,
-            AlertType::SECURITY_ALERT,
-        ];
-
-        foreach ($alertTypes as $alertType) {
-            $this->info("Testing {$alertType->getDisplayName()}...");
-            $this->sendTestAlert($alertService, $alertType);
-            $this->info("✅ {$alertType->getDisplayName()} sent");
-            sleep(1); // Small delay between alerts
-        }
-
-        $this->info('🎉 All alert tests completed successfully!');
-    }
-
-    /**
-     * Send a test alert based on the type
-     */
-    private function sendTestAlert(AlertService $alertService, AlertType $alertType): void
-    {
-        switch ($alertType) {
-            case AlertType::AMAZON_SESSION_EXPIRED:
-                $alertService->amazonSessionExpired(
-                    'Test: Amazon session has expired and needs re-authentication',
-                    ['test_mode' => true, 'asin' => 'B0TEST1234']
-                );
-                break;
-
-            case AlertType::OPENAI_QUOTA_EXCEEDED:
-                $alertService->openaiQuotaExceeded(
-                    'Test: You exceeded your current quota, please check your plan and billing details',
-                    ['test_mode' => true, 'status_code' => 429]
-                );
-                break;
-
-            case AlertType::OPENAI_API_ERROR:
-                $alertService->openaiApiError(
-                    'Test: OpenAI API server error',
-                    500,
-                    ['test_mode' => true, 'endpoint' => '/chat/completions']
-                );
-                break;
-
-            case AlertType::SYSTEM_ERROR:
-                $exception = new \Exception('Test system error');
-                $alertService->systemError(
-                    'Test: Critical system error occurred',
-                    $exception,
-                    ['test_mode' => true, 'component' => 'test_command']
-                );
-                break;
-
-            case AlertType::DATABASE_ERROR:
-                $exception = new \Exception('Test database connection failed');
-                $alertService->databaseError(
-                    'Test: Database connection failed',
-                    $exception,
-                    ['test_mode' => true, 'connection' => 'mysql']
-                );
-                break;
-
-            case AlertType::SECURITY_ALERT:
-                $alertService->securityAlert(
-                    'Test: Suspicious activity detected - multiple failed login attempts',
-                    ['test_mode' => true, 'ip' => '192.168.1.100', 'attempts' => 5]
-                );
-                break;
-
-            default:
-                $alertService->alert(
-                    $alertType,
-                    "Test alert for {$alertType->getDisplayName()}",
-                    ['test_mode' => true]
-                );
-                break;
-        }
-    }
-
-    /**
-     * Convert string to AlertType enum
-     */
-    private function getAlertTypeFromString(string $type): ?AlertType
-    {
-        return match(strtolower($type)) {
-            'amazon_session_expired', 'amazon' => AlertType::AMAZON_SESSION_EXPIRED,
-            'openai_quota_exceeded', 'quota' => AlertType::OPENAI_QUOTA_EXCEEDED,
-            'openai_api_error', 'openai' => AlertType::OPENAI_API_ERROR,
-            'system_error', 'system' => AlertType::SYSTEM_ERROR,
-            'database_error', 'database' => AlertType::DATABASE_ERROR,
-            'security_alert', 'security' => AlertType::SECURITY_ALERT,
-            default => null,
+        return match($level) {
+            'low' => 1,      // LOW_P3: 1 failure
+            'medium' => 4,   // MEDIUM_P2: >3 failures in 15 min
+            'high' => 6,     // HIGH_P1: >5 failures in 10 min  
+            'critical' => 11, // CRITICAL_P0: >10 failures in 5 min
+            default => 1,
         };
     }
 }
