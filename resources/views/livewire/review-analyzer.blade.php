@@ -127,7 +127,7 @@
              <!-- Progress Status -->
              <p id="progress-status" class="text-xs text-gray-500 mb-2">{{ $currentlyProcessing ?? 'Initializing analysis...' }}</p>
             
-                         <p class="text-sm text-gray-600 mb-4">
+                         <p class="text-base text-gray-600 mb-4">
                  Gathering review information and performing AI analysis...
              </p>
             

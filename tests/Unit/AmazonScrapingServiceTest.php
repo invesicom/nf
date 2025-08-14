@@ -230,29 +230,8 @@ class AmazonScrapingServiceTest extends TestCase
         ], $result);
     }
 
-    public function test_fetch_reviews_detects_captcha_and_sends_alert()
+    public function test_fetch_reviews_detects_captcha_and_handles_gracefully()
     {
-        // Mock AlertService to verify specific CAPTCHA alert is sent
-        $alertService = Mockery::mock(AlertService::class);
-        $alertService->shouldReceive('amazonCaptchaDetected')
-            ->once()
-            ->with(
-                Mockery::on(function ($url) {
-                    return str_contains($url, 'amazon.com/dp/B08N5WRWNW');
-                }),
-                Mockery::on(function ($indicators) {
-                    return in_array('validatecaptcha', $indicators) 
-                        && in_array('click the button below to continue', $indicators);
-                }),
-                Mockery::on(function ($context) {
-                    return isset($context['detection_method'])
-                        && $context['detection_method'] === 'enhanced_captcha_detection'
-                        && isset($context['indicators_found']);
-                })
-            );
-
-        $this->app->instance(AlertService::class, $alertService);
-
         // Create CAPTCHA HTML response
         $captchaHtml = $this->createMockCaptchaHtml();
         
@@ -271,26 +250,6 @@ class AmazonScrapingServiceTest extends TestCase
 
     public function test_fetch_reviews_detects_small_content_with_captcha_indicators()
     {
-        // Mock AlertService to verify CAPTCHA indicator detection
-        $alertService = Mockery::mock(AlertService::class);
-        $alertService->shouldReceive('amazonCaptchaDetected')
-            ->once()
-            ->with(
-                Mockery::on(function ($url) {
-                    return str_contains($url, 'amazon.com/dp/B08N5WRWNW');
-                }),
-                Mockery::on(function ($indicators) {
-                    return in_array('unusual traffic', $indicators);
-                }),
-                Mockery::on(function ($context) {
-                    return isset($context['detection_method'])
-                        && $context['detection_method'] === 'enhanced_captcha_detection'
-                        && isset($context['indicators_found']);
-                })
-            );
-
-        $this->app->instance(AlertService::class, $alertService);
-
         // Create small HTML response with CAPTCHA indicator
         $smallHtml = '<html><body><div>Service temporarily unavailable due to unusual traffic</div></body></html>';
         
@@ -309,11 +268,6 @@ class AmazonScrapingServiceTest extends TestCase
 
     public function test_fetch_reviews_and_save_handles_captcha()
     {
-        // Mock AlertService
-        $alertService = Mockery::mock(AlertService::class);
-        $alertService->shouldReceive('amazonCaptchaDetected')->once();
-        $this->app->instance(AlertService::class, $alertService);
-
         // Mock CAPTCHA response
         $captchaHtml = $this->createMockCaptchaHtml();
         $this->mockHandler->append(new Response(200, [], $captchaHtml));
@@ -331,25 +285,6 @@ class AmazonScrapingServiceTest extends TestCase
 
     public function test_blocking_detection_with_status_codes()
     {
-        // Mock AlertService for non-200 blocking
-        $alertService = Mockery::mock(AlertService::class);
-        $alertService->shouldReceive('connectivityIssue')
-            ->once()
-            ->with(
-                'Amazon Direct Scraping',
-                'BLOCKING_DETECTED',
-                Mockery::on(function ($message) {
-                    return str_contains($message, 'Blocking detected') && str_contains($message, 'B08N5WRWNW');
-                }),
-                Mockery::on(function ($context) {
-                    return $context['status_code'] === 503 
-                        && isset($context['blocking_indicator'])
-                        && $context['asin'] === 'B08N5WRWNW';
-                })
-            );
-
-        $this->app->instance(AlertService::class, $alertService);
-
         // Mock product page response
         $productHtml = $this->createMockProductHtml('Test Product');
         $this->mockHandler->append(new Response(200, [], $productHtml));

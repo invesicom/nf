@@ -430,23 +430,16 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     }
     
     /**
-     * Handle CAPTCHA detection by logging and sending alerts.
+     * Handle CAPTCHA detection by logging (simplified since production uses BrightData).
      */
     private function handleCaptchaDetection(string $url, array $indicators, int $contentSize): void
     {
-        $contextData = [
+        LoggingService::log('CAPTCHA/blocking detected in Amazon response (fallback scraping)', [
+            'url' => $url,
             'indicators_found' => $indicators,
             'content_size' => $contentSize,
-            'content_size_formatted' => $this->formatBytes($contentSize),
-            'detection_method' => 'enhanced_captcha_detection',
-            'proxy_type' => $this->currentProxyConfig['type'] ?? 'direct',
-            'timestamp' => now()->toISOString()
-        ];
-        
-        LoggingService::log('CAPTCHA/blocking detected in Amazon response', array_merge($contextData, ['url' => $url]));
-        
-        // Send specific CAPTCHA detection alert
-        app(AlertService::class)->amazonCaptchaDetected($url, $indicators, $contextData);
+            'note' => 'Production uses BrightData - this is fallback/development only'
+        ]);
         
         // If using proxy, rotate it
         if ($this->currentProxyConfig) {
@@ -1424,20 +1417,13 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         $htmlLower = strtolower($html);
         foreach ($blockingIndicators as $indicator) {
             if (strpos($htmlLower, $indicator) !== false) {
-                LoggingService::log("Blocking indicator found: {$indicator}", ['asin' => $asin]);
-                
-                // Send alert for non-CAPTCHA blocking
-                app(AlertService::class)->connectivityIssue(
-                    'Amazon Direct Scraping',
-                    'BLOCKING_DETECTED',
-                    "Blocking detected for ASIN {$asin}. Status: {$statusCode}, Indicator: {$indicator}",
-                    [
-                        'asin' => $asin,
-                        'status_code' => $statusCode,
-                        'blocking_indicator' => $indicator,
-                        'content_length' => strlen($html)
-                    ]
-                );
+                LoggingService::log("Blocking detected in fallback scraping: {$indicator}", [
+                    'asin' => $asin,
+                    'status_code' => $statusCode,
+                    'blocking_indicator' => $indicator,
+                    'content_length' => strlen($html),
+                    'note' => 'Production uses BrightData - this is fallback only'
+                ]);
                 
                 // Rotate proxy and session
                 $this->rotateProxyAndReconnect();
