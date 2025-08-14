@@ -43,7 +43,7 @@
                     <img 
                       src="{{ $product->product_image_url }}" 
                       alt="{{ $product->product_title }}"
-                      class="w-full h-full object-contain"
+                      class="w-full h-full object-contain p-2"
                       loading="lazy"
                     />
                   </div>
