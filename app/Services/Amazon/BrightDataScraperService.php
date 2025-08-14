@@ -267,14 +267,29 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     {
         $domains = [
             'us' => 'amazon.com',
-            'uk' => 'amazon.co.uk',
+            'gb' => 'amazon.co.uk',  // Fixed: use 'gb' to match ReviewService
+            'uk' => 'amazon.co.uk',  // Keep 'uk' for backward compatibility
             'ca' => 'amazon.ca',
             'de' => 'amazon.de',
             'fr' => 'amazon.fr',
             'it' => 'amazon.it',
             'es' => 'amazon.es',
             'jp' => 'amazon.co.jp',
-            'au' => 'amazon.com.au'
+            'au' => 'amazon.com.au',
+            // Additional countries for expanded support
+            'mx' => 'amazon.com.mx',  // Mexico
+            'in' => 'amazon.in',      // India
+            'sg' => 'amazon.sg',      // Singapore
+            'br' => 'amazon.com.br',  // Brazil
+            // Already supported by ReviewService
+            'nl' => 'amazon.nl',
+            'tr' => 'amazon.com.tr',
+            'ae' => 'amazon.ae',
+            'sa' => 'amazon.sa',
+            'se' => 'amazon.se',
+            'pl' => 'amazon.pl',
+            'eg' => 'amazon.eg',
+            'be' => 'amazon.be'
         ];
 
         $domain = $domains[$country] ?? $domains['us'];

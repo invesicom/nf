@@ -650,10 +650,10 @@ class AmazonAjaxReviewService implements AmazonReviewServiceInterface
             );
         }
         
-        LoggingService::log('CAPTCHA/blocking detected in Amazon AJAX response', array_merge($contextData, ['url' => $url]));
-        
-        // Send specific CAPTCHA detection alert with session information
-        app(AlertService::class)->amazonCaptchaDetected($url, $indicators, $contextData);
+        LoggingService::log('CAPTCHA/blocking detected in Amazon AJAX response (fallback service)', array_merge($contextData, [
+            'url' => $url,
+            'note' => 'Production uses BrightData - this is fallback only'
+        ]));
         
         // If using proxy, rotate it
         if ($this->currentProxyConfig) {

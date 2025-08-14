@@ -31,7 +31,7 @@ class AmazonProductController extends Controller
             
             return view('amazon.product-not-found', [
                 'asin' => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin),
+                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
             ]);
         }
 
@@ -91,7 +91,7 @@ class AmazonProductController extends Controller
             
             return view('amazon.product-not-found', [
                 'asin' => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin),
+                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
             ]);
         }
 
@@ -148,7 +148,7 @@ class AmazonProductController extends Controller
         return response()
             ->view('amazon.product-show', [
                 'asinData' => $asinData,
-                'amazon_url' => $this->buildAmazonUrl($asinData->asin),
+                'amazon_url' => $this->buildAmazonUrl($asinData->asin, $asinData->country ?? 'us'),
                 'meta_title' => $this->generateMetaTitle($asinData),
                 'meta_description' => $this->generateMetaDescription($asinData),
                 'canonical_url' => $asinData->seo_url,
@@ -159,18 +159,63 @@ class AmazonProductController extends Controller
     }
 
     /**
-     * Build Amazon URL with affiliate tag if configured.
+     * Build Amazon URL with country-specific domain and affiliate tag if configured.
      */
-    private function buildAmazonUrl(string $asin): string
+    private function buildAmazonUrl(string $asin, string $country = 'us'): string
     {
-        $url = "https://www.amazon.com/dp/{$asin}";
+        // Map countries to Amazon domains
+        $domains = [
+            'us' => 'amazon.com',
+            'gb' => 'amazon.co.uk',
+            'ca' => 'amazon.ca',
+            'de' => 'amazon.de',
+            'fr' => 'amazon.fr',
+            'it' => 'amazon.it',
+            'es' => 'amazon.es',
+            'jp' => 'amazon.co.jp',
+            'au' => 'amazon.com.au',
+            'mx' => 'amazon.com.mx',
+            'in' => 'amazon.in',
+            'sg' => 'amazon.sg',
+            'br' => 'amazon.com.br',
+            'nl' => 'amazon.nl',
+            'tr' => 'amazon.com.tr',
+            'ae' => 'amazon.ae',
+            'sa' => 'amazon.sa',
+            'se' => 'amazon.se',
+            'pl' => 'amazon.pl',
+            'eg' => 'amazon.eg',
+            'be' => 'amazon.be'
+        ];
+
+        $domain = $domains[$country] ?? $domains['us'];
+        $url = "https://www.{$domain}/dp/{$asin}";
         
-        $affiliateTag = config('app.amazon_affiliate_tag');
+        // Get country-specific affiliate tag
+        $affiliateTag = $this->getAffiliateTagForCountry($country);
         if ($affiliateTag) {
             $url .= "?tag={$affiliateTag}";
         }
         
         return $url;
+    }
+
+    /**
+     * Get affiliate tag for specific country.
+     */
+    private function getAffiliateTagForCountry(string $country): ?string
+    {
+        // Try country-specific affiliate tag first
+        $countryTag = config("app.amazon_affiliate_tag_{$country}");
+        if ($countryTag) {
+            return $countryTag;
+        }
+
+        // Fall back to default affiliate tag (usually for US)
+        $defaultTag = config('app.amazon_affiliate_tag');
+        
+        // Only use default tag for US, as it won't work on other domains
+        return ($country === 'us') ? $defaultTag : null;
     }
 
     /**

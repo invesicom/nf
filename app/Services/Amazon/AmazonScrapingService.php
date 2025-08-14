@@ -13,8 +13,8 @@ use Symfony\Component\DomCrawler\Crawler;
 /**
  * Service for directly scraping Amazon product reviews.
  * 
- * This service scrapes Amazon reviews directly using multiple cookie sessions
- * with round-robin rotation to distribute load and reduce CAPTCHA challenges.
+ * This service scrapes Amazon reviews directly using the same cookie session
+ * that Unwrangle uses, providing a cost-effective alternative to the API.
  */
 class AmazonScrapingService implements AmazonReviewServiceInterface
 {
@@ -23,8 +23,6 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     private array $headers;
     private ProxyManager $proxyManager;
     private ?array $currentProxyConfig = null;
-    private CookieSessionManager $cookieSessionManager;
-    private ?array $currentCookieSession = null;
     
     /**
      * Initialize the service with HTTP client configuration.
@@ -32,25 +30,23 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     public function __construct()
     {
         $this->proxyManager = new ProxyManager();
-        $this->cookieSessionManager = new CookieSessionManager();
+        $this->cookieJar = new CookieJar();
         $this->setupCookies();
         
         $this->headers = [
-            'User-Agent' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language' => 'en-GB,en-US;q=0.9,en;q=0.8',
-            'Accept-Encoding' => 'gzip, deflate, br, zstd',
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language' => 'en-US,en;q=0.9',
+            'Accept-Encoding' => 'gzip, deflate, br',
             'Connection' => 'keep-alive',
             'Upgrade-Insecure-Requests' => '1',
             'Sec-Fetch-Dest' => 'document',
             'Sec-Fetch-Mode' => 'navigate',
             'Sec-Fetch-Site' => 'same-origin',
             'Sec-Fetch-User' => '?1',
-            'Cache-Control' => 'no-cache',
-            'Priority' => 'u=0, i',
-            'sec-ch-ua' => '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-            'sec-ch-ua-mobile' => '?0',
-            'sec-ch-ua-platform' => '"Linux"',
+            'Cache-Control' => 'max-age=0',
+            'DNT' => '1',
+            'Sec-GPC' => '1',
         ];
 
         $this->initializeHttpClient();
@@ -434,39 +430,16 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     }
     
     /**
-     * Handle CAPTCHA detection by logging and sending alerts.
+     * Handle CAPTCHA detection by logging (simplified since production uses BrightData).
      */
     private function handleCaptchaDetection(string $url, array $indicators, int $contentSize): void
     {
-        $contextData = [
+        LoggingService::log('CAPTCHA/blocking detected in Amazon response (fallback scraping)', [
+            'url' => $url,
             'indicators_found' => $indicators,
             'content_size' => $contentSize,
-            'content_size_formatted' => $this->formatBytes($contentSize),
-            'detection_method' => 'enhanced_captcha_detection',
-            'proxy_type' => $this->currentProxyConfig['type'] ?? 'direct',
-            'timestamp' => now()->toISOString()
-        ];
-        
-        // Add current cookie session information to context
-        if ($this->currentCookieSession) {
-            $contextData['cookie_session'] = [
-                'name' => $this->currentCookieSession['name'],
-                'env_var' => $this->currentCookieSession['env_var'],
-                'index' => $this->currentCookieSession['index']
-            ];
-            
-            // Mark this session as unhealthy
-            $this->cookieSessionManager->markSessionUnhealthy(
-                $this->currentCookieSession['index'],
-                'CAPTCHA detected',
-                30 // 30 minute cooldown
-            );
-        }
-        
-        LoggingService::log('CAPTCHA/blocking detected in Amazon response', array_merge($contextData, ['url' => $url]));
-        
-        // Send specific CAPTCHA detection alert with session information
-        app(AlertService::class)->amazonCaptchaDetected($url, $indicators, $contextData);
+            'note' => 'Production uses BrightData - this is fallback/development only'
+        ]);
         
         // If using proxy, rotate it
         if ($this->currentProxyConfig) {
@@ -619,43 +592,17 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
     }
 
     /**
-     * Setup cookies using the multi-session cookie manager.
+     * Setup cookies from environment configuration.
      */
     private function setupCookies(): void
-    {
-        // Get the next available cookie session using round-robin rotation
-        $this->currentCookieSession = $this->cookieSessionManager->getNextCookieSession();
-        
-        if (!$this->currentCookieSession) {
-            LoggingService::log('No Amazon cookie sessions available - falling back to legacy AMAZON_COOKIES');
-            $this->setupLegacyCookies();
-            return;
-        }
-        
-        // Create cookie jar from the selected session
-        $this->cookieJar = $this->cookieSessionManager->createCookieJar($this->currentCookieSession);
-        
-        LoggingService::log('Setup cookies from multi-session manager', [
-            'session_name' => $this->currentCookieSession['name'],
-            'session_env_var' => $this->currentCookieSession['env_var']
-        ]);
-    }
-    
-    /**
-     * Fallback method to setup cookies from legacy AMAZON_COOKIES environment variable.
-     */
-    private function setupLegacyCookies(): void
     {
         $cookieString = env('AMAZON_COOKIES', '');
         
         if (empty($cookieString)) {
-            LoggingService::log('No Amazon cookies configured - neither multi-session nor legacy');
-            $this->cookieJar = new CookieJar();
+            LoggingService::log('No Amazon cookies configured in AMAZON_COOKIES environment variable');
             return;
         }
 
-        $this->cookieJar = new CookieJar();
-        
         // Parse cookie string format: "name1=value1; name2=value2; name3=value3"
         $cookies = explode(';', $cookieString);
         
@@ -679,7 +626,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             ]));
         }
         
-        LoggingService::log('Loaded ' . count($cookies) . ' Amazon cookies from legacy configuration');
+        LoggingService::log('Loaded ' . count($cookies) . ' Amazon cookies for scraping');
     }
 
     /**
@@ -985,11 +932,11 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
             'bandwidth_optimization' => 'configurable_limits'
         ]);
         
-        // Try different Amazon review URL patterns, prioritizing the working pattern from manual testing
+        // Try different Amazon review URL patterns, prioritizing the most reliable
         $urlPatterns = [
-            "https://www.amazon.com/product-reviews/{$asin}", // Working pattern confirmed by manual testing
-            "https://www.amazon.com/gp/product/{$asin}/reviews",
+            "https://www.amazon.com/gp/product/{$asin}/reviews", // Most reliable
             "https://www.amazon.com/dp/product-reviews/{$asin}",
+            "https://www.amazon.com/product-reviews/{$asin}",
         ];
         
         $workingBaseUrl = null;
@@ -1052,13 +999,7 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         for ($page = 1; $page <= $maxPages; $page++) {
             LoggingService::log("Scraping reviews page {$page} for ASIN: {$asin}");
             
-            // Use Amazon's required pagination pattern based on successful manual testing
-            if ($page === 1) {
-                $url = $workingBaseUrl . "?ie=UTF8&reviewerType=all_reviews";
-            } else {
-                // Pattern discovered from successful page 2 request: /ref=cm_cr_arp_d_paging_btm_next_{page}?ie=UTF8&reviewerType=all_reviews&pageNumber={page}
-                $url = $workingBaseUrl . "/ref=cm_cr_arp_d_paging_btm_next_{$page}?ie=UTF8&reviewerType=all_reviews&pageNumber={$page}";
-            }
+            $url = $workingBaseUrl . "?pageNumber={$page}&sortBy=recent";
             
             $retryCount = 0;
             $maxRetries = 3;
@@ -1476,20 +1417,13 @@ class AmazonScrapingService implements AmazonReviewServiceInterface
         $htmlLower = strtolower($html);
         foreach ($blockingIndicators as $indicator) {
             if (strpos($htmlLower, $indicator) !== false) {
-                LoggingService::log("Blocking indicator found: {$indicator}", ['asin' => $asin]);
-                
-                // Send alert for non-CAPTCHA blocking
-                app(AlertService::class)->connectivityIssue(
-                    'Amazon Direct Scraping',
-                    'BLOCKING_DETECTED',
-                    "Blocking detected for ASIN {$asin}. Status: {$statusCode}, Indicator: {$indicator}",
-                    [
-                        'asin' => $asin,
-                        'status_code' => $statusCode,
-                        'blocking_indicator' => $indicator,
-                        'content_length' => strlen($html)
-                    ]
-                );
+                LoggingService::log("Blocking detected in fallback scraping: {$indicator}", [
+                    'asin' => $asin,
+                    'status_code' => $statusCode,
+                    'blocking_indicator' => $indicator,
+                    'content_length' => strlen($html),
+                    'note' => 'Production uses BrightData - this is fallback only'
+                ]);
                 
                 // Rotate proxy and session
                 $this->rotateProxyAndReconnect();

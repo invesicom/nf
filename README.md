@@ -4,7 +4,7 @@
   <img src="https://nullfake.com/img/nullfake.png" alt="Null Fake Logo" width="200">
 </div>
 
-A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. The service supports multiple data collection methods including BrightData's managed web scraping service, direct Amazon scraping, and comprehensive AI analysis with multi-provider support.
+A Laravel application that analyzes Amazon product reviews to detect fake reviews using AI. Supports **Amazon products from 14+ countries** including US, Canada, Germany, France, UK, Japan, Mexico, Brazil, India, Singapore, and more. The service includes multiple data collection methods with BrightData's managed web scraping, direct Amazon scraping, and comprehensive AI analysis with multi-provider support.
 
 Visit [nullfake.com](https://nullfake.com) to try it out.
 
@@ -13,6 +13,7 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
 ## Table of Contents
 
 - [How It Works](#how-it-works)
+- [Supported Countries](#supported-countries)
 - [Features](#features)
   - [Review Collection](#review-collection)
   - [AI Analysis](#ai-analysis)
@@ -41,12 +42,37 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
 
 ## How It Works
 
-1. User submits an Amazon product URL and completes a captcha
-2. Null Fake retrieves the ASIN and country from the URL
+1. User submits an Amazon product URL from any supported country and completes a captcha
+2. Null Fake automatically detects the country and retrieves the ASIN from the URL
 3. Database check: If a review analysis for the given ASIN and country exists in the database (and is less than 30 days old), the cached analysis is returned instantly
 4. If fresh data is needed, the service fetches reviews using the configured data collection method (BrightData, direct scraping, or AJAX bypass)
 5. Reviews are analyzed using AI with configurable thresholds for fake review detection
 6. Results are displayed including fake review percentage, grade, explanation, and ratings
+
+## Supported Countries
+
+Null Fake supports Amazon product analysis from the following countries:
+
+| Country | Amazon Domain | Status |
+|---------|---------------|--------|
+| 🇺🇸 United States | amazon.com | ✅ Full Support |
+| 🇨🇦 Canada | amazon.ca | ✅ Full Support |
+| 🇩🇪 Germany | amazon.de | ✅ Full Support |
+| 🇫🇷 France | amazon.fr | ✅ Full Support |
+| 🇬🇧 United Kingdom | amazon.co.uk | ✅ Full Support |
+| 🇮🇹 Italy | amazon.it | ✅ Full Support |
+| 🇪🇸 Spain | amazon.es | ✅ Full Support |
+| 🇯🇵 Japan | amazon.co.jp | ✅ Full Support |
+| 🇦🇺 Australia | amazon.com.au | ✅ Full Support |
+| 🇮🇳 India | amazon.in | ✅ Full Support |
+| 🇲🇽 Mexico | amazon.com.mx | ✅ Full Support |
+| 🇧🇷 Brazil | amazon.com.br | ✅ Full Support |
+| 🇸🇬 Singapore | amazon.sg | ✅ Full Support |
+| 🇳🇱 Netherlands | amazon.nl | ✅ Full Support |
+
+**Additional domains supported**: Turkey, UAE, Saudi Arabia, Sweden, Poland, Egypt, Belgium
+
+> **Note**: All countries use the same sophisticated AI analysis and data collection methods. Product metadata, review extraction, and fake review detection work consistently across all supported Amazon domains.
 
 ## Features
 
@@ -217,6 +243,7 @@ ANALYSIS_ASYNC_ENABLED=false
 ### Session Management
 - Check Amazon sessions: `php artisan amazon:cookie-sessions`
 - Test scraping functionality: `php artisan test:amazon-scraping`
+- Test international URLs: `php artisan test:international-urls`
 - Debug proxy connections: `php artisan debug:amazon-scraping`
 
 ### Queue Processing
@@ -225,7 +252,7 @@ ANALYSIS_ASYNC_ENABLED=false
 
 ## Usage
 
-1. Enter an Amazon product URL
+1. Enter an Amazon product URL from any supported country (US, Canada, Germany, France, UK, Japan, Mexico, Brazil, India, Singapore, etc.)
 2. Complete the captcha (production only)
 3. View real-time progress as analysis processes
 4. Review detailed results including:
@@ -234,6 +261,7 @@ ANALYSIS_ASYNC_ENABLED=false
    - Detailed explanation of findings
    - Original vs adjusted ratings
    - Product metadata and images
+   - Country-specific analysis results
 
 ## Development
 

@@ -44,22 +44,23 @@ class ReviewService
     {
         $host = parse_url($url, PHP_URL_HOST);
 
+        // Order matters: more specific domains first to avoid partial matches
         $countryMap = [
-            'amazon.com'      => 'us',
-            'amazon.co.uk'    => 'gb',
-            'amazon.ca'       => 'ca',
             'amazon.com.au'   => 'au',
+            'amazon.com.mx'   => 'mx',
+            'amazon.com.br'   => 'br',
+            'amazon.com.tr'   => 'tr',
+            'amazon.co.uk'    => 'gb',
+            'amazon.co.jp'    => 'jp',
+            'amazon.com'      => 'us',
+            'amazon.ca'       => 'ca',
             'amazon.de'       => 'de',
             'amazon.fr'       => 'fr',
             'amazon.it'       => 'it',
             'amazon.es'       => 'es',
             'amazon.in'       => 'in',
-            'amazon.co.jp'    => 'jp',
-            'amazon.com.mx'   => 'mx',
-            'amazon.com.br'   => 'br',
             'amazon.nl'       => 'nl',
             'amazon.sg'       => 'sg',
-            'amazon.com.tr'   => 'tr',
             'amazon.ae'       => 'ae',
             'amazon.sa'       => 'sa',
             'amazon.se'       => 'se',

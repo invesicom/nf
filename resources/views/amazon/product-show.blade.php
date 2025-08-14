@@ -432,7 +432,7 @@
             </svg>
             <div>
               <h4 class="font-semibold text-blue-800 mb-1">About Review Data Collection</h4>
-              <p class="text-sm text-blue-700">
+              <p class="text-base text-blue-700">
                 We extract as much review data as Amazon makes available at the time of analysis. 
                 The amount may vary due to Amazon's rate limiting, regional restrictions, or other factors. 
                 Our analysis is based on the reviews we successfully collected.
@@ -479,7 +479,7 @@
       </h2>
       
       <div class="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-        <p class="text-amber-800 text-sm">
+        <p class="text-amber-800 text-base">
           <strong>Transparency Notice:</strong> Our AI analysis identified the following reviews as potentially fake. 
           Each example shows specific reasons why the review raised suspicion, helping you understand our analysis methodology.
         </p>
@@ -514,13 +514,13 @@
 
           <!-- Review Text -->
           <div class="mb-3 p-3 bg-white border border-red-300 rounded">
-            <p class="text-gray-700 text-sm italic">{{ $example['review_text'] }}</p>
+            <p class="text-gray-700 text-base italic">{{ $example['review_text'] }}</p>
           </div>
 
           <!-- AI Explanation -->
           <div class="mb-3">
             <h4 class="font-semibold text-red-800 mb-2">Why This Review Was Flagged:</h4>
-            <p class="text-sm text-red-700">{{ $example['explanation'] }}</p>
+            <p class="text-base text-red-700">{{ $example['explanation'] }}</p>
           </div>
 
           <!-- Red Flags -->
@@ -544,7 +544,7 @@
       </div>
 
       <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <p class="text-blue-800 text-sm">
+        <p class="text-blue-800 text-base">
           <strong>Note:</strong> These examples represent reviews with the highest fake probability scores (70%+). 
           The AI analysis considers factors like language patterns, specificity, verification status, and suspicious indicators.
           While highly accurate, no automated system is perfect - these should be considered strong indicators rather than definitive proof.

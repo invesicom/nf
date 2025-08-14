@@ -127,7 +127,7 @@
              <!-- Progress Status -->
              <p id="progress-status" class="text-xs text-gray-500 mb-2">{{ $currentlyProcessing ?? 'Initializing analysis...' }}</p>
             
-                         <p class="text-sm text-gray-600 mb-4">
+                         <p class="text-base text-gray-600 mb-4">
                  Gathering review information and performing AI analysis...
              </p>
             
@@ -596,8 +596,16 @@ async function validateAmazonUrl() {
         return;
     }
     
+    // Validate Amazon domain first - support international domains
+    const amazonDomainPattern = /^https?:\/\/(?:www\.)?amazon\.(com|co\.uk|ca|de|fr|it|es|in|co\.jp|com\.mx|com\.br|sg|com\.au|nl|com\.tr|ae|sa|se|pl|eg|be)\//i;
+    if (!amazonDomainPattern.test(url)) {
+        showValidationStatus('❌ Please use a valid Amazon product URL from a supported country.', 'error');
+        if (analyzeButton) analyzeButton.disabled = true;
+        return;
+    }
+    
     // Extract ASIN from URL - support multiple Amazon URL formats
-    console.log('Processing regular Amazon URL for ASIN extraction:', url);
+    console.log('Processing Amazon URL for ASIN extraction:', url);
     let asinMatch = url.match(/\/dp\/([A-Z0-9]{10})/);
     if (!asinMatch) {
         asinMatch = url.match(/\/gp\/product\/([A-Z0-9]{10})/);
@@ -605,9 +613,15 @@ async function validateAmazonUrl() {
     if (!asinMatch) {
         asinMatch = url.match(/\/exec\/obidos\/ASIN\/([A-Z0-9]{10})/);
     }
+    if (!asinMatch) {
+        asinMatch = url.match(/\/product\/([A-Z0-9]{10})/);
+    }
+    if (!asinMatch) {
+        asinMatch = url.match(/\/product-reviews\/([A-Z0-9]{10})/);
+    }
     
     if (!asinMatch) {
-        showValidationStatus('❌ Invalid Amazon URL format. Please use a valid Amazon product URL.', 'error');
+        showValidationStatus('❌ Invalid Amazon URL format. Please use a direct product page URL.', 'error');
         if (analyzeButton) analyzeButton.disabled = true;
         return;
     }
