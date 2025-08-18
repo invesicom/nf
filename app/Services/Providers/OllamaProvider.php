@@ -35,9 +35,9 @@ class OllamaProvider implements LLMProviderInterface
                 'prompt' => $prompt,
                 'stream' => false,
                 'options' => [
-                    'temperature' => 0.3,
+                    'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
                     'num_ctx' => 4096,
-                    'top_p' => 0.9
+                    'top_p' => 0.8 // Slightly more focused responses
                 ]
             ]);
 
@@ -85,15 +85,23 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        $prompt = "You are an AGGRESSIVE Amazon review fraud detector. Score 0-100 (0=genuine, 100=fake). BE EXTREMELY SUSPICIOUS! Most reviews are fake! Return ONLY JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
-        $prompt .= "MULTILINGUAL SUPPORT: Analyze reviews in ANY language (English, Spanish, French, German, Italian, Japanese, Korean, Portuguese, Dutch, etc.)\n";
-        $prompt .= "FAKE PATTERNS (any language): Generic praise, excessive enthusiasm, promotional language, template-like structure\n";
-        $prompt .= "FAKE THRESHOLD: Reviews with excessive praise like 'Amazing!', 'Perfect!', 'Incredible!', '素晴らしい!', '¡Increíble!', 'Fantastique!' = SCORE 85-95!\n";
-        $prompt .= "UNVERIFIED + GENERIC PRAISE = AUTOMATIC 80+ SCORE!\n";
-        $prompt .= "5-STAR + SHORT TEXT + NO SPECIFICS = 90+ SCORE!\n";
-        $prompt .= "REAL REVIEWS: Have specific complaints, balanced views, detailed product info, realistic problems (regardless of language)\n\n";
-        $prompt .= "SCORE AGGRESSIVELY - if it sounds too good to be true in ANY language, it's fake!\n";
-        $prompt .= "Key: V=Verified, U=Unverified\n\n";
+        $prompt = "ROLE: You are a marketplace integrity analyst. Use forensic-linguistic cues and review-metadata heuristics to assess if a review is likely fake or genuine.\n\n";
+        $prompt .= "OBJECTIVE: Return a fake_likelihood score (0-100; 0=clearly genuine, 100=clearly fake) using scientific methodology.\n\n";
+        $prompt .= "METHOD: Evaluate using multiple independent signals. Never rely on one signal alone.\n\n";
+        $prompt .= "SCORING RULE: Initialize S=50. Apply bounded adjustments:\n";
+        $prompt .= "• generic_promotional_tone: +0..+20\n";
+        $prompt .= "• rating_text_mismatch: +0..+15\n";
+        $prompt .= "• metadata_risk: -10..+10 (unverified/+; verified/-)\n";
+        $prompt .= "• inconsistencies_contradictions: +0..+15\n";
+        $prompt .= "• specificity_detail: -0..-20\n";
+        $prompt .= "• balanced_caveats: -0..-10\n";
+        $prompt .= "• usage_time_markers: -0..-10\n\n";
+        $prompt .= "LABELS: genuine ≤39, uncertain 40-59, fake ≥60. Require ≥2 independent fake signals to label fake.\n\n";
+        $prompt .= "BIAS GUARDRAILS: Do not penalize non-native writing, brevity, or sentiment extremes alone.\n";
+        $prompt .= "NEGATIVE REVIEWS: Detailed complaints with specific issues are AUTHENTIC, not fake.\n";
+        $prompt .= "GENUINE PATTERNS: Specific problems, balanced criticism, product knowledge, realistic expectations.\n\n";
+        $prompt .= "Return JSON: [{\"id\":\"X\",\"score\":Y,\"label\":\"genuine|uncertain|fake\",\"confidence\":Z}]\n\n";
+        $prompt .= "Key: V=Verified Purchase, U=Unverified, Vine=Amazon Vine\n\n";
 
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
@@ -146,7 +154,18 @@ class OllamaProvider implements LLMProviderInterface
         $results = [];
         foreach ($decoded as $item) {
             if (isset($item['id']) && isset($item['score'])) {
-                $results[$item['id']] = (int)$item['score'];
+                $score = max(0, min(100, (int)$item['score'])); // Clamp to 0-100
+                
+                // Support new research-based format with additional metadata
+                $label = $item['label'] ?? $this->generateLabel($score);
+                $confidence = isset($item['confidence']) ? (float)$item['confidence'] : $this->calculateConfidenceFromScore($score);
+                
+                $results[$item['id']] = [
+                    'score' => $score,
+                    'label' => $label,
+                    'confidence' => $confidence,
+                    'explanation' => $this->generateExplanationFromLabel($label, $score)
+                ];
             }
         }
         return [
@@ -256,5 +275,61 @@ class OllamaProvider implements LLMProviderInterface
         } else {
             return "low";
         }
+    }
+
+    private function generateLabel(float $score): string
+    {
+        if ($score <= 39) {
+            return 'genuine';
+        } elseif ($score <= 59) {
+            return 'uncertain';
+        } else {
+            return 'fake';
+        }
+    }
+
+    private function calculateConfidenceFromScore(float $score): float
+    {
+        // Map score to confidence based on research methodology
+        if ($score <= 20 || $score >= 80) {
+            return 0.8; // High confidence for extreme scores
+        } elseif ($score <= 30 || $score >= 70) {
+            return 0.7; // Good confidence
+        } elseif ($score <= 40 || $score >= 60) {
+            return 0.6; // Moderate confidence
+        } else {
+            return 0.4; // Lower confidence for uncertain range
+        }
+    }
+
+    private function generateExplanationFromLabel(string $label, float $score): string
+    {
+        switch ($label) {
+            case 'genuine':
+                return "Appears authentic: Contains specific details, balanced perspective, or credible context (Score: {$score})";
+            case 'uncertain':
+                return "Mixed signals: Some concerning patterns but insufficient evidence for definitive classification (Score: {$score})";
+            case 'fake':
+                return "High fake risk: Multiple suspicious indicators detected using forensic-linguistic analysis (Score: {$score})";
+            default:
+                return "Analysis completed using research-based methodology (Score: {$score})";
+        }
+    }
+
+    private function extractRedFlagsFromScore(float $score): array
+    {
+        $flags = [];
+        
+        if ($score >= 70) {
+            $flags[] = 'High fake probability';
+        }
+        if ($score >= 80) {
+            $flags[] = 'Multiple suspicious indicators';
+        }
+        if ($score >= 90) {
+            $flags[] = 'Extremely high fake risk';
+        }
+        
+        return $flags;
     }
 }
