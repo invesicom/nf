@@ -93,7 +93,11 @@
 
                 <!-- Analysis Date -->
                 <div class="mt-2 text-xs text-gray-400">
-                  Analyzed {{ $product->updated_at->diffForHumans() }}
+                  @if($product->last_analyzed_at && $product->first_analyzed_at && $product->last_analyzed_at->ne($product->first_analyzed_at))
+                    Re-analyzed {{ $product->last_analyzed_at->diffForHumans() }}
+                  @else
+                    Analyzed {{ ($product->first_analyzed_at ?? $product->updated_at)->diffForHumans() }}
+                  @endif
                 </div>
               </a>
             </div>

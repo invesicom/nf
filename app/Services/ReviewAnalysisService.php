@@ -148,6 +148,8 @@ class ReviewAnalysisService
                     $asinData->update([
                         'openai_result' => json_encode($openaiResult),
                         'status'        => 'completed',
+                        'first_analyzed_at' => now(),
+                        'last_analyzed_at'  => now(),
                     ]);
 
                     LoggingService::log('Updated database record with OpenAI analysis results');
@@ -172,6 +174,8 @@ class ReviewAnalysisService
                             $asinData->update([
                                 'openai_result' => json_encode($defaultResult),
                                 'status' => 'completed',
+                                'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
+                                'last_analyzed_at'  => now(),
                             ]);
                             
                             $asinData = $asinData->fresh();
@@ -182,6 +186,8 @@ class ReviewAnalysisService
                             $asinData->update([
                                 'openai_result' => json_encode($openaiResult),
                                 'status'        => 'completed',
+                                'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
+                                'last_analyzed_at'  => now(),
                             ]);
 
                             LoggingService::log("Completed missing OpenAI analysis for ASIN: {$asin}");
@@ -416,6 +422,8 @@ class ReviewAnalysisService
                 'detailed_analysis' => [],
                 'fake_review_examples' => [],
                 'status' => 'completed',
+                'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
+                'last_analyzed_at'  => now(),
             ]);
 
             return $asinData;
@@ -436,6 +444,8 @@ class ReviewAnalysisService
                 'detailed_analysis' => $result['detailed_scores'] ?? [],
                 'fake_review_examples' => $fakeExamples,
                 'status' => 'completed',
+                'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
+                'last_analyzed_at'  => now(),
             ]);
 
             LoggingService::log('Updated database record with enhanced LLM analysis results including transparency data');

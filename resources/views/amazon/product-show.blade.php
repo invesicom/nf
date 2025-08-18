@@ -359,7 +359,12 @@
             </div>
             <div>
               <span class="text-sm text-gray-600">Analysis Date:</span>
-              <span class="text-sm">{{ $asinData->updated_at->format('M j, Y') }}</span>
+              <span class="text-sm">
+                {{ ($asinData->first_analyzed_at ?? $asinData->updated_at)->format('M j, Y') }}
+                @if($asinData->last_analyzed_at && $asinData->first_analyzed_at && $asinData->last_analyzed_at->ne($asinData->first_analyzed_at))
+                  <span class="text-xs text-gray-500">(re-analyzed {{ $asinData->last_analyzed_at->format('M j, Y') }})</span>
+                @endif
+              </span>
             </div>
           </div>
           
