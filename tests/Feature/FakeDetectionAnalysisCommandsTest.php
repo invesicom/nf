@@ -169,7 +169,7 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
 
         $this->artisan('reanalyze:graded-products', ['--dry-run' => true, '--limit' => 10])
             ->expectsOutputToContain('Found 2 products with specified grades.')
-            ->expectsOutputToContain('🔍 DRY RUN MODE - No changes will be made')
+            ->expectsOutputToContain('DRY RUN MODE - No changes will be made')
             ->expectsOutputToContain('Grade F: 1 products')
             ->expectsOutputToContain('Grade D: 1 products')
             ->assertExitCode(0);
@@ -256,9 +256,9 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
         ]);
 
         $this->artisan('analyze:fake-detection', ['--limit' => 5])
-            ->expectsOutputToContain('⚠️  HIGH SCORE RATE:')
-            ->expectsOutputToContain('⚠️  Ollama-qwen2.5:7b has very high fake detection rate:')
-            ->expectsOutputToContain('→ Consider softening OLLAMA prompt language')
+            ->expectsOutputToContain('HIGH SCORE RATE:')
+            ->expectsOutputToContain('Ollama-qwen2.5:7b has very high fake detection rate:')
+            ->expectsOutputToContain('Consider softening OLLAMA prompt language')
             ->assertExitCode(0);
     }
 }
