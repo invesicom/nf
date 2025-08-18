@@ -354,16 +354,17 @@ class ReanalyzeGradedProducts extends Command
         $adjustedRating = $amazonRating * (1 - ($newFakePercentage / 100));
         
         // Update the product with generous adjustments
-                    $product->update([
-                'fake_percentage' => round($newFakePercentage, 1),
-                'grade' => $newGrade,
-                'adjusted_rating' => round($adjustedRating, 2),
-                'amazon_rating' => round($amazonRating, 2),
-                'analysis_notes' => ($product->analysis_notes ? $product->analysis_notes . '; ' : '') . 
-                                   "Fast reanalysis applied research-based generous adjustment (-" . 
-                                   round(($currentFakePercentage - $newFakePercentage), 1) . "%) on " . now(),
-                'last_analyzed_at' => now(), // Only update last_analyzed_at, preserve first_analyzed_at
-            ]);
+        // IMPORTANT: Do NOT update first_analyzed_at or last_analyzed_at to preserve display order
+        // updated_at will change (that's fine) but analysis timestamps stay the same
+        $product->update([
+            'fake_percentage' => round($newFakePercentage, 1),
+            'grade' => $newGrade,
+            'adjusted_rating' => round($adjustedRating, 2),
+            'amazon_rating' => round($amazonRating, 2),
+            'analysis_notes' => ($product->analysis_notes ? $product->analysis_notes . '; ' : '') . 
+                               "Fast reanalysis applied research-based generous adjustment (-" . 
+                               round(($currentFakePercentage - $newFakePercentage), 1) . "%) on " . now(),
+        ]);
         
         return $product->fresh();
     }
