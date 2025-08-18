@@ -198,10 +198,14 @@ class LLMProviderIntegrationTest extends TestCase
         $this->assertArrayHasKey('analysis_provider', $result);
         $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
         
-        // Verify multilingual fake detection
-        $this->assertEquals(92, $result['detailed_scores']['es1']); // Spanish fake
-        $this->assertEquals(88, $result['detailed_scores']['de1']); // German fake  
-        $this->assertEquals(95, $result['detailed_scores']['jp1']); // Japanese fake
+        // Verify multilingual fake detection - handle both legacy and new format
+        $es1Score = is_array($result['detailed_scores']['es1']) ? $result['detailed_scores']['es1']['score'] : $result['detailed_scores']['es1'];
+        $de1Score = is_array($result['detailed_scores']['de1']) ? $result['detailed_scores']['de1']['score'] : $result['detailed_scores']['de1'];
+        $jp1Score = is_array($result['detailed_scores']['jp1']) ? $result['detailed_scores']['jp1']['score'] : $result['detailed_scores']['jp1'];
+        
+        $this->assertEquals(92, $es1Score); // Spanish fake
+        $this->assertEquals(88, $de1Score); // German fake  
+        $this->assertEquals(95, $jp1Score); // Japanese fake
     }
 
     public function test_failover_to_ollama_when_other_providers_fail()
@@ -230,6 +234,8 @@ class LLMProviderIntegrationTest extends TestCase
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('analysis_provider', $result);
         $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
-        $this->assertEquals(40, $result['detailed_scores']['1']);
+        // Handle both legacy integer format and new object format
+        $score = is_array($result['detailed_scores']['1']) ? $result['detailed_scores']['1']['score'] : $result['detailed_scores']['1'];
+        $this->assertEquals(40, $score);
     }
 }

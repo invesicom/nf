@@ -179,8 +179,12 @@ class OllamaProviderTest extends TestCase
         $result = $this->provider->analyzeReviews($spanishReviews);
         
         $this->assertArrayHasKey('detailed_scores', $result);
-        $this->assertEquals(92, $result['detailed_scores']['es1']); // Fake pattern detected
-        $this->assertEquals(18, $result['detailed_scores']['es2']); // Genuine criticism
+        // Handle both legacy integer format and new object format
+        $es1Score = is_array($result['detailed_scores']['es1']) ? $result['detailed_scores']['es1']['score'] : $result['detailed_scores']['es1'];
+        $es2Score = is_array($result['detailed_scores']['es2']) ? $result['detailed_scores']['es2']['score'] : $result['detailed_scores']['es2'];
+        
+        $this->assertEquals(92, $es1Score); // Fake pattern detected
+        $this->assertEquals(18, $es2Score); // Genuine criticism
         $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
     }
 
@@ -202,8 +206,12 @@ class OllamaProviderTest extends TestCase
         $result = $this->provider->analyzeReviews($japaneseReviews);
         
         $this->assertArrayHasKey('detailed_scores', $result);
-        $this->assertEquals(95, $result['detailed_scores']['jp1']); // Suspicious praise
-        $this->assertEquals(30, $result['detailed_scores']['jp2']); // Balanced review
+        // Handle both legacy integer format and new object format
+        $jp1Score = is_array($result['detailed_scores']['jp1']) ? $result['detailed_scores']['jp1']['score'] : $result['detailed_scores']['jp1'];
+        $jp2Score = is_array($result['detailed_scores']['jp2']) ? $result['detailed_scores']['jp2']['score'] : $result['detailed_scores']['jp2'];
+        
+        $this->assertEquals(95, $jp1Score); // Suspicious praise
+        $this->assertEquals(30, $jp2Score); // Balanced review
     }
 
     public function test_analyzes_german_reviews_with_qwen_model()
@@ -224,8 +232,12 @@ class OllamaProviderTest extends TestCase
         $result = $this->provider->analyzeReviews($germanReviews);
         
         $this->assertArrayHasKey('detailed_scores', $result);
-        $this->assertEquals(88, $result['detailed_scores']['de1']);
-        $this->assertEquals(25, $result['detailed_scores']['de2']);
+        // Handle both legacy integer format and new object format
+        $de1Score = is_array($result['detailed_scores']['de1']) ? $result['detailed_scores']['de1']['score'] : $result['detailed_scores']['de1'];
+        $de2Score = is_array($result['detailed_scores']['de2']) ? $result['detailed_scores']['de2']['score'] : $result['detailed_scores']['de2'];
+        
+        $this->assertEquals(88, $de1Score);
+        $this->assertEquals(25, $de2Score);
     }
 
     public function test_analyzes_mixed_language_reviews()
@@ -246,8 +258,12 @@ class OllamaProviderTest extends TestCase
         $result = $this->provider->analyzeReviews($mixedReviews);
         
         $this->assertArrayHasKey('detailed_scores', $result);
-        $this->assertEquals(90, $result['detailed_scores']['mix1']); // Mixed language fake
-        $this->assertEquals(22, $result['detailed_scores']['mix2']); // Mixed language genuine
+        // Handle both legacy integer format and new object format
+        $mix1Score = is_array($result['detailed_scores']['mix1']) ? $result['detailed_scores']['mix1']['score'] : $result['detailed_scores']['mix1'];
+        $mix2Score = is_array($result['detailed_scores']['mix2']) ? $result['detailed_scores']['mix2']['score'] : $result['detailed_scores']['mix2'];
+        
+        $this->assertEquals(90, $mix1Score); // Mixed language fake
+        $this->assertEquals(22, $mix2Score); // Mixed language genuine
     }
 
     public function test_prompt_includes_multilingual_instructions()
@@ -261,13 +277,13 @@ class OllamaProviderTest extends TestCase
                 $body = json_decode($request->body(), true);
                 $prompt = $body['prompt'];
                 
-                // Verify multilingual support is mentioned in prompt
-                $this->assertStringContainsString('MULTILINGUAL SUPPORT', $prompt);
-                $this->assertStringContainsString('ANY language', $prompt);
-                $this->assertStringContainsString('Spanish, French, German, Italian, Japanese', $prompt);
-                $this->assertStringContainsString('素晴らしい', $prompt); // Japanese example
-                $this->assertStringContainsString('¡Increíble!', $prompt); // Spanish example
-                $this->assertStringContainsString('Fantastique!', $prompt); // French example
+                // Verify research-based prompt elements are present
+                $this->assertStringContainsString('marketplace integrity analyst', $prompt);
+                $this->assertStringContainsString('forensic-linguistic cues', $prompt);
+                $this->assertStringContainsString('multiple independent signals', $prompt);
+                $this->assertStringContainsString('BIAS GUARDRAILS', $prompt);
+                $this->assertStringContainsString('bounded adjustments', $prompt);
+                $this->assertStringContainsString('scientific methodology', $prompt);
                 
                 return Http::response([
                     'model' => 'qwen2.5:7b',
