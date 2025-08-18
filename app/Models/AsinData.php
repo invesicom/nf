@@ -44,6 +44,8 @@ class AsinData extends Model
         'explanation',
         'status',
         'analysis_notes',
+        'first_analyzed_at',
+        'last_analyzed_at',
     ];
 
     /**
@@ -58,6 +60,8 @@ class AsinData extends Model
         'fake_review_examples'     => 'array',
         'have_product_data'        => 'boolean',
         'product_data_scraped_at'  => 'datetime',
+        'first_analyzed_at'        => 'datetime',
+        'last_analyzed_at'         => 'datetime',
     ];
 
 
