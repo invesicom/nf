@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 use App\Services\Amazon\AmazonScrapingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use ReflectionClass;
@@ -31,7 +32,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->normalizeMethod->setAccessible(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_deduplicates_identical_review_texts()
     {
         $existingReviews = [
@@ -56,7 +57,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->assertEquals('Terrible quality, would not buy again', $result[2]['review_text']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_case_insensitive_duplicates()
     {
         $existingReviews = [
@@ -80,7 +81,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->assertEquals('Does not work at all', $result[1]['review_text']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_whitespace_and_punctuation_variations()
     {
         $existingReviews = [
@@ -106,7 +107,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->assertEquals('Completely different review', $result[1]['review_text']);
     }
 
-    /** @test */
+    #[Test]
     public function it_preserves_review_data_integrity()
     {
         $existingReviews = [
@@ -148,7 +149,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->assertEquals(5, $result[1]['helpful_votes']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_empty_arrays_gracefully()
     {
         // Empty existing, new reviews
@@ -168,7 +169,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->assertCount(0, $result3);
     }
 
-    /** @test */
+    #[Test]
     public function it_skips_reviews_without_text()
     {
         $existingReviews = [
@@ -196,7 +197,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->assertContains('Another valid review', $validTexts);
     }
 
-    /** @test */
+    #[Test]
     public function normalize_review_text_handles_various_formats()
     {
         $testCases = [
@@ -214,7 +215,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_reproduces_the_b0bw8t4w5h_duplication_issue_scenario()
     {
         // Simulate the exact duplication pattern found in B0BW8T4W5H
@@ -245,7 +246,7 @@ class AmazonScrapingServiceDeduplicationTest extends TestCase
         $this->assertContains('Does what it should...', $reviewTexts);
     }
 
-    /** @test */
+    #[Test]
     public function it_maintains_performance_with_large_datasets()
     {
         // Create a large dataset to test performance

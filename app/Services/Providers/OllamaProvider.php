@@ -15,8 +15,8 @@ class OllamaProvider implements LLMProviderInterface
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
-        $this->model = config('services.ollama.model') ?: 'qwen2.5:7b'; // Use configured model or fallback
-        $this->timeout = config('services.ollama.timeout', 300);
+        $this->model = config('services.ollama.model') ?: 'llama3.2:3b'; // Use lighter model for better performance
+        $this->timeout = config('services.ollama.timeout', 120); // Reduced timeout to prevent hanging
     }
     
     public function analyzeReviews(array $reviews): array
@@ -35,9 +35,9 @@ class OllamaProvider implements LLMProviderInterface
                 'prompt' => $prompt,
                 'stream' => false,
                 'options' => [
-                    'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
+                    'temperature' => 0.3,
                     'num_ctx' => 4096,
-                    'top_p' => 0.8 // Slightly more focused responses
+                    'top_p' => 0.9
                 ]
             ]);
 
@@ -85,32 +85,30 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        $prompt = "ROLE: You are a marketplace integrity analyst. Use forensic-linguistic cues and review-metadata heuristics to assess if a review is likely fake or genuine.\n\n";
-        $prompt .= "OBJECTIVE: Return a fake_likelihood score (0-100; 0=clearly genuine, 100=clearly fake) using scientific methodology.\n\n";
-        $prompt .= "METHOD: Evaluate using multiple independent signals. Never rely on one signal alone.\n\n";
-        $prompt .= "SCORING RULE: Initialize S=50. Apply bounded adjustments:\n";
-        $prompt .= "• generic_promotional_tone: +0..+20\n";
-        $prompt .= "• rating_text_mismatch: +0..+15\n";
-        $prompt .= "• metadata_risk: -10..+10 (unverified/+; verified/-)\n";
-        $prompt .= "• inconsistencies_contradictions: +0..+15\n";
-        $prompt .= "• specificity_detail: -0..-20\n";
-        $prompt .= "• balanced_caveats: -0..-10\n";
-        $prompt .= "• usage_time_markers: -0..-10\n\n";
-        $prompt .= "LABELS: genuine ≤39, uncertain 40-59, fake ≥60. Require ≥2 independent fake signals to label fake.\n\n";
-        $prompt .= "BIAS GUARDRAILS: Do not penalize non-native writing, brevity, or sentiment extremes alone.\n";
-        $prompt .= "NEGATIVE REVIEWS: Detailed complaints with specific issues are AUTHENTIC, not fake.\n";
-        $prompt .= "GENUINE PATTERNS: Specific problems, balanced criticism, product knowledge, realistic expectations.\n\n";
+        // RESEARCH-BASED but OPTIMIZED: Scientific methodology with resource efficiency
+        $prompt = "Marketplace integrity analyst. Score 0-100 (0=genuine, 100=fake) using scientific methodology.\n\n";
+        
+        $prompt .= "METHOD: Start S=50, apply bounded adjustments:\n";
+        $prompt .= "• Generic/promotional tone: +15-25\n";
+        $prompt .= "• Specific details/complaints: -15-25\n";
+        $prompt .= "• Unverified purchase: +10, Verified: -5\n";
+        $prompt .= "• Rating-text mismatch: +15\n\n";
+        
+        $prompt .= "LABELS: genuine ≤39, uncertain 40-59, fake ≥60\n";
+        $prompt .= "BIAS GUARDRAILS: Don't penalize non-native writing or brevity alone\n";
+        $prompt .= "NEGATIVE REVIEWS: Detailed complaints are AUTHENTIC\n\n";
+        
         $prompt .= "Return JSON: [{\"id\":\"X\",\"score\":Y,\"label\":\"genuine|uncertain|fake\",\"confidence\":Z}]\n\n";
-        $prompt .= "Key: V=Verified Purchase, U=Unverified, Vine=Amazon Vine\n\n";
+        $prompt .= "Key: V=Verified, U=Unverified\n\n";
 
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
             
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 400);
+                $text = substr($review['review_text'], 0, 300); // Reduced from 400 to 300
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 400);
+                $text = substr($review['text'], 0, 300);
             }
 
             $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}\n";

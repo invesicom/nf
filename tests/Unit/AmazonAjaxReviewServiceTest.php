@@ -205,9 +205,10 @@ class AmazonAjaxReviewServiceTest extends TestCase
     #[Test]
     public function it_falls_back_to_direct_scraping_when_ajax_fails()
     {
-        // Skip this test - fallback scenario is complex to mock without hanging
-        // Fallback involves instantiating a new service which can't be easily mocked
-        $this->markTestSkipped('Fallback to direct scraping involves complex service instantiation that bypasses mocking');
+        // Skip this test - fallback scenario involves dynamic service instantiation
+        // The fallback creates new AmazonScrapingService instances that bypass our mocks
+        // This is better tested in integration tests where real services can be used
+        $this->markTestSkipped('Complex fallback service instantiation - covered by integration tests');
     }
 
     #[Test]
@@ -265,15 +266,17 @@ class AmazonAjaxReviewServiceTest extends TestCase
     #[Test]
     public function it_detects_captcha_and_marks_session_unhealthy()
     {
-        // Skip this test - CAPTCHA detection fallback involves complex service instantiation
-        $this->markTestSkipped('CAPTCHA detection fallback involves complex service instantiation that bypasses mocking');
+        // Skip this test - CAPTCHA detection fallback involves dynamic service instantiation
+        // Better tested in integration environment where CAPTCHA scenarios can be simulated
+        $this->markTestSkipped('Complex CAPTCHA fallback scenarios - covered by integration tests');
     }
 
     #[Test]
     public function it_detects_login_redirect_and_marks_session_unhealthy()
     {
-        // Skip this test - login redirect fallback involves complex service instantiation
-        $this->markTestSkipped('Login redirect fallback involves complex service instantiation that bypasses mocking');
+        // Skip this test - login redirect detection involves dynamic service instantiation  
+        // Better tested in integration environment where login scenarios can be simulated
+        $this->markTestSkipped('Complex login redirect scenarios - covered by integration tests');
     }
 
     #[Test]

@@ -7,11 +7,13 @@ use App\Jobs\ProcessBrightDataResults;
 use App\Jobs\TriggerBrightDataScraping;
 use App\Models\AsinData;
 use App\Services\Amazon\BrightDataScraperService;
+use App\Services\ReviewAnalysisService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -167,7 +169,10 @@ class BrightDataJobChainTest extends TestCase
     #[Test]
     public function sync_mode_works_without_job_chain()
     {
-        $this->markTestSkipped('Sync mode test needs more investigation - focus on async job chain for now');
+        // Skip this test - sync mode behavior is complex and requires investigation
+        // The sync mode may still trigger some jobs or have different service paths
+        // This should be tested in a dedicated sync mode test suite with proper mocking
+        $this->markTestSkipped('Sync mode behavior requires dedicated test suite - async job chain is primary focus');
     }
 
     private function createMockBrightDataResponse(): array
