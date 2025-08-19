@@ -35,9 +35,9 @@ class OllamaProvider implements LLMProviderInterface
                 'prompt' => $prompt,
                 'stream' => false,
                 'options' => [
-                    'temperature' => 0.3,
+                    'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
                     'num_ctx' => 4096,
-                    'top_p' => 0.9
+                    'top_p' => 0.8 // Slightly more focused responses
                 ]
             ]);
 

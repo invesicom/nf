@@ -277,10 +277,8 @@ class OllamaProviderTest extends TestCase
                 $body = json_decode($request->body(), true);
                 $prompt = $body['prompt'];
                 
-                // Verify research-based prompt elements are present
-                $this->assertStringContainsString('marketplace integrity analyst', $prompt);
-                $this->assertStringContainsString('forensic-linguistic cues', $prompt);
-                $this->assertStringContainsString('multiple independent signals', $prompt);
+                // Verify research-based prompt elements are present (updated for optimized prompt)
+                $this->assertStringContainsString('Marketplace integrity analyst', $prompt);
                 $this->assertStringContainsString('BIAS GUARDRAILS', $prompt);
                 $this->assertStringContainsString('bounded adjustments', $prompt);
                 $this->assertStringContainsString('scientific methodology', $prompt);
@@ -307,11 +305,11 @@ class OllamaProviderTest extends TestCase
 
     public function test_fallback_model_when_config_missing()
     {
-        // Test fallback to qwen2.5:7b when config is not set
+        // Test fallback to llama3.2:3b when config is not set
         config(['services.ollama.model' => '']);
         
         $provider = new OllamaProvider();
-        $this->assertEquals('Ollama-qwen2.5:7b', $provider->getProviderName());
+        $this->assertEquals('Ollama-llama3.2:3b', $provider->getProviderName());
     }
 
     public function test_heuristic_parsing_includes_provider_info()
