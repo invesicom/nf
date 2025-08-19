@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Model for Amazon product review analysis data.
@@ -64,7 +65,189 @@ class AsinData extends Model
         'last_analyzed_at'         => 'datetime',
     ];
 
+    /*
+    |--------------------------------------------------------------------------
+    | Query Scopes - Better Organization
+    |--------------------------------------------------------------------------
+    |
+    | These scopes help organize queries by logical groups rather than
+    | requiring complex where clauses throughout the application.
+    |
+    */
 
+    /**
+     * Scope for completed analysis
+     */
+    public function scopeCompleted(Builder $query): Builder
+    {
+        return $query->where('status', 'completed')
+                    ->whereNotNull('fake_percentage')
+                    ->whereNotNull('grade');
+    }
+
+    /**
+     * Scope for products with specific grades
+     */
+    public function scopeWithGrades(Builder $query, array $grades): Builder
+    {
+        return $query->whereIn('grade', $grades);
+    }
+
+    /**
+     * Scope for products with product data
+     */
+    public function scopeWithProductData(Builder $query): Builder
+    {
+        return $query->where('have_product_data', true)
+                    ->whereNotNull('product_title');
+    }
+
+    /**
+     * Scope for products needing reanalysis
+     */
+    public function scopeNeedsReanalysis(Builder $query): Builder
+    {
+        return $query->where(function ($q) {
+            $q->where('status', 'failed')
+              ->orWhere('status', 'pending')
+              ->orWhereNull('openai_result');
+        });
+    }
+
+    /**
+     * Scope for recent analysis
+     */
+    public function scopeRecentlyAnalyzed(Builder $query, int $days = 30): Builder
+    {
+        return $query->where('first_analyzed_at', '>=', now()->subDays($days));
+    }
+
+    /**
+     * Scope for products by country
+     */
+    public function scopeForCountry(Builder $query, string $country): Builder
+    {
+        return $query->where('country', $country);
+    }
+
+    /**
+     * Scope for products with minimum review count
+     */
+    public function scopeWithMinimumReviews(Builder $query, int $minReviews = 1): Builder
+    {
+        return $query->whereRaw('JSON_LENGTH(reviews) >= ?', [$minReviews]);
+    }
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Computed Properties - Reduce God Object Complexity
+    |--------------------------------------------------------------------------
+    |
+    | These computed properties encapsulate complex logic and make the model
+    | easier to work with by providing meaningful derived data.
+    |
+    */
+
+    /**
+     * Get the grade color for UI display
+     */
+    public function getGradeColorAttribute(): string
+    {
+        return match($this->grade) {
+            'A' => 'green',
+            'B' => 'blue', 
+            'C' => 'yellow',
+            'D' => 'orange',
+            'F' => 'red',
+            default => 'gray'
+        };
+    }
+
+    /**
+     * Get the grade description
+     */
+    public function getGradeDescriptionAttribute(): string
+    {
+        return app(\App\Services\GradeCalculationService::class)->getGradeDescription($this->grade ?? 'N/A');
+    }
+
+    /**
+     * Get review statistics
+     */
+    public function getReviewStatsAttribute(): array
+    {
+        $reviews = $this->getReviewsArray();
+        $totalReviews = count($reviews);
+        
+        if ($totalReviews === 0) {
+            return [
+                'total' => 0,
+                'verified_count' => 0,
+                'verified_percentage' => 0,
+                'average_rating' => 0,
+                'rating_distribution' => [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0],
+            ];
+        }
+
+        $verifiedCount = 0;
+        $ratingSum = 0;
+        $ratingDistribution = [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0];
+
+        foreach ($reviews as $review) {
+            if (isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase']) {
+                $verifiedCount++;
+            }
+            
+            if (isset($review['rating']) && is_numeric($review['rating'])) {
+                $rating = (int) $review['rating'];
+                $ratingSum += $rating;
+                if (isset($ratingDistribution[$rating])) {
+                    $ratingDistribution[$rating]++;
+                }
+            }
+        }
+
+        return [
+            'total' => $totalReviews,
+            'verified_count' => $verifiedCount,
+            'verified_percentage' => round(($verifiedCount / $totalReviews) * 100, 1),
+            'average_rating' => round($ratingSum / $totalReviews, 2),
+            'rating_distribution' => $ratingDistribution,
+        ];
+    }
+
+    /**
+     * Check if analysis is stale and needs refresh
+     */
+    public function getIsStaleAttribute(): bool
+    {
+        if (!$this->first_analyzed_at) {
+            return true;
+        }
+        
+        // Consider analysis stale after 30 days
+        return $this->first_analyzed_at->diffInDays() > 30;
+    }
+
+    /**
+     * Get analysis age in human readable format
+     */
+    public function getAnalysisAgeAttribute(): ?string
+    {
+        if (!$this->first_analyzed_at) {
+            return null;
+        }
+        
+        return $this->first_analyzed_at->diffForHumans();
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Helper Methods - Encapsulate Complex Logic
+    |--------------------------------------------------------------------------
+    */
 
     /**
      * Helper method to safely get reviews as array.
