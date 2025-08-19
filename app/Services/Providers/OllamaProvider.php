@@ -94,9 +94,9 @@ class OllamaProvider implements LLMProviderInterface
         foreach ($limitedReviews as $review) {
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 50); // Tiny text snippets
+                $text = substr($review['review_text'], 0, 150); // Reasonable length for analysis
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 50);
+                $text = substr($review['text'], 0, 150);
             }
 
             $prompt .= "{$review['id']}:{$review['rating']}:{$text}\n";
