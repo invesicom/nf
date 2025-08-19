@@ -27,53 +27,31 @@ class OllamaProvider implements LLMProviderInterface
 
         LoggingService::log('Sending '.count($reviews).' reviews to Ollama for analysis');
 
-        // PERFORMANCE FIX: Process reviews in chunks to avoid overloading Ollama
-        $chunkSize = 2; // Process 2 reviews at a time for balanced performance
-        $allResults = [];
+        $prompt = $this->buildOptimizedPrompt($reviews);
         
-        $chunks = array_chunk($reviews, $chunkSize);
-        LoggingService::log('Processing '.count($chunks).' chunks of '.$chunkSize.' reviews each');
-        
-        foreach ($chunks as $chunkIndex => $chunk) {
-            LoggingService::log('Processing chunk '.($chunkIndex + 1).'/'.count($chunks).' ('.count($chunk).' reviews)');
-            
-            $prompt = $this->buildOptimizedPrompt($chunk);
-            
-            try {
-                $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
-                    'model' => $this->model,
-                    'prompt' => $prompt,
-                    'stream' => false,
-                    'options' => [
-                        'temperature' => 0.1,
-                        'num_ctx' => 4096,
-                        'top_p' => 0.8
-                    ]
-                ]);
+        try {
+            $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
+                'model' => $this->model,
+                'prompt' => $prompt,
+                'stream' => false,
+                'options' => [
+                    'temperature' => 0.1,
+                    'num_ctx' => 4096,
+                    'top_p' => 0.8
+                ]
+            ]);
 
-                if ($response->successful()) {
-                    $result = $response->json();
-                    $chunkResults = $this->parseAnalysisResponse($result['response']);
-                    
-                    // Merge results from this chunk
-                    if (isset($chunkResults['detailed_scores'])) {
-                        $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
-                    }
-                } else {
-                    throw new \Exception('Ollama API request failed: ' . $response->body());
-                }
-
-            } catch (\Exception $e) {
-                LoggingService::log('Ollama chunk analysis failed: ' . $e->getMessage());
-                throw $e;
+            if ($response->successful()) {
+                $result = $response->json();
+                return $this->parseAnalysisResponse($result['response']);
             }
+
+            throw new \Exception('Ollama API request failed: ' . $response->body());
+
+        } catch (\Exception $e) {
+            LoggingService::log('Ollama analysis failed: ' . $e->getMessage());
+            throw $e;
         }
-        
-        return [
-            'detailed_scores' => $allResults,
-            'analysis_provider' => $this->getProviderName(),
-            'total_cost' => 0.0
-        ];
     }
 
     public function isAvailable(): bool
@@ -107,23 +85,25 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        // BALANCED: Essential guidance with performance optimization
-        $prompt = "Fake review score 0-100 (0=real, 100=fake):\n";
-        $prompt .= "• Generic praise = higher score\n";
-        $prompt .= "• Specific details = lower score\n";
-        $prompt .= "JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
+        // SCIENTIFIC: Better than "AGGRESSIVE" but simple and fast
+        $prompt = "Amazon review authenticity scorer. Score 0-100 (0=genuine, 100=fake).\n\n";
+        $prompt .= "FAKE indicators: Generic praise, promotional language, unverified purchase\n";
+        $prompt .= "GENUINE indicators: Specific details, balanced criticism, verified purchase\n\n";
+        $prompt .= "Return JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
+        $prompt .= "Key: V=Verified, U=Unverified\n\n";
 
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
             
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 150); // Balanced: 150 chars
+                $text = substr($review['review_text'], 0, 200);
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 150);
+                $text = substr($review['text'], 0, 200);
             }
 
-            $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}: {$text}\n";
+            $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}\n";
+            $prompt .= "R: {$text}\n\n";
         }
 
         return $prompt;
