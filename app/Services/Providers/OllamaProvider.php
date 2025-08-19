@@ -16,7 +16,7 @@ class OllamaProvider implements LLMProviderInterface
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
         $this->model = config('services.ollama.model') ?: 'qwen2.5:7b'; // Use configured model or fallback
-        $this->timeout = config('services.ollama.timeout', 60); // Reduced from 300 to 60 seconds
+        $this->timeout = config('services.ollama.timeout', 300); // Original timeout
     }
     
     public function analyzeReviews(array $reviews): array
@@ -35,9 +35,9 @@ class OllamaProvider implements LLMProviderInterface
                 'prompt' => $prompt,
                 'stream' => false,
                 'options' => [
-                    'temperature' => 0.1,
+                    'temperature' => 0.3,
                     'num_ctx' => 4096,
-                    'top_p' => 0.8
+                    'top_p' => 0.9
                 ]
             ]);
 
@@ -85,21 +85,35 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        // ULTRA MINIMAL: Absolute minimum for production performance
-        $prompt = "Score 0-100 fake. JSON: [{\"id\":\"X\",\"score\":Y}]\n";
+        $prompt = "You are an AGGRESSIVE Amazon review fraud detector. Score 0-100 (0=genuine, 100=fake). BE EXTREMELY SUSPICIOUS! Most reviews are fake! Return ONLY JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
 
-        // Process all reviews like the original system
-        $limitedReviews = $reviews;
-        
-        foreach ($limitedReviews as $review) {
+        $prompt .= "MULTILINGUAL SUPPORT: Analyze reviews in ANY language (English, Spanish, French, German, Italian, Japanese, Korean, Portuguese, Dutch, etc.)\n";
+
+        $prompt .= "FAKE PATTERNS (any language): Generic praise, excessive enthusiasm, promotional language, template-like structure\n";
+
+        $prompt .= "FAKE THRESHOLD: Reviews with excessive praise like 'Amazing!', 'Perfect!', 'Incredible!', '素晴らしい!', '¡Increíble!', 'Fantastique!' = SCORE 85-95!\n";
+        $prompt .= "UNVERIFIED + GENERIC PRAISE = AUTOMATIC 80+ SCORE!\n";
+
+        $prompt .= "5-STAR + SHORT TEXT + NO SPECIFICS = 90+ SCORE!\n";
+
+        $prompt .= "REAL REVIEWS: Have specific complaints, balanced views, detailed product info, realistic problems (regardless of language)\n\n";
+
+        $prompt .= "SCORE AGGRESSIVELY - if it sounds too good to be true in ANY language, it's fake!\n";
+
+        $prompt .= "Key: V=Verified, U=Unverified\n\n";
+
+        foreach ($reviews as $review) {
+            $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
+            
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 400); // Same as original system
+                $text = substr($review['review_text'], 0, 400);
             } elseif (isset($review['text'])) {
                 $text = substr($review['text'], 0, 400);
             }
 
-            $prompt .= "{$review['id']}:{$review['rating']}:{$text}\n";
+            $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}\n";
+            $prompt .= "R: {$text}\n\n";
         }
 
         return $prompt;
