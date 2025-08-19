@@ -91,8 +91,14 @@ class MetricsCalculationService
     {
         $fakeThreshold = 85; // Reviews with score >= 85 are considered fake
         
-        return collect($detailedScores)->filter(function ($score) use ($fakeThreshold) {
-            return is_numeric($score) && $score >= $fakeThreshold;
+        return collect($detailedScores)->filter(function ($scoreData) use ($fakeThreshold) {
+            // Handle new format: {score: 75, label: "fake", confidence: 90, explanation: "..."}
+            if (is_array($scoreData) && isset($scoreData['score'])) {
+                return is_numeric($scoreData['score']) && $scoreData['score'] >= $fakeThreshold;
+            }
+            
+            // Handle legacy format: numeric score
+            return is_numeric($scoreData) && $scoreData >= $fakeThreshold;
         })->count();
     }
 
@@ -132,7 +138,17 @@ class MetricsCalculationService
         $genuineCount = 0;
 
         foreach ($reviews as $index => $review) {
-            $score = $detailedScores[$index] ?? 0;
+            // Try to get score by review ID first, then by index
+            $reviewId = $review['id'] ?? $index;
+            $scoreData = $detailedScores[$reviewId] ?? $detailedScores[$index] ?? 0;
+            
+            // Extract numeric score from new or legacy format
+            $score = 0;
+            if (is_array($scoreData) && isset($scoreData['score'])) {
+                $score = $scoreData['score']; // New format
+            } elseif (is_numeric($scoreData)) {
+                $score = $scoreData; // Legacy format
+            }
             
             // Only include genuine reviews (score < threshold)
             if ($score < $fakeThreshold && isset($review['rating']) && is_numeric($review['rating'])) {
