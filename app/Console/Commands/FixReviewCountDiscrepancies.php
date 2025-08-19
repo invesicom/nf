@@ -238,18 +238,8 @@ class FixReviewCountDiscrepancies extends Command
         $averageRating = $reviewCount > 0 ? round($totalRating / $reviewCount, 2) : 0;
         $adjustedRating = $genuineCount > 0 ? round($genuineRatingSum / $genuineCount, 2) : $averageRating;
 
-        // Determine grade based on fake percentage
-        if ($fakePercentage <= 10) {
-            $grade = 'A';
-        } elseif ($fakePercentage <= 25) {
-            $grade = 'B';
-        } elseif ($fakePercentage <= 50) {
-            $grade = 'C';
-        } elseif ($fakePercentage <= 75) {
-            $grade = 'D';
-        } else {
-            $grade = 'F';
-        }
+        // Determine grade based on fake percentage using centralized service
+        $grade = \App\Services\GradeCalculationService::calculateGrade($fakePercentage);
 
         return [
             'fake_percentage' => $fakePercentage,

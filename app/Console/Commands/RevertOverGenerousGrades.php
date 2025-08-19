@@ -129,10 +129,6 @@ class RevertOverGenerousGrades extends Command
 
     private function calculateGradeFromPercentage(float $fakePercentage): string
     {
-        if ($fakePercentage <= 15) return 'A';
-        if ($fakePercentage <= 30) return 'B';
-        if ($fakePercentage <= 50) return 'C';
-        if ($fakePercentage <= 70) return 'D';
-        return 'F';
+        return \App\Services\GradeCalculationService::calculateGrade($fakePercentage);
     }
 }
