@@ -25,6 +25,11 @@ class OllamaProvider implements LLMProviderInterface
             return ['results' => []];
         }
 
+        // PERFORMANCE: Use chunking for large review sets to dramatically reduce processing time
+        if (count($reviews) > 10) {
+            return $this->analyzeReviewsInChunks($reviews);
+        }
+
         LoggingService::log('Sending '.count($reviews).' reviews to Ollama for analysis');
 
         $prompt = $this->buildOptimizedPrompt($reviews);
@@ -50,6 +55,71 @@ class OllamaProvider implements LLMProviderInterface
 
         } catch (\Exception $e) {
             LoggingService::log('Ollama analysis failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Analyze reviews in parallel chunks for better performance
+     */
+    private function analyzeReviewsInChunks(array $reviews): array
+    {
+        $chunkSize = 8; // Optimal chunk size based on testing
+        $chunks = array_chunk($reviews, $chunkSize);
+        
+        LoggingService::log('Processing '.count($reviews).' reviews in '.count($chunks).' chunks of '.$chunkSize.' for performance');
+        
+        try {
+            // Process chunks in parallel using Http::pool
+            $responses = Http::pool(function ($pool) use ($chunks) {
+                foreach ($chunks as $chunk) {
+                    $prompt = $this->buildOptimizedPrompt($chunk);
+                    $pool->timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
+                        'model' => $this->model,
+                        'prompt' => $prompt,
+                        'stream' => false,
+                        'options' => [
+                            'temperature' => 0.1,
+                            'num_ctx' => 4096,
+                            'top_p' => 0.8
+                        ]
+                    ]);
+                }
+            });
+
+            // Combine results from all chunks
+            $allResults = [];
+            $successfulChunks = 0;
+            
+            foreach ($responses as $index => $response) {
+                if ($response instanceof \Exception) {
+                    LoggingService::log('Chunk '.($index + 1).' failed with exception: '.$response->getMessage());
+                    continue;
+                }
+                
+                if ($response->successful()) {
+                    $chunkResults = $this->parseAnalysisResponse($response->json()['response']);
+                    if (isset($chunkResults['detailed_scores'])) {
+                        $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
+                    }
+                    $successfulChunks++;
+                } else {
+                    LoggingService::log('Chunk '.($index + 1).' failed with status: '.$response->status());
+                }
+            }
+
+            LoggingService::log('Chunked analysis completed: '.$successfulChunks.'/'.count($chunks).' chunks successful');
+
+            return [
+                'detailed_scores' => $allResults,
+                'analysis_provider' => $this->getProviderName(),
+                'total_cost' => 0.0,
+                'chunks_processed' => $successfulChunks,
+                'total_chunks' => count($chunks)
+            ];
+
+        } catch (\Exception $e) {
+            LoggingService::log('Chunked analysis failed: ' . $e->getMessage());
             throw $e;
         }
     }
