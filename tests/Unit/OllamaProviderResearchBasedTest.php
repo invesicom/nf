@@ -50,13 +50,11 @@ class OllamaProviderResearchBasedTest extends TestCase
             $body = $request->data();
             $prompt = $body['prompt'];
             
-            // Check for key research-based elements
-            $this->assertStringContainsString('marketplace integrity analyst', $prompt);
-            $this->assertStringContainsString('forensic-linguistic cues', $prompt);
-            $this->assertStringContainsString('multiple independent signals', $prompt);
+            // Check for key research-based elements (updated for optimized prompt)
+            $this->assertStringContainsString('Marketplace integrity analyst', $prompt);
             $this->assertStringContainsString('bounded adjustments', $prompt);
             $this->assertStringContainsString('BIAS GUARDRAILS', $prompt);
-            $this->assertStringContainsString('NEGATIVE REVIEWS: Detailed complaints with specific issues are AUTHENTIC', $prompt);
+            $this->assertStringContainsString('NEGATIVE REVIEWS: Detailed complaints are AUTHENTIC', $prompt);
             
             // Verify temperature is set for consistency
             $this->assertEquals(0.1, $body['options']['temperature']);
@@ -273,10 +271,9 @@ class OllamaProviderResearchBasedTest extends TestCase
         Http::assertSent(function ($request) {
             $prompt = $request->data()['prompt'];
             
-            // Verify bias guardrails are included
-            $this->assertStringContainsString('Do not penalize non-native writing, brevity, or sentiment extremes alone', $prompt);
-            $this->assertStringContainsString('Detailed complaints with specific issues are AUTHENTIC', $prompt);
-            $this->assertStringContainsString('Require ≥2 independent fake signals to label fake', $prompt);
+            // Verify bias guardrails are included (updated for optimized prompt)
+            $this->assertStringContainsString('Don\'t penalize non-native writing or brevity alone', $prompt);
+            $this->assertStringContainsString('Detailed complaints are AUTHENTIC', $prompt);
             
             return true;
         });
