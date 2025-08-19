@@ -70,7 +70,18 @@ class ScrapeAmazonProductData implements ShouldQueue
             );
 
             if (empty($productData)) {
-                throw new \Exception('Failed to scrape product data - no data returned');
+                LoggingService::log('Product data scraping failed - continuing without product metadata', [
+                    'asin' => $this->asinData->asin,
+                    'country' => $this->asinData->country,
+                    'reason' => 'Amazon may be blocking scraper or page structure changed'
+                ]);
+                
+                // Mark as attempted but don't fail the job
+                $this->asinData->update([
+                    'product_data_scraped_at' => now(),
+                    'have_product_data' => false
+                ]);
+                return;
             }
 
             // Only update fields that are actually missing or empty
