@@ -28,7 +28,7 @@ class OllamaProvider implements LLMProviderInterface
         LoggingService::log('Sending '.count($reviews).' reviews to Ollama for analysis');
 
         // PERFORMANCE FIX: Process reviews in chunks to avoid overloading Ollama
-        $chunkSize = 5; // Process 5 reviews at a time for better performance
+        $chunkSize = 2; // Process 2 reviews at a time for balanced performance
         $allResults = [];
         
         $chunks = array_chunk($reviews, $chunkSize);
@@ -107,23 +107,23 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        // PERFORMANCE OPTIMIZED: Minimal prompt for fast Ollama processing
-        $prompt = "Score Amazon reviews 0-100 (0=real, 100=fake). Return JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
-        $prompt .= "FAKE signs: Generic praise, \"Amazing!\", \"Perfect!\", short+vague, unverified\n";
-        $prompt .= "REAL signs: Specific details, complaints, problems, verified purchase\n\n";
+        // BALANCED: Essential guidance with performance optimization
+        $prompt = "Fake review score 0-100 (0=real, 100=fake):\n";
+        $prompt .= "• Generic praise = higher score\n";
+        $prompt .= "• Specific details = lower score\n";
+        $prompt .= "JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
 
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
             
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 200); // Reduced from 400 to 200 chars
+                $text = substr($review['review_text'], 0, 150); // Balanced: 150 chars
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 200);
+                $text = substr($review['text'], 0, 150);
             }
 
-            $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}\n";
-            $prompt .= "R: {$text}\n\n";
+            $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}: {$text}\n";
         }
 
         return $prompt;
