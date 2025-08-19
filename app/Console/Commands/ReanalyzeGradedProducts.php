@@ -300,9 +300,9 @@ class ReanalyzeGradedProducts extends Command
         $reviews = $product->getReviewsArray();
         $totalReviews = count($reviews);
         
-        // Apply generous reduction based on research-based methodology
-        // Reduce fake percentage by 30-40% to account for previous over-strictness
-        $reductionFactor = 0.35; // 35% reduction on average
+        // Apply moderate reduction based on research-based methodology
+        // More conservative approach to avoid over-correction
+        $reductionFactor = 0.15; // 15% reduction on average (was 35% - too aggressive)
         
         // Additional reduction for products with many unverified reviews
         // (these were likely over-penalized by the old system)
@@ -319,11 +319,11 @@ class ReanalyzeGradedProducts extends Command
             $genuineRatingSum += $review['rating'];
         }
         
-        // If mostly unverified (common for legitimate products), be more generous
+        // If mostly unverified (common for legitimate products), be slightly more generous
         if ($totalReviews > 0) {
             $unverifiedRatio = $unverifiedCount / $totalReviews;
-            if ($unverifiedRatio > 0.8) {
-                $reductionFactor += 0.1; // Extra 10% reduction for mostly unverified
+            if ($unverifiedRatio > 0.9) { // Only for 90%+ unverified (was 80% - too broad)
+                $reductionFactor += 0.05; // Extra 5% reduction (was 10% - too much)
             }
         }
         
@@ -333,18 +333,19 @@ class ReanalyzeGradedProducts extends Command
         // Additional logic: Products with detailed negative reviews should be treated as more genuine
         $hasDetailedNegatives = false;
         foreach ($reviews as $review) {
-            if ($review['rating'] <= 3 && strlen($review['review_text']) > 100) {
+            if ($review['rating'] <= 3 && strlen($review['review_text'] ?? '') > 150) { // Stricter criteria
                 $hasDetailedNegatives = true;
                 break;
             }
         }
         
         if ($hasDetailedNegatives) {
-            $newFakePercentage *= 0.8; // Additional 20% reduction for detailed complaints
+            $newFakePercentage *= 0.9; // Smaller additional reduction (was 0.8 - too aggressive)
         }
         
-        // Ensure reasonable bounds (don't go below 5% or above 85%)
-        $newFakePercentage = max(5, min(85, $newFakePercentage));
+        // Ensure reasonable bounds (don't go below 20% or above 85%)
+        // Minimum of 20% prevents everything from becoming Grade A
+        $newFakePercentage = max(20, min(85, $newFakePercentage));
         
         // Calculate new grade based on adjusted percentage
         $newGrade = $this->calculateGradeFromPercentage($newFakePercentage);
@@ -362,7 +363,7 @@ class ReanalyzeGradedProducts extends Command
             'adjusted_rating' => round($adjustedRating, 2),
             'amazon_rating' => round($amazonRating, 2),
             'analysis_notes' => ($product->analysis_notes ? $product->analysis_notes . '; ' : '') . 
-                               "Fast reanalysis applied research-based generous adjustment (-" . 
+                               "Fast reanalysis applied research-based moderate adjustment (-" . 
                                round(($currentFakePercentage - $newFakePercentage), 1) . "%) on " . now(),
         ]);
         

@@ -184,12 +184,12 @@ class ProductsPageTest extends TestCase
         $response->assertSee('Second Test Product');
         $response->assertSee('Third Test Product');
         
-        // Verify ordering by checking that products are returned in desc order by updated_at
+        // Verify ordering by checking that products are returned in desc order by first_analyzed_at
         $productCollection = $products->getCollection();
         $this->assertEquals(3, $productCollection->count());
         
-        // Check that the first product has a more recent updated_at than the last
-        $this->assertTrue($productCollection[0]->updated_at >= $productCollection[2]->updated_at);
+        // Check that the first product has a more recent first_analyzed_at than the last
+        $this->assertTrue($productCollection[0]->first_analyzed_at >= $productCollection[2]->first_analyzed_at);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
