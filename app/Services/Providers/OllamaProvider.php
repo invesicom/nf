@@ -88,15 +88,15 @@ class OllamaProvider implements LLMProviderInterface
         // ULTRA MINIMAL: Absolute minimum for production performance
         $prompt = "Score 0-100 fake. JSON: [{\"id\":\"X\",\"score\":Y}]\n";
 
-        // Only process first 10 reviews to limit resource usage
-        $limitedReviews = array_slice($reviews, 0, 10);
+        // Process all reviews like the original system
+        $limitedReviews = $reviews;
         
         foreach ($limitedReviews as $review) {
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 150); // Reasonable length for analysis
+                $text = substr($review['review_text'], 0, 400); // Same as original system
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 150);
+                $text = substr($review['text'], 0, 400);
             }
 
             $prompt .= "{$review['id']}:{$review['rating']}:{$text}\n";
