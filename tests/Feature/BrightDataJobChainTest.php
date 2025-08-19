@@ -166,14 +166,7 @@ class BrightDataJobChainTest extends TestCase
         $this->assertCount(3, $reviews);
     }
 
-    #[Test]
-    public function sync_mode_works_without_job_chain()
-    {
-        // Skip this test - sync mode behavior is complex and requires investigation
-        // The sync mode may still trigger some jobs or have different service paths
-        // This should be tested in a dedicated sync mode test suite with proper mocking
-        $this->markTestSkipped('Sync mode behavior requires dedicated test suite - async job chain is primary focus');
-    }
+
 
     private function createMockBrightDataResponse(): array
     {
