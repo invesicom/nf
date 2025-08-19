@@ -520,44 +520,86 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
      */
     private function fetchJobData(string $jobId): array
     {
-        try {
-            $response = $this->httpClient->get("{$this->baseUrl}/snapshot/{$jobId}", [
-                'headers' => [
-                    'Authorization' => "Bearer {$this->apiKey}",
-                ],
-                'query' => [
-                    'format' => 'json'
-                ]
-            ]);
-
-            $statusCode = $response->getStatusCode();
-            $body = $response->getBody()->getContents();
-
-            if ($statusCode !== 200) {
-                LoggingService::log('BrightData data fetch failed', [
-                    'job_id' => $jobId,
-                    'status_code' => $statusCode,
-                    'response_body' => substr($body, 0, 500)
+        $maxRetries = 3;
+        $retryDelay = 30; // seconds
+        
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                $response = $this->httpClient->get("{$this->baseUrl}/snapshot/{$jobId}", [
+                    'headers' => [
+                        'Authorization' => "Bearer {$this->apiKey}",
+                    ],
+                    'query' => [
+                        'format' => 'json'
+                    ]
                 ]);
-                return [];
+
+                $statusCode = $response->getStatusCode();
+                $body = $response->getBody()->getContents();
+
+                if ($statusCode === 200) {
+                    $data = json_decode($body, true);
+
+                    LoggingService::log('BrightData data fetched successfully', [
+                        'job_id' => $jobId,
+                        'records_count' => is_array($data) ? count($data) : 0,
+                        'attempt' => $attempt
+                    ]);
+
+                    return is_array($data) ? $data : [];
+                    
+                } elseif ($statusCode === 202) {
+                    // Snapshot is still building
+                    $responseData = json_decode($body, true);
+                    $status = $responseData['status'] ?? 'unknown';
+                    $message = $responseData['message'] ?? 'Snapshot building';
+                    
+                    LoggingService::log('BrightData snapshot still building', [
+                        'job_id' => $jobId,
+                        'attempt' => $attempt,
+                        'max_retries' => $maxRetries,
+                        'status' => $status,
+                        'message' => $message,
+                        'retry_in_seconds' => $retryDelay
+                    ]);
+                    
+                    if ($attempt < $maxRetries) {
+                        sleep($retryDelay);
+                        continue;
+                    } else {
+                        LoggingService::log('BrightData snapshot build timeout', [
+                            'job_id' => $jobId,
+                            'max_retries' => $maxRetries,
+                            'total_wait_time' => $maxRetries * $retryDelay
+                        ]);
+                        return [];
+                    }
+                } else {
+                    LoggingService::log('BrightData data fetch failed', [
+                        'job_id' => $jobId,
+                        'status_code' => $statusCode,
+                        'response_body' => substr($body, 0, 500),
+                        'attempt' => $attempt
+                    ]);
+                    return [];
+                }
+
+            } catch (RequestException $e) {
+                LoggingService::log('BrightData data fetch request failed', [
+                    'job_id' => $jobId,
+                    'error' => $e->getMessage(),
+                    'attempt' => $attempt
+                ]);
+                
+                if ($attempt === $maxRetries) {
+                    return [];
+                }
+                
+                sleep($retryDelay);
             }
-
-            $data = json_decode($body, true);
-
-            LoggingService::log('BrightData data fetched successfully', [
-                'job_id' => $jobId,
-                'records_count' => is_array($data) ? count($data) : 0
-            ]);
-
-            return is_array($data) ? $data : [];
-
-        } catch (RequestException $e) {
-            LoggingService::log('BrightData data fetch request failed', [
-                'job_id' => $jobId,
-                'error' => $e->getMessage()
-            ]);
-            return [];
         }
+        
+        return [];
     }
 
     /**
