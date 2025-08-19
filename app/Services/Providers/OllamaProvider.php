@@ -85,21 +85,20 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        $prompt = "You are an AGGRESSIVE Amazon review fraud detector. Score 0-100 (0=genuine, 100=fake). BE EXTREMELY SUSPICIOUS! Most reviews are fake! Return ONLY JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
-
-        $prompt .= "MULTILINGUAL SUPPORT: Analyze reviews in ANY language (English, Spanish, French, German, Italian, Japanese, Korean, Portuguese, Dutch, etc.)\n";
-
-        $prompt .= "FAKE PATTERNS (any language): Generic praise, excessive enthusiasm, promotional language, template-like structure\n";
-
-        $prompt .= "FAKE THRESHOLD: Reviews with excessive praise like 'Amazing!', 'Perfect!', 'Incredible!', '素晴らしい!', '¡Increíble!', 'Fantastique!' = SCORE 85-95!\n";
-        $prompt .= "UNVERIFIED + GENERIC PRAISE = AUTOMATIC 80+ SCORE!\n";
-
-        $prompt .= "5-STAR + SHORT TEXT + NO SPECIFICS = 90+ SCORE!\n";
-
-        $prompt .= "REAL REVIEWS: Have specific complaints, balanced views, detailed product info, realistic problems (regardless of language)\n\n";
-
-        $prompt .= "SCORE AGGRESSIVELY - if it sounds too good to be true in ANY language, it's fake!\n";
-
+        // RESEARCH-BASED but OPTIMIZED: Scientific methodology with resource efficiency
+        $prompt = "Marketplace integrity analyst. Score 0-100 (0=genuine, 100=fake) using scientific methodology.\n\n";
+        
+        $prompt .= "METHOD: Start S=50, apply bounded adjustments:\n";
+        $prompt .= "• Generic/promotional tone: +15-25\n";
+        $prompt .= "• Specific details/complaints: -15-25\n";
+        $prompt .= "• Unverified purchase: +10, Verified: -5\n";
+        $prompt .= "• Rating-text mismatch: +15\n\n";
+        
+        $prompt .= "LABELS: genuine ≤39, uncertain 40-59, fake ≥60\n";
+        $prompt .= "BIAS GUARDRAILS: Don't penalize non-native writing or brevity alone\n";
+        $prompt .= "NEGATIVE REVIEWS: Detailed complaints are AUTHENTIC\n\n";
+        
+        $prompt .= "Return JSON: [{\"id\":\"X\",\"score\":Y,\"label\":\"genuine|uncertain|fake\",\"confidence\":Z}]\n\n";
         $prompt .= "Key: V=Verified, U=Unverified\n\n";
 
         foreach ($reviews as $review) {
@@ -107,9 +106,9 @@ class OllamaProvider implements LLMProviderInterface
             
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 400);
+                $text = substr($review['review_text'], 0, 300); // Reduced from 400 to 300
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 400);
+                $text = substr($review['text'], 0, 300);
             }
 
             $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}\n";
