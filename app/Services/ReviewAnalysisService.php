@@ -130,7 +130,25 @@ class ReviewAnalysisService
         $reviews = $asinData->getReviewsArray();
 
         if (empty($reviews)) {
-            throw new \Exception('No reviews available for analysis');
+            LoggingService::log('No reviews found for analysis - setting default values', [
+                'asin' => $asinData->asin,
+                'country' => $asinData->country
+            ]);
+            
+            // Set default values for products with no reviews
+            $asinData->fake_percentage = 0;
+            $asinData->grade = 'N/A';
+            $asinData->explanation = 'No reviews available for analysis';
+            $asinData->openai_result = json_encode([
+                'detailed_scores' => [],
+                'analysis_provider' => 'none',
+                'total_cost' => 0.0,
+                'message' => 'No reviews found'
+            ]);
+            $asinData->status = 'completed';
+            $asinData->save();
+            
+            return $asinData;
         }
 
         LoggingService::log('Starting LLM analysis for ASIN: ' . $asinData->asin);
