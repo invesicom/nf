@@ -196,7 +196,7 @@ class ReviewAnalyzer extends Component
             }
 
             if ($productInfo['needs_openai']) {
-                $asinData = $analysisService->analyzeWithOpenAI($asinData);
+                $asinData = $analysisService->analyzeWithLLM($asinData);
             }
 
             $analysisResult = $analysisService->calculateFinalMetrics($asinData);

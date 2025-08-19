@@ -47,7 +47,7 @@ class ReviewAnalysisService
             
             // Step 3: Analyze with LLM if needed
             if ($existsResult['needs_openai'] || !$asinData->openai_result) {
-                $asinData = $this->analyzeWithOpenAI($asinData);
+                $asinData = $this->analyzeWithLLM($asinData);
             }
             
             // Step 4: Calculate final metrics
@@ -123,9 +123,9 @@ class ReviewAnalysisService
     }
 
     /**
-     * Analyze reviews with LLM
+     * Analyze reviews with LLM (supports OpenAI, Ollama, DeepSeek via LLMServiceManager)
      */
-    public function analyzeWithOpenAI(AsinData $asinData): AsinData
+    public function analyzeWithLLM(AsinData $asinData): AsinData
     {
         $reviews = $asinData->getReviewsArray();
 
