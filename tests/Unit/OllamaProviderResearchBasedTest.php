@@ -50,11 +50,9 @@ class OllamaProviderResearchBasedTest extends TestCase
             $body = $request->data();
             $prompt = $body['prompt'];
             
-            // Check for key research-based elements (updated for optimized prompt)
-            $this->assertStringContainsString('Marketplace integrity analyst', $prompt);
-            $this->assertStringContainsString('bounded adjustments', $prompt);
-            $this->assertStringContainsString('BIAS GUARDRAILS', $prompt);
-            $this->assertStringContainsString('NEGATIVE REVIEWS: Detailed complaints are AUTHENTIC', $prompt);
+            // Check for key ultra-optimized prompt elements
+            $this->assertStringContainsString('Rate fake probability 0-100', $prompt);
+            $this->assertStringContainsString('JSON:[{"id":"X","score":Y}]', $prompt);
             
             // Verify temperature is set for consistency
             $this->assertEquals(0.1, $body['options']['temperature']);
@@ -238,10 +236,10 @@ class OllamaProviderResearchBasedTest extends TestCase
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('TEST001', $result['detailed_scores']);
         
-        // Verify the request was made with 'U' for unverified (default)
+        // Verify the request was made with ultra-optimized format
         Http::assertSent(function ($request) {
             $body = $request->data();
-            $this->assertStringContainsString('TEST001 5/5 U', $body['prompt']);
+            $this->assertStringContainsString('TEST001:Test review without meta_data', $body['prompt']);
             return true;
         });
     }
@@ -271,9 +269,9 @@ class OllamaProviderResearchBasedTest extends TestCase
         Http::assertSent(function ($request) {
             $prompt = $request->data()['prompt'];
             
-            // Verify bias guardrails are included (updated for optimized prompt)
-            $this->assertStringContainsString('Don\'t penalize non-native writing or brevity alone', $prompt);
-            $this->assertStringContainsString('Detailed complaints are AUTHENTIC', $prompt);
+            // Verify ultra-optimized prompt format
+            $this->assertStringContainsString('Rate fake probability 0-100', $prompt);
+            $this->assertStringContainsString('TEST001:Product broke after one week', $prompt);
             
             return true;
         });
