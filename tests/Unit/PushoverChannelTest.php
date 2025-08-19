@@ -7,6 +7,7 @@ use App\Notifications\SystemAlert;
 use App\Enums\AlertType;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class PushoverChannelTest extends TestCase
 {
@@ -24,7 +25,7 @@ class PushoverChannelTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_formats_message_data_correctly()
     {
         // Test that the notification can create proper message data
@@ -47,7 +48,7 @@ class PushoverChannelTest extends TestCase
         $this->assertEquals('pushover', $message['sound']);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_missing_pushover_config()
     {
         // Override configuration to simulate missing config
@@ -73,7 +74,7 @@ class PushoverChannelTest extends TestCase
         $this->assertNull($result);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_emergency_priority_parameters()
     {
         $notification = new SystemAlert(
@@ -90,7 +91,7 @@ class PushoverChannelTest extends TestCase
         $this->assertEquals(3600, $message['expire']);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_sound_for_alert_types()
     {
         $notification = new SystemAlert(
@@ -104,7 +105,7 @@ class PushoverChannelTest extends TestCase
         $this->assertEquals('siren', $message['sound']);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_url_when_provided()
     {
         $notification = new SystemAlert(
@@ -123,7 +124,7 @@ class PushoverChannelTest extends TestCase
         $this->assertEquals('Fix Issue', $message['url_title']);
     }
 
-    /** @test */
+    #[Test]
     public function it_prevents_sending_in_testing_environment()
     {
         // This test verifies our safety mechanism works

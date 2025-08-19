@@ -7,6 +7,7 @@ use App\Notifications\Channels\PushoverChannel;
 use App\Notifications\SystemAlert;
 use Illuminate\Support\Facades\Config;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class SystemAlertTest extends TestCase
 {
@@ -21,7 +22,7 @@ class SystemAlertTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_pushover_channel()
     {
         $alert = new SystemAlert(
@@ -34,7 +35,7 @@ class SystemAlertTest extends TestCase
         $this->assertEquals([PushoverChannel::class], $channels);
     }
 
-    /** @test */
+    #[Test]
     public function it_creates_pushover_message_with_basic_data()
     {
         $alert = new SystemAlert(
@@ -52,7 +53,7 @@ class SystemAlertTest extends TestCase
         $this->assertEquals(1, $pushoverData['priority']); // High priority for Amazon session expired
     }
 
-    /** @test */
+    #[Test]
     public function it_sets_custom_priority()
     {
         $alert = new SystemAlert(
@@ -67,7 +68,7 @@ class SystemAlertTest extends TestCase
         $this->assertEquals(0, $pushoverData['priority']);
     }
 
-    /** @test */
+    #[Test]
     public function it_sets_url_and_url_title()
     {
         $alert = new SystemAlert(
@@ -85,7 +86,7 @@ class SystemAlertTest extends TestCase
         $this->assertEquals('Example Link', $pushoverData['url_title']);
     }
 
-    /** @test */
+    #[Test]
     public function it_sets_sound_for_alert_types()
     {
         $alert = new SystemAlert(
@@ -98,7 +99,7 @@ class SystemAlertTest extends TestCase
         $this->assertEquals('siren', $pushoverData['sound']);
     }
 
-    /** @test */
+    #[Test]
     public function it_includes_context_in_message()
     {
         $context = [
@@ -122,7 +123,7 @@ class SystemAlertTest extends TestCase
         $this->assertStringContainsString('Error code: QUOTA_EXCEEDED', $message);
     }
 
-    /** @test */
+    #[Test]
     public function it_filters_sensitive_context_data()
     {
         $context = [
@@ -149,7 +150,7 @@ class SystemAlertTest extends TestCase
         $this->assertStringNotContainsString('very-long-stack-trace', $message);
     }
 
-    /** @test */
+    #[Test]
     public function it_limits_context_items()
     {
         $context = [
@@ -177,7 +178,7 @@ class SystemAlertTest extends TestCase
         $this->assertStringNotContainsString('Item7: value7', $message);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_boolean_context_values()
     {
         $context = [
@@ -198,7 +199,7 @@ class SystemAlertTest extends TestCase
         $this->assertStringContainsString('Enabled: No', $message);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_array_context_values()
     {
         $context = [
@@ -219,7 +220,7 @@ class SystemAlertTest extends TestCase
         $this->assertStringNotContainsString('Large array:', $message);
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_alert_type()
     {
         $alert = new SystemAlert(
@@ -230,7 +231,7 @@ class SystemAlertTest extends TestCase
         $this->assertEquals(AlertType::DATABASE_ERROR, $alert->getAlertType());
     }
 
-    /** @test */
+    #[Test]
     public function it_returns_context()
     {
         $context = ['test' => 'value'];
@@ -244,7 +245,7 @@ class SystemAlertTest extends TestCase
         $this->assertEquals($context, $alert->getContext());
     }
 
-    /** @test */
+    #[Test]
     public function it_uses_default_priority_from_alert_type()
     {
         $alert = new SystemAlert(

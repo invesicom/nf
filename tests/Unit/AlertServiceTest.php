@@ -6,6 +6,7 @@ use App\Enums\AlertType;
 use App\Services\AlertService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class AlertServiceTest extends TestCase
@@ -43,7 +44,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_openai_quota_exceeded_alert()
     {
         // Test passes if no exception is thrown
@@ -51,7 +52,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_openai_api_error_alert()
     {
         // Test passes if no exception is thrown
@@ -59,7 +60,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_system_error_alert()
     {
         $exception = new \Exception('Test exception');
@@ -69,7 +70,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_database_error_alert()
     {
         $exception = new \Exception('DB connection failed');
@@ -79,7 +80,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_security_alert()
     {
         // Test passes if no exception is thrown
@@ -87,7 +88,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_respects_global_alert_disable()
     {
         config(['alerts.enabled' => false]);
@@ -97,7 +98,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_respects_specific_alert_type_disable()
     {
         config(['alerts.enabled_types.amazon_session_expired' => false]);
@@ -107,7 +108,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_throttling()
     {
         Cache::flush();
@@ -121,7 +122,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_log_only_mode()
     {
         config(['alerts.development.log_only' => true]);
@@ -131,7 +132,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_missing_pushover_config()
     {
         config([
@@ -145,7 +146,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_different_priorities()
     {
         // Test different OpenAI API error status codes (no exceptions thrown)
@@ -154,7 +155,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_context_data()
     {
         // Test passes if no exception is thrown with context data
@@ -166,7 +167,7 @@ class AlertServiceTest extends TestCase
         $this->assertTrue(true);
     }
 
-    /** @test */
+    #[Test]
     public function alert_type_enum_has_correct_values()
     {
         // Test AlertType enum functionality

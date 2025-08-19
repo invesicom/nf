@@ -6,6 +6,7 @@ use App\Services\ReviewService;
 use App\Services\ReviewAnalysisService;
 use App\Services\Amazon\BrightDataScraperService;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class InternationalUrlSupportTest extends TestCase
 {
@@ -19,7 +20,7 @@ class InternationalUrlSupportTest extends TestCase
         $this->analysisService = new ReviewAnalysisService($this->reviewService, $this->createMock(\App\Services\OpenAIService::class));
     }
 
-    /** @test */
+    #[Test]
     public function it_extracts_asin_from_international_urls()
     {
         $testCases = [
@@ -40,7 +41,7 @@ class InternationalUrlSupportTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_detects_country_from_international_urls()
     {
         $testCases = [
@@ -63,7 +64,7 @@ class InternationalUrlSupportTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function brightdata_service_builds_correct_international_urls()
     {
         $service = new BrightDataScraperService();
@@ -89,7 +90,7 @@ class InternationalUrlSupportTest extends TestCase
         }
     }
 
-    /** @test */
+    #[Test]
     public function it_handles_edge_cases_in_country_detection()
     {
         // Test that more specific domains are matched first (e.g., amazon.com.mx vs amazon.com)
@@ -99,7 +100,7 @@ class InternationalUrlSupportTest extends TestCase
         $this->assertEquals('us', $this->reviewService->extractCountryFromUrl('https://www.amazon.com/product/dp/B0123456789/'));
     }
 
-    /** @test */
+    #[Test]
     public function it_supports_all_documented_countries()
     {
         $supportedCountries = [

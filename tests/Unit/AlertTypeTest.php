@@ -4,10 +4,11 @@ namespace Tests\Unit;
 
 use App\Enums\AlertType;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class AlertTypeTest extends TestCase
 {
-    /** @test */
+    #[Test]
     public function it_has_correct_display_names()
     {
         $this->assertEquals('Amazon Session Expired', AlertType::AMAZON_SESSION_EXPIRED->getDisplayName());
@@ -18,7 +19,7 @@ class AlertTypeTest extends TestCase
         $this->assertEquals('Security Alert', AlertType::SECURITY_ALERT->getDisplayName());
     }
 
-    /** @test */
+    #[Test]
     public function it_has_correct_default_priorities()
     {
         // High priority alerts
@@ -38,7 +39,7 @@ class AlertTypeTest extends TestCase
         $this->assertEquals(0, AlertType::PERFORMANCE_ALERT->getDefaultPriority());
     }
 
-    /** @test */
+    #[Test]
     public function it_has_correct_default_sounds()
     {
         $this->assertEquals('siren', AlertType::SECURITY_ALERT->getDefaultSound());
@@ -51,7 +52,7 @@ class AlertTypeTest extends TestCase
         $this->assertNull(AlertType::SYSTEM_ERROR->getDefaultSound());
     }
 
-    /** @test */
+    #[Test]
     public function it_identifies_throttled_alert_types()
     {
         // These should be throttled
@@ -67,7 +68,7 @@ class AlertTypeTest extends TestCase
         $this->assertFalse(AlertType::OPENAI_API_ERROR->shouldThrottle());
     }
 
-    /** @test */
+    #[Test]
     public function it_has_correct_throttle_durations()
     {
         $this->assertEquals(60, AlertType::AMAZON_SESSION_EXPIRED->getThrottleDuration());
@@ -80,7 +81,7 @@ class AlertTypeTest extends TestCase
         $this->assertEquals(0, AlertType::DATABASE_ERROR->getThrottleDuration());
     }
 
-    /** @test */
+    #[Test]
     public function it_has_correct_enum_values()
     {
         $this->assertEquals('amazon_session_expired', AlertType::AMAZON_SESSION_EXPIRED->value);
@@ -95,7 +96,7 @@ class AlertTypeTest extends TestCase
         $this->assertEquals('performance_alert', AlertType::PERFORMANCE_ALERT->value);
     }
 
-    /** @test */
+    #[Test]
     public function all_alert_types_can_be_instantiated()
     {
         $alertTypes = [

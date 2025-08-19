@@ -12,6 +12,7 @@ use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class AmazonMultiSessionIntegrationTest extends TestCase
 {
@@ -42,7 +43,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
         parent::tearDown();
     }
 
-    /** @test */
+    #[Test]
     public function amazon_scraping_service_uses_multi_session_cookies()
     {
         // Create mock HTTP responses
@@ -61,7 +62,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
         $this->assertTrue(true); // If we get here without errors, the service works
     }
 
-    /** @test */
+    #[Test]
     public function captcha_detection_marks_session_unhealthy_and_alerts_with_session_info()
     {
         // Create a mock manager with specific sessions for this test
@@ -91,7 +92,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
         $this->assertEquals(2, $session2['index']);
     }
 
-    /** @test */
+    #[Test]
     public function session_rotation_distributes_load_across_sessions()
     {
         // Create a mock manager with 3 specific sessions
@@ -122,7 +123,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
         $this->assertEquals([1, 2, 3, 1, 2, 3], $usedSessions);
     }
 
-    /** @test */
+    #[Test]
     public function unhealthy_sessions_are_skipped_in_rotation()
     {
         // Create a mock manager with 3 specific sessions
@@ -156,7 +157,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
         $this->assertEquals([1, 3, 1, 3], $usedSessions);
     }
 
-    /** @test */
+    #[Test]
     public function cookie_session_manager_command_shows_session_status()
     {
         // This test would require mocking the command's CookieSessionManager
@@ -165,7 +166,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
              ->assertExitCode(0);
     }
 
-    /** @test */
+    #[Test]
     public function legacy_amazon_cookies_fallback_works()
     {
         // Test that the service can be created (which tests the fallback logic)

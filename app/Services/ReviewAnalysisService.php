@@ -128,7 +128,7 @@ class ReviewAnalysisService
     public function analyzeWithOpenAI(AsinData $asinData): AsinData
     {
         $reviews = $asinData->getReviewsArray();
-        
+
         if (empty($reviews)) {
             throw new \Exception('No reviews available for analysis');
         }
@@ -149,15 +149,15 @@ class ReviewAnalysisService
             LoggingService::log('LLM analysis completed for ASIN: ' . $asinData->asin);
             
             return $asinData->fresh();
-            
+
         } catch (\Exception $e) {
             LoggingService::handleException($e, 'LLM analysis failed for ASIN: ' . $asinData->asin);
             
             // Update status to indicate failure
             $asinData->update(['status' => 'failed']);
             
-            throw $e;
-        }
+                throw $e;
+            }
     }
 
     /**
@@ -174,7 +174,7 @@ class ReviewAnalysisService
     public function performEnhancedAnalysis(AsinData $asinData): array
     {
         $reviews = $asinData->getReviewsArray();
-        $openaiResult = $asinData->openai_result;
+            $openaiResult = $asinData->openai_result;
         
         if (empty($reviews) || empty($openaiResult)) {
             return [];
@@ -231,7 +231,7 @@ class ReviewAnalysisService
     private function analyzeTimeline(array $reviews): array
     {
         $timeline = [];
-        
+
         foreach ($reviews as $review) {
             if (isset($review['date'])) {
                 $date = date('Y-m', strtotime($review['date']));
@@ -250,7 +250,7 @@ class ReviewAnalysisService
     {
         $allWords = [];
         $uniqueWords = [];
-        
+
         foreach ($reviews as $review) {
             $text = strtolower($review['text'] ?? '');
             $words = str_word_count($text, 1);
@@ -261,7 +261,7 @@ class ReviewAnalysisService
 
         $totalWords = count($allWords);
         $uniqueWordCount = count(array_unique($uniqueWords));
-        
+
         return [
             'total_words' => $totalWords,
             'unique_words' => $uniqueWordCount,
@@ -280,7 +280,7 @@ class ReviewAnalysisService
 
         foreach ($reviews as $review) {
             if ($exampleCount >= $maxExamples) {
-                break;
+                    break;
             }
 
             $reviewId = $review['id'];
