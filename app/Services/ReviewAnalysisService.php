@@ -312,17 +312,7 @@ class ReviewAnalysisService
 
     private function calculateGrade($fakePercentage): string
     {
-        if ($fakePercentage <= 10) {
-            return 'A';
-        } elseif ($fakePercentage <= 20) {
-            return 'B';
-        } elseif ($fakePercentage <= 35) {
-            return 'C';
-        } elseif ($fakePercentage <= 50) {
-            return 'D';
-        } else {
-            return 'F';
-        }
+        return \App\Services\GradeCalculationService::calculateGrade($fakePercentage);
     }
 
     private function generateExplanation($totalReviews, $fakeCount, $fakePercentage): string

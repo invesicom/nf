@@ -100,7 +100,7 @@ class ReanalyzeGradedProducts extends Command
         $this->table(
             ['ASIN', 'Country', 'Current Grade', 'Fake %', 'Reviews', 'Last Updated'],
             $products->map(function ($product) {
-                $reviewCount = $product->reviews ? count(json_decode($product->reviews, true)) : 0;
+                $reviewCount = $product->reviews ? count($product->getReviewsArray()) : 0;
                 return [
                     $product->asin,
                     strtoupper($product->country),
@@ -372,11 +372,7 @@ class ReanalyzeGradedProducts extends Command
     
     private function calculateGradeFromPercentage(float $fakePercentage): string
     {
-        if ($fakePercentage <= 15) return 'A';
-        if ($fakePercentage <= 30) return 'B';
-        if ($fakePercentage <= 50) return 'C';
-        if ($fakePercentage <= 70) return 'D';
-        return 'F';
+        return \App\Services\GradeCalculationService::calculateGrade($fakePercentage);
     }
 
     private function processProductsInParallel($products, array $options): void
