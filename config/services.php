@@ -65,12 +65,6 @@ return [
         'cost_tracking' => env('LLM_COST_TRACKING', true),
     ],
 
-    'pushover' => [
-        'token' => env('PUSHOVER_APP_TOKEN'),
-        'user' => env('PUSHOVER_USER_KEY'),
-        'api_url' => env('PUSHOVER_API_URL', 'https://api.pushover.net/1/messages.json'),
-    ],
-
     'mailtrain' => [
         'base_url' => env('MAILTRAIN_BASE_URL'),
         'api_token' => env('MAILTRAIN_API_TOKEN'),
@@ -78,13 +72,15 @@ return [
         'timeout' => env('MAILTRAIN_TIMEOUT', 30),
     ],
 
-    'amazon_scraping' => [
-        'max_pages' => env('AMAZON_SCRAPING_MAX_PAGES', 10),
-        'target_reviews' => env('AMAZON_SCRAPING_TARGET_REVIEWS', 30),
-        'max_reviews' => env('AMAZON_SCRAPING_MAX_REVIEWS', 100),
-    ],
-
-    // Amazon validation is now handled client-side only
-    // Server skips validation to avoid IP throttling
+    /*
+    |--------------------------------------------------------------------------
+    | Note: Configuration Consolidation
+    |--------------------------------------------------------------------------
+    |
+    | Amazon-related settings moved to config/amazon.php
+    | Monitoring/alerting settings moved to config/monitoring.php
+    | Analysis settings remain in config/analysis.php
+    |
+    */
 
 ];

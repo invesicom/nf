@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AsinData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BatchJobTimestampPreservationTest extends TestCase
@@ -65,7 +66,7 @@ class BatchJobTimestampPreservationTest extends TestCase
             'updated_at should change when data is modified');
 
         // Assert that analysis_notes were added
-        $this->assertStringContains('Fast reanalysis applied', $product->analysis_notes);
+        $this->assertStringContainsString('Fast reanalysis applied', $product->analysis_notes);
     }
 
     #[Test]
@@ -100,13 +101,13 @@ class BatchJobTimestampPreservationTest extends TestCase
         $isReanalyzed = $product->last_analyzed_at && $product->first_analyzed_at && 
                        $product->last_analyzed_at->ne($product->first_analyzed_at);
 
-        // Should show original analysis date, not current time
-        $this->assertEquals($originalAnalysisDate, $displayTimestamp);
+        // Should show original analysis date, not current time (use format to avoid microsecond precision issues)
+        $this->assertEquals($originalAnalysisDate->format('Y-m-d H:i:s'), $displayTimestamp->format('Y-m-d H:i:s'));
         $this->assertFalse($isReanalyzed, 'Should not show as re-analyzed after batch operation');
         
         // Verify the display text would be about the original date
         $daysDiff = $displayTimestamp->diffInDays(now());
-        $this->assertEquals(5, $daysDiff, 'UI should show original analysis date (5 days ago)');
+        $this->assertEquals(5, round($daysDiff), 'UI should show original analysis date (5 days ago)');
     }
 
     #[Test]
@@ -222,9 +223,9 @@ class BatchJobTimestampPreservationTest extends TestCase
         // Verify that the golden rule is documented in the reanalysis command
         $commandFile = file_get_contents(app_path('Console/Commands/ReanalyzeGradedProducts.php'));
         
-        $this->assertStringContains('Do NOT update first_analyzed_at or last_analyzed_at', $commandFile,
+        $this->assertStringContainsString('Do NOT update first_analyzed_at or last_analyzed_at', $commandFile,
             'Golden rule should be documented in the reanalysis command');
-        $this->assertStringContains('preserve display order', $commandFile,
+        $this->assertStringContainsString('preserve display order', $commandFile,
             'The reason for the golden rule should be documented');
     }
 }
