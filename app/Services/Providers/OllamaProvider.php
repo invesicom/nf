@@ -27,31 +27,53 @@ class OllamaProvider implements LLMProviderInterface
 
         LoggingService::log('Sending '.count($reviews).' reviews to Ollama for analysis');
 
-        $prompt = $this->buildOptimizedPrompt($reviews);
+        // PERFORMANCE FIX: Process reviews in chunks to avoid overloading Ollama
+        $chunkSize = 5; // Process 5 reviews at a time for better performance
+        $allResults = [];
         
-        try {
-            $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
-                'model' => $this->model,
-                'prompt' => $prompt,
-                'stream' => false,
-                'options' => [
-                    'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
-                    'num_ctx' => 4096,
-                    'top_p' => 0.8 // Slightly more focused responses
-                ]
-            ]);
+        $chunks = array_chunk($reviews, $chunkSize);
+        LoggingService::log('Processing '.count($chunks).' chunks of '.$chunkSize.' reviews each');
+        
+        foreach ($chunks as $chunkIndex => $chunk) {
+            LoggingService::log('Processing chunk '.($chunkIndex + 1).'/'.count($chunks).' ('.count($chunk).' reviews)');
+            
+            $prompt = $this->buildOptimizedPrompt($chunk);
+            
+            try {
+                $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
+                    'model' => $this->model,
+                    'prompt' => $prompt,
+                    'stream' => false,
+                    'options' => [
+                        'temperature' => 0.1,
+                        'num_ctx' => 4096,
+                        'top_p' => 0.8
+                    ]
+                ]);
 
-            if ($response->successful()) {
-                $result = $response->json();
-                return $this->parseAnalysisResponse($result['response']);
+                if ($response->successful()) {
+                    $result = $response->json();
+                    $chunkResults = $this->parseAnalysisResponse($result['response']);
+                    
+                    // Merge results from this chunk
+                    if (isset($chunkResults['detailed_scores'])) {
+                        $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
+                    }
+                } else {
+                    throw new \Exception('Ollama API request failed: ' . $response->body());
+                }
+
+            } catch (\Exception $e) {
+                LoggingService::log('Ollama chunk analysis failed: ' . $e->getMessage());
+                throw $e;
             }
-
-            throw new \Exception('Ollama API request failed: ' . $response->body());
-
-        } catch (\Exception $e) {
-            LoggingService::log('Ollama analysis failed: ' . $e->getMessage());
-            throw $e;
         }
+        
+        return [
+            'detailed_scores' => $allResults,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost' => 0.0
+        ];
     }
 
     public function isAvailable(): bool
@@ -85,32 +107,19 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        $prompt = "ROLE: You are a marketplace integrity analyst. Use forensic-linguistic cues and review-metadata heuristics to assess if a review is likely fake or genuine.\n\n";
-        $prompt .= "OBJECTIVE: Return a fake_likelihood score (0-100; 0=clearly genuine, 100=clearly fake) using scientific methodology.\n\n";
-        $prompt .= "METHOD: Evaluate using multiple independent signals. Never rely on one signal alone.\n\n";
-        $prompt .= "SCORING RULE: Initialize S=50. Apply bounded adjustments:\n";
-        $prompt .= "• generic_promotional_tone: +0..+20\n";
-        $prompt .= "• rating_text_mismatch: +0..+15\n";
-        $prompt .= "• metadata_risk: -10..+10 (unverified/+; verified/-)\n";
-        $prompt .= "• inconsistencies_contradictions: +0..+15\n";
-        $prompt .= "• specificity_detail: -0..-20\n";
-        $prompt .= "• balanced_caveats: -0..-10\n";
-        $prompt .= "• usage_time_markers: -0..-10\n\n";
-        $prompt .= "LABELS: genuine ≤39, uncertain 40-59, fake ≥60. Require ≥2 independent fake signals to label fake.\n\n";
-        $prompt .= "BIAS GUARDRAILS: Do not penalize non-native writing, brevity, or sentiment extremes alone.\n";
-        $prompt .= "NEGATIVE REVIEWS: Detailed complaints with specific issues are AUTHENTIC, not fake.\n";
-        $prompt .= "GENUINE PATTERNS: Specific problems, balanced criticism, product knowledge, realistic expectations.\n\n";
-        $prompt .= "Return JSON: [{\"id\":\"X\",\"score\":Y,\"label\":\"genuine|uncertain|fake\",\"confidence\":Z}]\n\n";
-        $prompt .= "Key: V=Verified Purchase, U=Unverified, Vine=Amazon Vine\n\n";
+        // PERFORMANCE OPTIMIZED: Minimal prompt for fast Ollama processing
+        $prompt = "Score Amazon reviews 0-100 (0=real, 100=fake). Return JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
+        $prompt .= "FAKE signs: Generic praise, \"Amazing!\", \"Perfect!\", short+vague, unverified\n";
+        $prompt .= "REAL signs: Specific details, complaints, problems, verified purchase\n\n";
 
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
             
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 400);
+                $text = substr($review['review_text'], 0, 200); // Reduced from 400 to 200 chars
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 400);
+                $text = substr($review['text'], 0, 200);
             }
 
             $prompt .= "ID:{$review['id']} {$review['rating']}/5 {$verified}\n";
