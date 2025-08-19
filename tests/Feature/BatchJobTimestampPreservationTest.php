@@ -159,6 +159,8 @@ class BatchJobTimestampPreservationTest extends TestCase
             'status' => 'completed',
             'fake_percentage' => 85.0,
             'grade' => 'F',
+            'have_product_data' => true,
+            'product_title' => 'Test Product 1',
             'reviews' => [['rating' => 5, 'text' => 'Test', 'meta_data' => ['verified_purchase' => true]]],
             'openai_result' => ['detailed_scores' => [0 => 90]],
             'first_analyzed_at' => now()->subDays(10),
@@ -172,6 +174,8 @@ class BatchJobTimestampPreservationTest extends TestCase
             'status' => 'completed',
             'fake_percentage' => 80.0,
             'grade' => 'F',
+            'have_product_data' => true,
+            'product_title' => 'Test Product 2',
             'reviews' => [['rating' => 5, 'text' => 'Test', 'meta_data' => ['verified_purchase' => true]]],
             'openai_result' => ['detailed_scores' => [0 => 85]],
             'first_analyzed_at' => now()->subDays(5),
@@ -186,14 +190,30 @@ class BatchJobTimestampPreservationTest extends TestCase
             '--force' => true,
         ]);
 
-        // Check display order (newer analysis first)
-        $productsOrderedByAnalysisDate = AsinData::whereIn('asin', ['B0TESTORDER1', 'B0TESTORDER2'])
+        // Check display order using the SAME query as the controller
+        $productsOrderedByAnalysisDate = AsinData::where('status', 'completed')
+            ->whereNotNull('fake_percentage')
+            ->whereNotNull('grade')
+            ->where('have_product_data', true)
+            ->whereNotNull('product_title')
+            ->whereNotNull('reviews')
+            ->where('reviews', '!=', '[]')
+            ->whereIn('asin', ['B0TESTORDER1', 'B0TESTORDER2'])
             ->orderBy('first_analyzed_at', 'desc')
             ->get();
 
         // Newer product should still appear first in "recently analyzed" list
         $this->assertEquals('B0TESTORDER2', $productsOrderedByAnalysisDate->first()->asin);
         $this->assertEquals('B0TESTORDER1', $productsOrderedByAnalysisDate->last()->asin);
+        
+        // Verify that updated_at changed but first_analyzed_at didn't
+        $olderProduct->refresh();
+        $newerProduct->refresh();
+        
+        $this->assertEquals(now()->subDays(10)->format('Y-m-d H:i'), $olderProduct->first_analyzed_at->format('Y-m-d H:i'));
+        $this->assertEquals(now()->subDays(5)->format('Y-m-d H:i'), $newerProduct->first_analyzed_at->format('Y-m-d H:i'));
+        $this->assertTrue($olderProduct->updated_at->greaterThan(now()->subMinutes(1)));
+        $this->assertTrue($newerProduct->updated_at->greaterThan(now()->subMinutes(1)));
     }
 
     #[Test]

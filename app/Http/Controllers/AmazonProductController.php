@@ -398,7 +398,7 @@ class AmazonProductController extends Controller
             ->where('reviews', '!=', 'null')
             ->where('reviews', '!=', '"[]"')  // Handle JSON string representation of empty array
             ->whereRaw("JSON_LENGTH(CASE WHEN JSON_VALID(reviews) THEN reviews ELSE '[]' END) > 0")
-            ->orderBy('updated_at', 'desc')
+            ->orderBy('first_analyzed_at', 'desc')
             ->paginate(50);
 
         // Log query results for debugging
