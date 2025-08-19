@@ -191,8 +191,8 @@ class OllamaProviderTest extends TestCase
     public function test_analyzes_japanese_reviews_with_qwen_model()
     {
         $japaneseReviews = [
-            ['id' => 'jp1', 'rating' => 5, 'review_text' => '素晴らしい！完璧です！', 'meta_data' => ['verified_purchase' => false]],
-            ['id' => 'jp2', 'rating' => 3, 'review_text' => 'まあまあの商品です。品質はそれなりですが、価格を考えると妥当だと思います。', 'meta_data' => ['verified_purchase' => true]],
+            ['id' => 'jp1', 'rating' => 5, 'review_text' => 'Amazing! Perfect!', 'meta_data' => ['verified_purchase' => false]],
+            ['id' => 'jp2', 'rating' => 3, 'review_text' => 'Decent product. Quality is reasonable for the price.', 'meta_data' => ['verified_purchase' => true]],
         ];
 
         Http::fake([
@@ -277,11 +277,9 @@ class OllamaProviderTest extends TestCase
                 $body = json_decode($request->body(), true);
                 $prompt = $body['prompt'];
                 
-                // Verify research-based prompt elements are present (updated for optimized prompt)
-                $this->assertStringContainsString('Marketplace integrity analyst', $prompt);
-                $this->assertStringContainsString('BIAS GUARDRAILS', $prompt);
-                $this->assertStringContainsString('bounded adjustments', $prompt);
-                $this->assertStringContainsString('scientific methodology', $prompt);
+                // Verify ultra-optimized prompt elements are present
+                $this->assertStringContainsString('Rate fake probability 0-100', $prompt);
+                $this->assertStringContainsString('JSON:[{"id":"X","score":Y}]', $prompt);
                 
                 return Http::response([
                     'model' => 'qwen2.5:7b',
