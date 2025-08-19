@@ -77,7 +77,7 @@ class CompleteBrightDataAnalysis extends Command
             $session->updateProgress(4, 70, 'Analyzing reviews with AI...');
             
             // Analyze with AI
-            $asinData = $analysisService->analyzeWithOpenAI($asinData);
+            $asinData = $analysisService->analyzeWithLLM($asinData);
             
             // Update session progress
             $session->updateProgress(5, 85, 'Computing authenticity metrics...');

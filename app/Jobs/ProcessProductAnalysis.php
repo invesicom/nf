@@ -70,7 +70,7 @@ class ProcessProductAnalysis implements ShouldQueue
             // Step 4: Analyze with OpenAI if needed
             if ($productInfo['needs_openai']) {
                 $session->updateProgress(4, 70, 'Analyzing reviews with AI...');
-                $asinData = $analysisService->analyzeWithOpenAI($asinData);
+                $asinData = $analysisService->analyzeWithLLM($asinData);
             }
 
             // Step 5: Calculate final metrics

@@ -171,7 +171,7 @@ class ReanalyzeGradedProducts extends Command
                     $updatedProduct = $this->fastReanalyze($product, $provider);
                 } else {
                     $reviewAnalysisService = app(ReviewAnalysisService::class);
-                    $updatedProduct = $reviewAnalysisService->analyzeWithOpenAI($product);
+                    $updatedProduct = $reviewAnalysisService->analyzeWithLLM($product);
                     // calculateFinalMetrics returns array, but updates the model - get fresh model
                     $reviewAnalysisService->calculateFinalMetrics($updatedProduct);
                     $updatedProduct = $updatedProduct->fresh();
@@ -428,7 +428,7 @@ class ReanalyzeGradedProducts extends Command
                     $updatedProduct = $this->fastReanalyze($product, $options['provider'] ?? 'auto');
                 } else {
                     $reviewAnalysisService = app(ReviewAnalysisService::class);
-                    $updatedProduct = $reviewAnalysisService->analyzeWithOpenAI($product);
+                    $updatedProduct = $reviewAnalysisService->analyzeWithLLM($product);
                     $reviewAnalysisService->calculateFinalMetrics($updatedProduct);
                     $updatedProduct = $updatedProduct->fresh();
                 }
