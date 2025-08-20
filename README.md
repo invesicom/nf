@@ -223,16 +223,19 @@ cp docker.env.example .env
 # For OpenAI: Add your OPENAI_API_KEY
 # For local AI: Use OLLAMA (no API key needed)
 
-# 3. Start all services
+# 3. Start all services (automatic initialization included)
 docker-compose -f docker/docker-compose.yml up -d
 
-# 4. Initialize the application
-docker-compose -f docker/docker-compose.yml exec app php artisan key:generate
-docker-compose -f docker/docker-compose.yml exec app php artisan migrate
-
-# 5. Install local AI model (optional)
+# 4. Optional: Install local AI model
 docker-compose -f docker/docker-compose.yml exec ollama ollama pull phi4:14b
 ```
+
+**Automatic Setup:**
+The Docker containers now automatically handle:
+- Laravel app key generation
+- Database migrations  
+- Permissions setup
+- Directory creation
 
 **Access the Application:**
 - **Web Interface**: http://localhost:8080

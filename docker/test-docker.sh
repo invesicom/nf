@@ -45,13 +45,11 @@ else
     echo "❌ Database connection failed"
 fi
 
-# Generate app key if needed
-echo "🔑 Generating application key..."
-docker-compose -f docker-compose.yml exec -T app php artisan key:generate --force
-
-# Run migrations
-echo "📊 Running database migrations..."
-docker-compose -f docker-compose.yml exec -T app php artisan migrate --force
+# Application initialization is now handled by entrypoint script
+echo "🔧 Application initialization handled automatically by entrypoint script..."
+echo "   - Laravel app key generation"
+echo "   - Database migrations"
+echo "   - Permissions setup"
 
 # Test web server
 echo "🌐 Testing web server..."
