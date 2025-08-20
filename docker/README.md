@@ -14,15 +14,15 @@ This directory contains an **optional** Docker setup for running NullFake. Your 
    docker-compose -f docker/docker-compose.yml up -d
    ```
 
-3. **Run initial setup:**
+3. **Automatic initialization:**
+   The containers will automatically handle:
+   - Laravel app key generation
+   - Database migrations
+   - Permissions setup
+   - Directory creation
+   
    ```bash
-   # Generate application key
-   docker-compose -f docker/docker-compose.yml exec app php artisan key:generate
-   
-   # Run migrations
-   docker-compose -f docker/docker-compose.yml exec app php artisan migrate
-   
-   # Install Ollama model (optional, for local AI)
+   # Optional: Install Ollama model for local AI
    docker-compose -f docker/docker-compose.yml exec ollama ollama pull phi4:14b
    ```
 
@@ -102,8 +102,30 @@ This Docker setup is configured for development/testing. For production deployme
 
 ## Troubleshooting
 
+### Common Issues Fixed in This Version:
+
+- ✅ **Vendor directory issues**: Now uses named volumes to preserve composer dependencies
+- ✅ **Permission errors**: Entrypoint script automatically sets proper Laravel permissions
+- ✅ **Queue worker failures**: Fixed autoload.php path issues with proper volume mounting
+- ✅ **Manual setup**: Automatic initialization eliminates manual key generation and migrations
+
+### Additional Troubleshooting:
+
 - **Port conflicts**: Change ports in docker-compose.yml if 8080, 3307, or 11434 are already in use
-- **Permission issues**: Run `docker-compose -f docker/docker-compose.yml exec app chown -R www-data:www-data /var/www/html`
 - **Database connection**: Ensure DB_HOST=db in your .env file
 - **Queue not processing**: Check queue worker logs with `docker-compose -f docker/docker-compose.yml logs queue`
 - **MariaDB issues**: MariaDB is compatible with MySQL, no configuration changes needed
+- **Container initialization**: Check app logs for entrypoint script output: `docker-compose -f docker/docker-compose.yml logs app`
+
+### Volume Management:
+
+The setup now uses named volumes for:
+- `vendor_data`: Composer dependencies (preserves across container rebuilds)
+- `node_modules_data`: NPM dependencies (preserves across container rebuilds)
+- `db_data`: Database storage (persistent data)
+- `ollama_data`: AI model storage (persistent models)
+
+To reset everything (WARNING: destroys all data):
+```bash
+docker-compose -f docker/docker-compose.yml down -v
+```
