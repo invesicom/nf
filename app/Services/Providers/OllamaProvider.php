@@ -39,9 +39,9 @@ class OllamaProvider implements LLMProviderInterface
                 'stream' => false,
                 'options' => [
                     'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
-                    'num_ctx' => 512, // Minimal context for maximum speed
+                    'num_ctx' => 2048, // Increased context for better understanding (was 512)
                     'top_p' => 0.9, // Slightly more focused responses
-                    'num_predict' => 128 // Minimal output for efficiency
+                    'num_predict' => 512 // Increased output for detailed analysis (was 128)
                 ]
             ]);
 
@@ -91,23 +91,26 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        // ULTRA-OPTIMIZED: Minimal prompt for maximum speed while maintaining quality
-        $prompt = "Rate fake probability 0-100 (0=real, 100=fake):\n";
+        // BALANCED: Comprehensive analysis with reasonable performance
+        $prompt = "Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake).\n\n";
+        $prompt .= "Consider: Generic language (+20), specific complaints (-20), unverified purchase (+10), verified purchase (-5), excessive positivity (+15), balanced tone (-10).\n\n";
+        $prompt .= "Scoring: ≤39=genuine, 40-59=uncertain, ≥60=fake\n\n";
 
         foreach ($reviews as $review) {
-            $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
+            $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'Verified' : 'Unverified';
+            $rating = $review['rating'] ?? 'N/A';
             
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 100); // Ultra-short for speed
+                $text = substr($review['review_text'], 0, 300); // Increased from 100 to 300 for better context
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 100);
+                $text = substr($review['text'], 0, 300);
             }
 
-            $prompt .= "{$review['id']}:{$text}\n";
+            $prompt .= "Review {$review['id']} ({$verified}, {$rating}★): {$text}\n\n";
         }
 
-        $prompt .= "JSON:[{\"id\":\"X\",\"score\":Y}]";
+        $prompt .= "Respond with JSON array: [{\"id\":\"review_id\",\"score\":number,\"label\":\"genuine|uncertain|fake\"}]\n";
         return $prompt;
     }
 
