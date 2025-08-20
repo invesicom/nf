@@ -18,6 +18,8 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
   - [Environment Setup](#environment-setup)
   - [Database Setup](#database-setup)
   - [Running the Application](#running-the-application)
+    - [Traditional Setup](#option-1-traditional-setup-recommended-for-development)
+    - [Docker Setup](#option-2-docker-setup-optional)
 - [How It Works](#how-it-works)
 - [Supported Countries](#supported-countries)
 - [Features](#features)
@@ -31,6 +33,11 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
   - [AJAX Bypass](#ajax-bypass-experimental)
 - [Database Schema](#database-schema)
 - [Technology Stack](#technology-stack)
+- [Docker Deployment](#docker-deployment)
+  - [Docker vs Traditional Setup](#docker-vs-traditional-setup)
+  - [Docker Quick Reference](#docker-quick-reference)
+  - [Docker Environment Configuration](#docker-environment-configuration)
+  - [Docker Services Architecture](#docker-services-architecture)
 - [Configuration](#configuration)
   - [LLM Provider Setup](#llm-provider-setup)
   - [Asynchronous Processing](#asynchronous-processing)
@@ -181,6 +188,8 @@ Before setting up Null Fake, ensure you have the following installed:
 
 ### Running the Application
 
+#### Option 1: Traditional Setup (Recommended for Development)
+
 1. **Start the Laravel development server:**
    ```bash
    php artisan serve
@@ -197,9 +206,58 @@ Before setting up Null Fake, ensure you have the following installed:
    npm run dev
    ```
 
+#### Option 2: Docker Setup (Optional)
+
+Docker provides an easy way to run NullFake with all dependencies included. This is perfect if you're not familiar with Laravel or want a quick setup.
+
+**Prerequisites:**
+- Docker and Docker Compose installed
+- No other services running on ports 8080, 3307, or 11434
+
+**Quick Start:**
+```bash
+# 1. Copy and configure environment
+cp docker.env.example .env
+
+# 2. Edit .env and configure at least one LLM provider:
+# For OpenAI: Add your OPENAI_API_KEY
+# For local AI: Use OLLAMA (no API key needed)
+
+# 3. Start all services
+docker-compose -f docker/docker-compose.yml up -d
+
+# 4. Initialize the application
+docker-compose -f docker/docker-compose.yml exec app php artisan key:generate
+docker-compose -f docker/docker-compose.yml exec app php artisan migrate
+
+# 5. Install local AI model (optional)
+docker-compose -f docker/docker-compose.yml exec ollama ollama pull phi4:14b
+```
+
+**Access the Application:**
+- **Web Interface**: http://localhost:8080
+- **Database**: localhost:3307 (user: faker, password: password)
+- **Ollama API**: http://localhost:11434
+
+**Docker Services Included:**
+- **PHP 8.3-FPM**: Laravel application
+- **Nginx**: Web server
+- **MariaDB**: Database
+- **Queue Worker**: Background job processing
+- **Ollama**: Local AI model server (optional)
+
+For detailed Docker documentation, troubleshooting, and advanced configuration, see the [Docker Setup Guide](docker/README.md).
+
 ### Quick Test
 
+**Traditional Setup:**
 1. Visit `http://localhost:8000`
+2. Enter an Amazon product URL (e.g., `https://amazon.com/dp/B08N5WRWNW`)
+3. Complete the captcha if enabled
+4. Watch the analysis process in real-time
+
+**Docker Setup:**
+1. Visit `http://localhost:8080`
 2. Enter an Amazon product URL (e.g., `https://amazon.com/dp/B08N5WRWNW`)
 3. Complete the captcha if enabled
 4. Watch the analysis process in real-time
@@ -250,6 +308,75 @@ DEEPSEEK_API_KEY=sk-your-deepseek-key-here
 DEEPSEEK_MODEL=deepseek-v3
 ```
 
+## Docker Deployment
+
+For users who prefer containerized deployment or want to avoid setting up PHP/MySQL locally, NullFake includes a complete Docker setup.
+
+### Docker vs Traditional Setup
+
+| Aspect | Traditional Setup | Docker Setup |
+|--------|------------------|--------------|
+| **Setup Time** | 15-30 minutes | 5-10 minutes |
+| **Prerequisites** | PHP 8.2+, MySQL, Node.js, Composer | Docker only |
+| **Best For** | Development, customization | Quick testing, production |
+| **Performance** | Native performance | Near-native (containerized) |
+| **Isolation** | Uses system resources | Fully isolated environment |
+
+### Docker Quick Reference
+
+```bash
+# Start services
+docker-compose -f docker/docker-compose.yml up -d
+
+# View logs
+docker-compose -f docker/docker-compose.yml logs -f
+
+# Access application container
+docker-compose -f docker/docker-compose.yml exec app bash
+
+# Run Laravel commands
+docker-compose -f docker/docker-compose.yml exec app php artisan [command]
+
+# Stop services
+docker-compose -f docker/docker-compose.yml down
+
+# Stop and remove data (WARNING: destroys database)
+docker-compose -f docker/docker-compose.yml down -v
+```
+
+### Docker Environment Configuration
+
+The Docker setup uses a template-based configuration approach:
+
+1. **Safe defaults** in `docker.env.example` (committed to git)
+2. **User customization** in `.env` (not committed to git)
+3. **External secrets** provided by users (API keys, etc.)
+
+**Required Configuration:**
+```bash
+# Copy template
+cp docker.env.example .env
+
+# Edit .env and add at least one LLM provider:
+OPENAI_API_KEY=sk-proj-your-key-here  # OR
+LLM_PRIMARY_PROVIDER=ollama            # (free, local AI)
+```
+
+### Docker Services Architecture
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│     Nginx       │    │   Laravel App   │    │    MariaDB      │
+│   (Port 8080)   │───▶│  (PHP 8.3-FPM) │───▶│  (Port 3307)    │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+                              │
+                              ▼
+┌─────────────────┐    ┌─────────────────┐
+│  Queue Worker   │    │     Ollama      │
+│ (Background)    │    │  (Port 11434)   │
+└─────────────────┘    └─────────────────┘
+```
+
 ### Troubleshooting
 
 **Common Issues:**
@@ -260,10 +387,18 @@ DEEPSEEK_MODEL=deepseek-v3
 4. **LLM provider errors:** Test your provider with `php artisan llm:manage test`
 5. **Amazon scraping fails:** Check your cookies/API keys and test with `php artisan test:amazon-scraping`
 
+**Docker-Specific Issues:**
+
+6. **Port conflicts:** Change ports in `docker/docker-compose.yml` if 8080, 3307, or 11434 are in use
+7. **500 errors:** Check that you've configured at least one LLM provider in `.env`
+8. **Database connection fails:** Ensure `DB_HOST=db` in your `.env` file
+9. **Containers won't start:** Run `docker-compose -f docker/docker-compose.yml logs` to see error details
+
 **Logs and Debugging:**
 - Application logs: `storage/logs/laravel.log`
 - Queue jobs: `php artisan queue:failed` to see failed jobs
 - Debug mode: Set `APP_DEBUG=true` in `.env`
+- Docker logs: `docker-compose -f docker/docker-compose.yml logs [service]`
 
 ## How It Works
 
