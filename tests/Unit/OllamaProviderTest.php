@@ -266,10 +266,10 @@ class OllamaProviderTest extends TestCase
         $this->assertEquals(22, $mix2Score); // Mixed language genuine
     }
 
-    public function test_prompt_includes_multilingual_instructions()
+    public function test_prompt_includes_balanced_analysis_instructions()
     {
         $reviews = [
-            ['id' => 1, 'rating' => 5, 'review_text' => 'Test', 'meta_data' => ['verified_purchase' => true]]
+            ['id' => 1, 'rating' => 5, 'review_text' => 'Test review content', 'meta_data' => ['verified_purchase' => true]]
         ];
         
         Http::fake([
@@ -277,13 +277,16 @@ class OllamaProviderTest extends TestCase
                 $body = json_decode($request->body(), true);
                 $prompt = $body['prompt'];
                 
-                // Verify ultra-optimized prompt elements are present
-                $this->assertStringContainsString('Rate fake probability 0-100', $prompt);
-                $this->assertStringContainsString('JSON:[{"id":"X","score":Y}]', $prompt);
+                // Verify balanced prompt elements are present
+                $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
+                $this->assertStringContainsString('Consider: Generic language (+20), specific complaints (-20)', $prompt);
+                $this->assertStringContainsString('Scoring: ≤39=genuine, 40-59=uncertain, ≥60=fake', $prompt);
+                $this->assertStringContainsString('Review 1 (Verified, 5★)', $prompt);
+                $this->assertStringContainsString('Respond with JSON array: [{"id":"review_id","score":number,"label":"genuine|uncertain|fake"}]', $prompt);
                 
                 return Http::response([
                     'model' => 'qwen2.5:7b',
-                    'response' => '[{"id": 1, "score": 15}]',
+                    'response' => '[{"id": 1, "score": 15, "label": "genuine"}]',
                     'done' => true,
                 ]);
             }

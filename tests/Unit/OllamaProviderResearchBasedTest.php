@@ -50,12 +50,17 @@ class OllamaProviderResearchBasedTest extends TestCase
             $body = $request->data();
             $prompt = $body['prompt'];
             
-            // Check for key ultra-optimized prompt elements
-            $this->assertStringContainsString('Rate fake probability 0-100', $prompt);
-            $this->assertStringContainsString('JSON:[{"id":"X","score":Y}]', $prompt);
+            // Check for key balanced prompt elements
+            $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
+            $this->assertStringContainsString('Consider: Generic language (+20), specific complaints (-20)', $prompt);
+            $this->assertStringContainsString('Scoring: ≤39=genuine, 40-59=uncertain, ≥60=fake', $prompt);
             
             // Verify temperature is set for consistency
             $this->assertEquals(0.1, $body['options']['temperature']);
+            
+            // Verify increased context and output settings
+            $this->assertEquals(2048, $body['options']['num_ctx']);
+            $this->assertEquals(512, $body['options']['num_predict']);
             
             return true;
         });
@@ -236,10 +241,10 @@ class OllamaProviderResearchBasedTest extends TestCase
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('TEST001', $result['detailed_scores']);
         
-        // Verify the request was made with ultra-optimized format
+        // Verify the request was made with balanced format
         Http::assertSent(function ($request) {
             $body = $request->data();
-            $this->assertStringContainsString('TEST001:Test review without meta_data', $body['prompt']);
+            $this->assertStringContainsString('Review TEST001 (Unverified, 5★): Test review without meta_data', $body['prompt']);
             return true;
         });
     }
@@ -269,9 +274,9 @@ class OllamaProviderResearchBasedTest extends TestCase
         Http::assertSent(function ($request) {
             $prompt = $request->data()['prompt'];
             
-            // Verify ultra-optimized prompt format
-            $this->assertStringContainsString('Rate fake probability 0-100', $prompt);
-            $this->assertStringContainsString('TEST001:Product broke after one week', $prompt);
+            // Verify balanced prompt format
+            $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
+            $this->assertStringContainsString('Review TEST001 (Verified, 2★): Product broke after one week', $prompt);
             
             return true;
         });
