@@ -7,7 +7,6 @@ use App\Jobs\ProcessBrightDataResults;
 use App\Jobs\TriggerBrightDataScraping;
 use App\Models\AsinData;
 use App\Services\Amazon\BrightDataScraperService;
-use App\Services\ReviewAnalysisService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -54,17 +53,17 @@ class BrightDataJobChainTest extends TestCase
     public function it_dispatches_job_chain_when_async_enabled()
     {
         Queue::fake();
-        
+
         // Enable async mode
         putenv('ANALYSIS_ASYNC_ENABLED=true');
         config(['analysis.async_enabled' => true]);
-        
+
         // Ensure we're not detected as running in queue worker
         unset($_SERVER['argv']);
-        
+
         // Mock successful BrightData trigger response
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_job_12345'
+            'snapshot_id' => 's_test_job_12345',
         ])));
 
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
@@ -87,7 +86,7 @@ class BrightDataJobChainTest extends TestCase
 
         // Mock successful job trigger response
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_trigger'
+            'snapshot_id' => 's_test_trigger',
         ])));
 
         $job = new TriggerBrightDataScraping('B0TEST12345', 'us', $this->service);
@@ -95,8 +94,8 @@ class BrightDataJobChainTest extends TestCase
 
         // Should dispatch the progress check job with delay
         Queue::assertPushed(CheckBrightDataProgress::class, function ($job) {
-            return $job->asin === 'B0TEST12345' && 
-                   $job->country === 'us' && 
+            return $job->asin === 'B0TEST12345' &&
+                   $job->country === 'us' &&
                    $job->jobId === 's_test_trigger' &&
                    $job->attempt === 1;
         });
@@ -109,8 +108,8 @@ class BrightDataJobChainTest extends TestCase
 
         // Mock progress check response showing job is ready
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'total_rows' => 25
+            'status'     => 'ready',
+            'total_rows' => 25,
         ])));
 
         $job = new CheckBrightDataProgress('B0TEST12345', 'us', 's_test_ready', 1, $this->service);
@@ -118,8 +117,8 @@ class BrightDataJobChainTest extends TestCase
 
         // Should dispatch the results processing job
         Queue::assertPushed(ProcessBrightDataResults::class, function ($job) {
-            return $job->asin === 'B0TEST12345' && 
-                   $job->country === 'us' && 
+            return $job->asin === 'B0TEST12345' &&
+                   $job->country === 'us' &&
                    $job->jobId === 's_test_ready';
         });
     }
@@ -131,8 +130,8 @@ class BrightDataJobChainTest extends TestCase
 
         // Mock progress check response showing job is still running
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'running',
-            'message' => 'Still processing...'
+            'status'  => 'running',
+            'message' => 'Still processing...',
         ])));
 
         $job = new CheckBrightDataProgress('B0TEST12345', 'us', 's_test_running', 1, $this->service);
@@ -140,8 +139,8 @@ class BrightDataJobChainTest extends TestCase
 
         // Should reschedule another progress check with incremented attempt
         Queue::assertPushed(CheckBrightDataProgress::class, function ($job) {
-            return $job->asin === 'B0TEST12345' && 
-                   $job->country === 'us' && 
+            return $job->asin === 'B0TEST12345' &&
+                   $job->country === 'us' &&
                    $job->jobId === 's_test_running' &&
                    $job->attempt === 2;
         });
@@ -165,73 +164,71 @@ class BrightDataJobChainTest extends TestCase
         $this->assertNotNull($asinData);
         $this->assertEquals('Test Product Name', $asinData->product_title);
         $this->assertEquals('pending_analysis', $asinData->status);
-        
+
         $reviews = json_decode($asinData->reviews, true);
         $this->assertCount(3, $reviews);
     }
-
-
 
     private function createMockBrightDataResponse(): array
     {
         return [
             [
-                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-                'product_name' => 'Test Product Name',
-                'product_rating' => 4.6,
+                'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name'         => 'Test Product Name',
+                'product_rating'       => 4.6,
                 'product_rating_count' => 166807,
-                'rating' => 5,
-                'author_name' => 'Test Author 1',
-                'asin' => 'B0TEST12345',
-                'review_header' => 'Excellent product!',
-                'review_id' => 'R1TEST123',
-                'review_text' => 'This is an amazing product that works exactly as described.',
-                'author_id' => 'ATEST123',
-                'badge' => 'Verified Purchase',
-                'review_posted_date' => 'July 15, 2025',
-                'review_country' => 'United States',
-                'helpful_count' => 25,
-                'is_amazon_vine' => false,
-                'is_verified' => true
+                'rating'               => 5,
+                'author_name'          => 'Test Author 1',
+                'asin'                 => 'B0TEST12345',
+                'review_header'        => 'Excellent product!',
+                'review_id'            => 'R1TEST123',
+                'review_text'          => 'This is an amazing product that works exactly as described.',
+                'author_id'            => 'ATEST123',
+                'badge'                => 'Verified Purchase',
+                'review_posted_date'   => 'July 15, 2025',
+                'review_country'       => 'United States',
+                'helpful_count'        => 25,
+                'is_amazon_vine'       => false,
+                'is_verified'          => true,
             ],
             [
-                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-                'product_name' => 'Test Product Name',
-                'product_rating' => 4.6,
+                'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name'         => 'Test Product Name',
+                'product_rating'       => 4.6,
                 'product_rating_count' => 166807,
-                'rating' => 4,
-                'author_name' => 'Test Author 2',
-                'asin' => 'B0TEST12345',
-                'review_header' => 'Good value',
-                'review_id' => 'R2TEST456',
-                'review_text' => 'Solid product for the price point.',
-                'author_id' => 'ATEST456',
-                'badge' => 'Verified Purchase',
-                'review_posted_date' => 'July 10, 2025',
-                'review_country' => 'United States',
-                'helpful_count' => 12,
-                'is_amazon_vine' => false,
-                'is_verified' => true
+                'rating'               => 4,
+                'author_name'          => 'Test Author 2',
+                'asin'                 => 'B0TEST12345',
+                'review_header'        => 'Good value',
+                'review_id'            => 'R2TEST456',
+                'review_text'          => 'Solid product for the price point.',
+                'author_id'            => 'ATEST456',
+                'badge'                => 'Verified Purchase',
+                'review_posted_date'   => 'July 10, 2025',
+                'review_country'       => 'United States',
+                'helpful_count'        => 12,
+                'is_amazon_vine'       => false,
+                'is_verified'          => true,
             ],
             [
-                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-                'product_name' => 'Test Product Name',
-                'product_rating' => 4.6,
+                'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name'         => 'Test Product Name',
+                'product_rating'       => 4.6,
                 'product_rating_count' => 166807,
-                'rating' => 3,
-                'author_name' => 'Test Author 3',
-                'asin' => 'B0TEST12345',
-                'review_header' => 'Average product',
-                'review_id' => 'R3TEST789',
-                'review_text' => 'Works as expected but nothing special.',
-                'author_id' => 'ATEST789',
-                'badge' => 'Verified Purchase',
-                'review_posted_date' => 'July 5, 2025',
-                'review_country' => 'United States',
-                'helpful_count' => 5,
-                'is_amazon_vine' => true,
-                'is_verified' => true
-            ]
+                'rating'               => 3,
+                'author_name'          => 'Test Author 3',
+                'asin'                 => 'B0TEST12345',
+                'review_header'        => 'Average product',
+                'review_id'            => 'R3TEST789',
+                'review_text'          => 'Works as expected but nothing special.',
+                'author_id'            => 'ATEST789',
+                'badge'                => 'Verified Purchase',
+                'review_posted_date'   => 'July 5, 2025',
+                'review_country'       => 'United States',
+                'helpful_count'        => 5,
+                'is_amazon_vine'       => true,
+                'is_verified'          => true,
+            ],
         ];
     }
 }

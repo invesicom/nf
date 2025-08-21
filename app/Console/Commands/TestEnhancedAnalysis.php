@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\AsinData;
 use App\Services\ReviewAnalysisService;
+use Illuminate\Console\Command;
 
 class TestEnhancedAnalysis extends Command
 {
@@ -41,16 +41,17 @@ class TestEnhancedAnalysis extends Command
         $this->info('Usage:');
         $this->line('  --asin=B123456    Test specific ASIN');
         $this->line('  --recent          Test most recent analyzed product');
-        
+
         return 0;
     }
 
     private function testSpecificProduct(string $asin)
     {
         $asinData = AsinData::where('asin', $asin)->first();
-        
+
         if (!$asinData) {
             $this->error("Product with ASIN {$asin} not found");
+
             return 1;
         }
 
@@ -65,6 +66,7 @@ class TestEnhancedAnalysis extends Command
 
         if (!$asinData) {
             $this->warn('No products with detailed analysis found. Run a product analysis first.');
+
             return 1;
         }
 
@@ -83,14 +85,16 @@ class TestEnhancedAnalysis extends Command
 
             if (isset($result['error'])) {
                 $this->error($result['error']);
+
                 return 1;
             }
 
             $this->displayEnhancedResults($result);
-            return 0;
 
+            return 0;
         } catch (\Exception $e) {
             $this->error("Enhanced analysis failed: {$e->getMessage()}");
+
             return 1;
         }
     }

@@ -84,11 +84,11 @@ class CaptchaSessionPersistenceTest extends TestCase
         // Initially, captcha_passed should be false
         $component->assertSet('captcha_passed', false);
 
-        // Note: We can't easily test CAPTCHA HTML rendering because the Blade template uses 
-        // app()->environment() helper which can't be mocked. The test runs in 'testing' 
-        // environment so CAPTCHA is always bypassed. The CAPTCHA backend logic is tested 
+        // Note: We can't easily test CAPTCHA HTML rendering because the Blade template uses
+        // app()->environment() helper which can't be mocked. The test runs in 'testing'
+        // environment so CAPTCHA is always bypassed. The CAPTCHA backend logic is tested
         // in other tests that focus on the PHP validation logic.
-        
+
         // Instead, let's verify the component is in the correct initial state
         $this->assertTrue(true, 'CAPTCHA HTML rendering test skipped - backend logic tested elsewhere');
     }
@@ -123,7 +123,7 @@ class CaptchaSessionPersistenceTest extends TestCase
         // This validates that the analysis logic works correctly when CAPTCHA is not required
         $component->assertSet('isAnalyzed', true);
         $component->assertSet('error', null);
-        
+
         // In testing environment, captcha_passed remains false since CAPTCHA is bypassed
         $component->assertSet('captcha_passed', false);
     }
@@ -269,13 +269,19 @@ class CaptchaSessionPersistenceTest extends TestCase
         // In local/testing environment, analysis should proceed without captcha errors
         // The component should either succeed or fail for non-captcha reasons
         $error = $component->get('error');
-        
+
         // Assert that any error is NOT captcha-related
         if (!empty($error)) {
-            $this->assertStringNotContainsString('Captcha', $error, 
-                'CAPTCHA should be bypassed in local/testing environment, but got captcha error: ' . $error);
-            $this->assertStringNotContainsString('captcha', strtolower($error), 
-                'CAPTCHA should be bypassed in local/testing environment, but got captcha error: ' . $error);
+            $this->assertStringNotContainsString(
+                'Captcha',
+                $error,
+                'CAPTCHA should be bypassed in local/testing environment, but got captcha error: '.$error
+            );
+            $this->assertStringNotContainsString(
+                'captcha',
+                strtolower($error),
+                'CAPTCHA should be bypassed in local/testing environment, but got captcha error: '.$error
+            );
         }
 
         // Verify captcha_passed is not required to be set in local environment
@@ -328,11 +334,12 @@ class CaptchaSessionPersistenceTest extends TestCase
     private function mockReviewAnalysisService()
     {
         $mockAnalysisService = $this->createMock(ReviewAnalysisService::class);
-        
+
         $mockAnalysisService->method('checkProductExists')
                            ->willReturnCallback(function ($url) {
                                if (str_contains($url, 'B08N5WRWNW')) {
                                    $asinData1 = AsinData::where('asin', 'B08N5WRWNW')->first();
+
                                    return [
                                        'asin'           => 'B08N5WRWNW',
                                        'country'        => 'us',
@@ -344,6 +351,7 @@ class CaptchaSessionPersistenceTest extends TestCase
                                    ];
                                } else {
                                    $asinData2 = AsinData::where('asin', 'B081JLDJLB')->first();
+
                                    return [
                                        'asin'           => 'B081JLDJLB',
                                        'country'        => 'us',
@@ -370,4 +378,4 @@ class CaptchaSessionPersistenceTest extends TestCase
 
         App::instance(ReviewAnalysisService::class, $mockAnalysisService);
     }
-} 
+}

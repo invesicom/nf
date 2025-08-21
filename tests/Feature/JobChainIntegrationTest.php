@@ -48,18 +48,18 @@ class JobChainIntegrationTest extends TestCase
     public function brightdata_service_dispatches_async_job_chain_when_enabled()
     {
         Queue::fake();
-        
+
         putenv('ANALYSIS_ASYNC_ENABLED=true');
         config(['analysis.async_enabled' => true]);
-        
+
         // Ensure we're not detected as running in queue worker
         unset($_SERVER['argv']);
-        
+
         // Mock successful BrightData trigger response
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_job_12345'
+            'snapshot_id' => 's_test_job_12345',
         ])));
-        
+
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
         // Should create AsinData and dispatch job
@@ -75,43 +75,43 @@ class JobChainIntegrationTest extends TestCase
     public function brightdata_service_uses_sync_mode_when_in_queue_worker()
     {
         Queue::fake();
-        
+
         putenv('ANALYSIS_ASYNC_ENABLED=true'); // Enable async globally
-        
+
         // Simulate being in a queue worker by setting argv to include queue:work
         $_SERVER['argv'] = ['artisan', 'queue:work'];
-        
+
         // Mock successful BrightData responses for sync mode
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_job_12345'
+            'snapshot_id' => 's_test_job_12345',
         ])));
         // Add multiple progress responses in case of polling
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'running',
-            'records' => 0
+            'status'  => 'running',
+            'records' => 0,
         ])));
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 5
+            'status'  => 'ready',
+            'records' => 5,
         ])));
         $this->mockHandler->append(new Response(200, [], json_encode([
             [
-                'review_id' => 'R123',
-                'review_text' => 'Great product!',
-                'rating' => 5,
-                'is_verified' => true,
-                'product_name' => 'Test Product',
+                'review_id'            => 'R123',
+                'review_text'          => 'Great product!',
+                'rating'               => 5,
+                'is_verified'          => true,
+                'product_name'         => 'Test Product',
                 'product_rating_count' => 100,
-                'product_image_url' => 'https://example.com/image.jpg'
+                'product_image_url'    => 'https://example.com/image.jpg',
             ],
             [
-                'review_id' => 'R124',
+                'review_id'   => 'R124',
                 'review_text' => 'Good value',
-                'rating' => 4,
-                'is_verified' => false
-            ]
+                'rating'      => 4,
+                'is_verified' => false,
+            ],
         ])));
-        
+
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
         // Should have processed synchronously (no jobs dispatched)
@@ -119,47 +119,47 @@ class JobChainIntegrationTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    #[Test] 
+    #[Test]
     public function brightdata_service_uses_sync_mode_when_async_disabled()
     {
         Queue::fake();
-        
+
         // Set environment to ensure async is disabled
         config(['analysis.async_enabled' => false]);
         putenv('ANALYSIS_ASYNC_ENABLED=false');
         putenv('APP_ENV=local'); // Ensure not production
-        
+
         // Mock successful BrightData responses for sync mode
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_job_12345'
+            'snapshot_id' => 's_test_job_12345',
         ])));
         // Add multiple progress responses in case of polling
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'running',
-            'records' => 0
+            'status'  => 'running',
+            'records' => 0,
         ])));
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 5
+            'status'  => 'ready',
+            'records' => 5,
         ])));
         $this->mockHandler->append(new Response(200, [], json_encode([
             [
-                'review_id' => 'R123',
-                'review_text' => 'Great product!',
-                'rating' => 5,
-                'is_verified' => true,
-                'product_name' => 'Test Product',
+                'review_id'            => 'R123',
+                'review_text'          => 'Great product!',
+                'rating'               => 5,
+                'is_verified'          => true,
+                'product_name'         => 'Test Product',
                 'product_rating_count' => 100,
-                'product_image_url' => 'https://example.com/image.jpg'
+                'product_image_url'    => 'https://example.com/image.jpg',
             ],
             [
-                'review_id' => 'R124',
+                'review_id'   => 'R124',
                 'review_text' => 'Good value',
-                'rating' => 4,
-                'is_verified' => false
-            ]
+                'rating'      => 4,
+                'is_verified' => false,
+            ],
         ])));
-        
+
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
         // Should have processed synchronously

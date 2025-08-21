@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
 use App\Services\CaptchaService;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
 
 class CaptchaServiceTest extends TestCase
 {
@@ -63,10 +63,10 @@ class CaptchaServiceTest extends TestCase
 
         Http::fake([
             'https://www.google.com/recaptcha/api/siteverify' => Http::response([
-                'success' => true,
+                'success'      => true,
                 'challenge_ts' => '2023-01-01T00:00:00Z',
-                'hostname' => 'example.com'
-            ])
+                'hostname'     => 'example.com',
+            ]),
         ]);
 
         $result = $this->captchaService->verify('test-token', '127.0.0.1');
@@ -89,10 +89,10 @@ class CaptchaServiceTest extends TestCase
 
         Http::fake([
             'https://hcaptcha.com/siteverify' => Http::response([
-                'success' => true,
+                'success'      => true,
                 'challenge_ts' => '2023-01-01T00:00:00Z',
-                'hostname' => 'example.com'
-            ])
+                'hostname'     => 'example.com',
+            ]),
         ]);
 
         $result = $this->captchaService->verify('test-hcaptcha-token', '192.168.1.1');
@@ -115,9 +115,9 @@ class CaptchaServiceTest extends TestCase
 
         Http::fake([
             'https://www.google.com/recaptcha/api/siteverify' => Http::response([
-                'success' => false,
-                'error-codes' => ['invalid-input-response']
-            ])
+                'success'     => false,
+                'error-codes' => ['invalid-input-response'],
+            ]),
         ]);
 
         $result = $this->captchaService->verify('invalid-token');
@@ -133,8 +133,8 @@ class CaptchaServiceTest extends TestCase
 
         Http::fake([
             'https://www.google.com/recaptcha/api/siteverify' => Http::response([
-                'success' => true
-            ])
+                'success' => true,
+            ]),
         ]);
 
         $result = $this->captchaService->verify('test-token');
@@ -156,7 +156,7 @@ class CaptchaServiceTest extends TestCase
         Config::set('captcha.recaptcha.verify_url', 'https://www.google.com/recaptcha/api/siteverify');
 
         Http::fake([
-            'https://www.google.com/recaptcha/api/siteverify' => Http::response('invalid json', 200)
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response('invalid json', 200),
         ]);
 
         $result = $this->captchaService->verify('test-token');
@@ -171,7 +171,7 @@ class CaptchaServiceTest extends TestCase
         Config::set('captcha.recaptcha.verify_url', 'https://www.google.com/recaptcha/api/siteverify');
 
         Http::fake([
-            'https://www.google.com/recaptcha/api/siteverify' => Http::response([], 500)
+            'https://www.google.com/recaptcha/api/siteverify' => Http::response([], 500),
         ]);
 
         $result = $this->captchaService->verify('test-token');
@@ -188,12 +188,12 @@ class CaptchaServiceTest extends TestCase
         Http::fake([
             'https://www.google.com/recaptcha/api/siteverify' => Http::response([
                 'challenge_ts' => '2023-01-01T00:00:00Z',
-                'hostname' => 'example.com'
-            ])
+                'hostname'     => 'example.com',
+            ]),
         ]);
 
         $result = $this->captchaService->verify('test-token');
 
         $this->assertFalse($result);
     }
-} 
+}

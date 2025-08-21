@@ -25,8 +25,8 @@ class NewsletterSignup extends Component
 
     protected $messages = [
         'email.required' => 'Email address is required.',
-        'email.email' => 'Please enter a valid email address.',
-        'email.max' => 'Email address is too long.',
+        'email.email'    => 'Please enter a valid email address.',
+        'email.max'      => 'Email address is too long.',
     ];
 
     public function mount()
@@ -72,10 +72,10 @@ class NewsletterSignup extends Component
                 $this->subscribed = true;
                 $this->setSuccessMessage($result['message']);
                 $this->email = ''; // Clear email after successful subscription
-                
+
                 Log::info('Newsletter subscription successful via Livewire', [
-                    'email' => $this->email,
-                    'component' => 'NewsletterSignup'
+                    'email'     => $this->email,
+                    'component' => 'NewsletterSignup',
                 ]);
             } else {
                 // Handle specific error cases
@@ -85,14 +85,13 @@ class NewsletterSignup extends Component
                     $this->setErrorMessage($result['message'] ?? 'Failed to subscribe. Please try again later.');
                 }
             }
-
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->setErrorMessage($e->validator->errors()->first());
         } catch (\Exception $e) {
             Log::error('Newsletter subscription Livewire error', [
                 'email' => $this->email,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             $this->setErrorMessage('An unexpected error occurred. Please try again later.');
@@ -133,4 +132,4 @@ class NewsletterSignup extends Component
     {
         return view('livewire.newsletter-signup');
     }
-} 
+}

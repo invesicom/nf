@@ -61,8 +61,11 @@ class ReviewAnalyzerLivewireTest extends TestCase
         // Should have specific validation error about required URL
         $error = $component->get('error');
         $this->assertNotEmpty($error, 'Expected validation error for empty URL');
-        $this->assertStringContainsString('required', strtolower($error), 
-            'Error should mention that URL is required, got: ' . $error);
+        $this->assertStringContainsString(
+            'required',
+            strtolower($error),
+            'Error should mention that URL is required, got: '.$error
+        );
         $this->assertFalse($component->get('isAnalyzed'));
         $this->assertFalse($component->get('loading'));
     }
@@ -82,8 +85,11 @@ class ReviewAnalyzerLivewireTest extends TestCase
         // Should have specific validation error about invalid URL format
         $error = $component->get('error');
         $this->assertNotEmpty($error, 'Expected validation error for invalid URL');
-        $this->assertStringContainsString('valid', strtolower($error), 
-            'Error should mention URL validity, got: ' . $error);
+        $this->assertStringContainsString(
+            'valid',
+            strtolower($error),
+            'Error should mention URL validity, got: '.$error
+        );
         $this->assertFalse($component->get('isAnalyzed'));
         $this->assertFalse($component->get('loading'));
     }
@@ -92,7 +98,7 @@ class ReviewAnalyzerLivewireTest extends TestCase
     {
         // Force sync mode for this test
         config(['analysis.async_enabled' => false]);
-        
+
         // Create test data with product data to avoid job dispatch issues in tests
         $asinData = AsinData::create([
             'asin'              => 'B08N5WRWNW',
@@ -128,9 +134,11 @@ class ReviewAnalyzerLivewireTest extends TestCase
                   ->call('analyze');
 
         // Should succeed without errors and redirect to product page (has product data)
-        $this->assertEmpty($component->get('error'), 
-            'Analysis should succeed with existing data, but got error: ' . $component->get('error'));
-        
+        $this->assertEmpty(
+            $component->get('error'),
+            'Analysis should succeed with existing data, but got error: '.$component->get('error')
+        );
+
         // Sync flow redirects when product data exists (have_product_data = true in test)
         $component->assertRedirect();
     }
@@ -189,8 +197,11 @@ class ReviewAnalyzerLivewireTest extends TestCase
         // Check that error is set and is the expected error
         $error = $component->get('error');
         $this->assertNotEmpty($error, 'Expected error to be set when service throws exception');
-        $this->assertStringNotContainsString('Captcha', $error, 
-            'Error should not be captcha-related, got: ' . $error);
+        $this->assertStringNotContainsString(
+            'Captcha',
+            $error,
+            'Error should not be captcha-related, got: '.$error
+        );
     }
 
     public function test_captcha_validation_in_production()

@@ -5,7 +5,6 @@ namespace App\Services;
 use App\Models\AsinData;
 use App\Services\Amazon\AmazonUrlService;
 use App\Services\Amazon\ReviewFetchingService;
-use App\Services\MetricsCalculationService;
 
 class ReviewAnalysisService
 {
@@ -27,7 +26,7 @@ class ReviewAnalysisService
     }
 
     /**
-     * Main analysis method - orchestrates the entire process
+     * Main analysis method - orchestrates the entire process.
      */
     public function analyzeProduct(string $asin, string $country = 'us'): array
     {
@@ -37,43 +36,42 @@ class ReviewAnalysisService
             // Step 1: Check if product exists in database
             $productUrl = $this->urlService->buildProductUrl($asin, $country);
             $existsResult = $this->checkProductExists($productUrl);
-            
+
             $asinData = $existsResult['asin_data'];
-            
+
             // Step 2: Fetch reviews if needed
             if ($existsResult['needs_fetching']) {
                 $asinData = $this->fetchReviews($asin, $country, $productUrl);
             }
-            
+
             // Step 3: Analyze with LLM if needed
             if ($existsResult['needs_openai'] || !$asinData->openai_result) {
                 $asinData = $this->analyzeWithLLM($asinData);
             }
-            
+
             // Step 4: Calculate final metrics
             $metrics = $this->calculateFinalMetrics($asinData);
-            
+
             LoggingService::log("Product analysis completed for ASIN: {$asin}");
-            
+
             return array_merge($existsResult, $metrics, [
                 'asin_data' => $asinData->fresh(),
-                'success' => true,
+                'success'   => true,
             ]);
-            
         } catch (\Exception $e) {
             LoggingService::handleException($e, "Product analysis failed for ASIN: {$asin}");
-            
+
             return [
                 'success' => false,
-                'error' => $e->getMessage(),
-                'asin' => $asin,
+                'error'   => $e->getMessage(),
+                'asin'    => $asin,
                 'country' => $country,
             ];
         }
     }
 
     /**
-     * Extract ASIN from URL - delegates to URL service
+     * Extract ASIN from URL - delegates to URL service.
      */
     public function extractAsinFromUrl($url): string
     {
@@ -81,7 +79,7 @@ class ReviewAnalysisService
     }
 
     /**
-     * Check if product exists in database
+     * Check if product exists in database.
      */
     public function checkProductExists(string $productUrl): array
     {
@@ -90,12 +88,12 @@ class ReviewAnalysisService
         $normalizedUrl = $this->urlService->buildProductUrl($asin, $country);
 
         $asinData = AsinData::where('asin', $asin)->where('country', $country)->first();
-        
+
         // Check if product is fully analyzed (has all required data)
-        $isFullyAnalyzed = $asinData && 
-                          $asinData->status === 'completed' && 
-                          !is_null($asinData->openai_result) && 
-                          !is_null($asinData->fake_percentage) && 
+        $isFullyAnalyzed = $asinData &&
+                          $asinData->status === 'completed' &&
+                          !is_null($asinData->openai_result) &&
+                          !is_null($asinData->fake_percentage) &&
                           !is_null($asinData->grade);
 
         return [
@@ -110,7 +108,7 @@ class ReviewAnalysisService
     }
 
     /**
-     * Fetch reviews from Amazon - delegates to fetching service
+     * Fetch reviews from Amazon - delegates to fetching service.
      */
     public function fetchReviews(string $asin, string $country, string $productUrl): AsinData
     {
@@ -119,10 +117,10 @@ class ReviewAnalysisService
         // Queue product data scraping job if not already scraped
         if (!$asinData->have_product_data) {
             LoggingService::log('Queuing product data scraping job', [
-                'asin' => $asin,
+                'asin'         => $asin,
                 'asin_data_id' => $asinData->id,
             ]);
-            
+
             \App\Jobs\ScrapeAmazonProductData::dispatch($asinData);
         }
 
@@ -130,49 +128,48 @@ class ReviewAnalysisService
     }
 
     /**
-     * Analyze reviews with LLM (supports OpenAI, Ollama, DeepSeek via LLMServiceManager)
+     * Analyze reviews with LLM (supports OpenAI, Ollama, DeepSeek via LLMServiceManager).
      */
     public function analyzeWithLLM(AsinData $asinData): AsinData
     {
         $policy = app(ProductAnalysisPolicy::class);
-        
+
         if (!$policy->isAnalyzable($asinData)) {
             LoggingService::log("Product has no reviews to analyze, setting default analysis results for ASIN: {$asinData->asin}");
-            
+
             return $policy->completeAnalysisWithoutReviews($asinData);
         }
 
-        LoggingService::log('Starting LLM analysis for ASIN: ' . $asinData->asin);
+        LoggingService::log('Starting LLM analysis for ASIN: '.$asinData->asin);
 
         $reviews = $asinData->getReviewsArray();
-        
+
         try {
             // Use the multi-provider LLM service
             $llmService = app(LLMServiceManager::class);
             $analysisResult = $llmService->analyzeReviews($reviews);
-            
+
             // Save the analysis result
             $asinData->update([
                 'openai_result' => $analysisResult,
-                'status' => 'analyzed',
+                'status'        => 'analyzed',
             ]);
 
-            LoggingService::log('LLM analysis completed for ASIN: ' . $asinData->asin);
-            
-            return $asinData->fresh();
+            LoggingService::log('LLM analysis completed for ASIN: '.$asinData->asin);
 
+            return $asinData->fresh();
         } catch (\Exception $e) {
-            LoggingService::handleException($e, 'LLM analysis failed for ASIN: ' . $asinData->asin);
-            
+            LoggingService::handleException($e, 'LLM analysis failed for ASIN: '.$asinData->asin);
+
             // Update status to indicate failure
             $asinData->update(['status' => 'failed']);
-            
-                throw $e;
-            }
+
+            throw $e;
+        }
     }
 
     /**
-     * Calculate final metrics - delegates to metrics service
+     * Calculate final metrics - delegates to metrics service.
      */
     public function calculateFinalMetrics(AsinData $asinData): array
     {
@@ -180,25 +177,25 @@ class ReviewAnalysisService
     }
 
     /**
-     * Enhanced Analysis for detailed insights
+     * Enhanced Analysis for detailed insights.
      */
     public function performEnhancedAnalysis(AsinData $asinData): array
     {
         $reviews = $asinData->getReviewsArray();
-            $openaiResult = $asinData->openai_result;
-        
+        $openaiResult = $asinData->openai_result;
+
         if (empty($reviews) || empty($openaiResult)) {
             return [];
         }
 
         // Extract detailed scores
-        $detailedScores = is_string($openaiResult) 
+        $detailedScores = is_string($openaiResult)
             ? json_decode($openaiResult, true)['detailed_scores'] ?? []
             : $openaiResult['detailed_scores'] ?? [];
 
         $analysis = [
-            'keyword_analysis' => $this->analyzeKeywords($reviews),
-            'timeline_patterns' => $this->analyzeTimeline($reviews),
+            'keyword_analysis'     => $this->analyzeKeywords($reviews),
+            'timeline_patterns'    => $this->analyzeTimeline($reviews),
             'vocabulary_diversity' => $this->analyzeVocabulary($reviews),
             'fake_review_examples' => $this->extractFakeExamples($reviews, $detailedScores),
         ];
@@ -212,19 +209,19 @@ class ReviewAnalysisService
     }
 
     /**
-     * Analyze keywords in reviews
+     * Analyze keywords in reviews.
      */
     private function analyzeKeywords(array $reviews): array
     {
         $keywords = [];
         $suspiciousPatterns = [
             'amazing', 'perfect', 'excellent', 'outstanding', 'fantastic',
-            'highly recommend', 'must buy', 'love it', 'great product'
+            'highly recommend', 'must buy', 'love it', 'great product',
         ];
 
         foreach ($reviews as $review) {
             $text = strtolower($review['text'] ?? '');
-            
+
             foreach ($suspiciousPatterns as $pattern) {
                 if (strpos($text, $pattern) !== false) {
                     $keywords[$pattern] = ($keywords[$pattern] ?? 0) + 1;
@@ -233,11 +230,12 @@ class ReviewAnalysisService
         }
 
         arsort($keywords);
+
         return array_slice($keywords, 0, 10, true);
     }
 
     /**
-     * Analyze timeline patterns
+     * Analyze timeline patterns.
      */
     private function analyzeTimeline(array $reviews): array
     {
@@ -251,11 +249,12 @@ class ReviewAnalysisService
         }
 
         ksort($timeline);
+
         return $timeline;
     }
 
     /**
-     * Analyze vocabulary diversity
+     * Analyze vocabulary diversity.
      */
     private function analyzeVocabulary(array $reviews): array
     {
@@ -265,7 +264,7 @@ class ReviewAnalysisService
         foreach ($reviews as $review) {
             $text = strtolower($review['text'] ?? '');
             $words = str_word_count($text, 1);
-            
+
             $allWords = array_merge($allWords, $words);
             $uniqueWords = array_merge($uniqueWords, array_unique($words));
         }
@@ -274,14 +273,14 @@ class ReviewAnalysisService
         $uniqueWordCount = count(array_unique($uniqueWords));
 
         return [
-            'total_words' => $totalWords,
-            'unique_words' => $uniqueWordCount,
+            'total_words'     => $totalWords,
+            'unique_words'    => $uniqueWordCount,
             'diversity_ratio' => $totalWords > 0 ? round($uniqueWordCount / $totalWords, 3) : 0,
         ];
     }
 
     /**
-     * Extract examples of fake reviews for transparency
+     * Extract examples of fake reviews for transparency.
      */
     private function extractFakeExamples(array $reviews, array $detailedScores): array
     {
@@ -291,7 +290,7 @@ class ReviewAnalysisService
 
         foreach ($reviews as $review) {
             if ($exampleCount >= $maxExamples) {
-                    break;
+                break;
             }
 
             $reviewId = $review['id'];
@@ -299,12 +298,12 @@ class ReviewAnalysisService
 
             if ($fakeScore >= 85) {
                 $fakeExamples[] = [
-                    'text' => substr($review['text'] ?? '', 0, 200) . '...',
-                    'rating' => $review['rating'] ?? 0,
+                    'text'       => substr($review['text'] ?? '', 0, 200).'...',
+                    'rating'     => $review['rating'] ?? 0,
                     'fake_score' => $fakeScore,
-                    'reasons' => $this->generateFakeReasons($fakeScore),
+                    'reasons'    => $this->generateFakeReasons($fakeScore),
                 ];
-                
+
                 $exampleCount++;
             }
         }
@@ -313,12 +312,12 @@ class ReviewAnalysisService
     }
 
     /**
-     * Generate reasons why a review might be fake
+     * Generate reasons why a review might be fake.
      */
     private function generateFakeReasons(int $fakeScore): array
     {
         $reasons = [];
-        
+
         if ($fakeScore >= 95) {
             $reasons[] = 'Extremely generic language patterns';
             $reasons[] = 'Lacks specific product details';

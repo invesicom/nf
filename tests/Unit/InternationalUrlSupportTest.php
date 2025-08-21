@@ -2,11 +2,11 @@
 
 namespace Tests\Unit;
 
-use App\Services\ReviewService;
-use App\Services\ReviewAnalysisService;
 use App\Services\Amazon\BrightDataScraperService;
-use Tests\TestCase;
+use App\Services\ReviewAnalysisService;
+use App\Services\ReviewService;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class InternationalUrlSupportTest extends TestCase
 {
@@ -25,14 +25,14 @@ class InternationalUrlSupportTest extends TestCase
     {
         $testCases = [
             'https://www.amazon.de/-/en/TRAPANO-BATTERIA-PERCUSSIONE-GSB12-BOSCH/dp/B00YYBBUBY/' => 'B00YYBBUBY',
-            'https://www.amazon.ca/Dr-Scholls-Womens-Sneaker-Pebbled/dp/B0F5RQDJD3/' => 'B0F5RQDJD3',
-            'https://www.amazon.co.uk/Vax-Smartwash-Pet-Design/dp/B0BHF3NKLK/' => 'B0BHF3NKLK',
-            'https://www.amazon.fr/-/en/Bluetooth-Earphones-Wireless/dp/B0FCS5ZRB4' => 'B0FCS5ZRB4',
-            'https://www.amazon.in/Daikin-Inverter-Display-Technology-MTKL50U/dp/B0BK1KS6ZD/' => 'B0BK1KS6ZD',
-            'https://www.amazon.co.jp/-/en/Bagasin-Shockproof-Laptop/dp/B0BLNHG168' => 'B0BLNHG168',
-            'https://www.amazon.com.mx/SAMSUNG-Galaxy-Negro-Onyx/dp/B0CQ84BYDC/' => 'B0CQ84BYDC',
-            'https://www.amazon.com.br/Controle-Dualshock-PlayStation-4-Preto/dp/B07FN1MZBH/' => 'B07FN1MZBH',
-            'https://www.amazon.es/-/en/Cordless-Cleaner-Filtration/dp/B0CZRTHM6T/' => 'B0CZRTHM6T',
+            'https://www.amazon.ca/Dr-Scholls-Womens-Sneaker-Pebbled/dp/B0F5RQDJD3/'             => 'B0F5RQDJD3',
+            'https://www.amazon.co.uk/Vax-Smartwash-Pet-Design/dp/B0BHF3NKLK/'                   => 'B0BHF3NKLK',
+            'https://www.amazon.fr/-/en/Bluetooth-Earphones-Wireless/dp/B0FCS5ZRB4'              => 'B0FCS5ZRB4',
+            'https://www.amazon.in/Daikin-Inverter-Display-Technology-MTKL50U/dp/B0BK1KS6ZD/'    => 'B0BK1KS6ZD',
+            'https://www.amazon.co.jp/-/en/Bagasin-Shockproof-Laptop/dp/B0BLNHG168'              => 'B0BLNHG168',
+            'https://www.amazon.com.mx/SAMSUNG-Galaxy-Negro-Onyx/dp/B0CQ84BYDC/'                 => 'B0CQ84BYDC',
+            'https://www.amazon.com.br/Controle-Dualshock-PlayStation-4-Preto/dp/B07FN1MZBH/'    => 'B07FN1MZBH',
+            'https://www.amazon.es/-/en/Cordless-Cleaner-Filtration/dp/B0CZRTHM6T/'              => 'B0CZRTHM6T',
         ];
 
         foreach ($testCases as $url => $expectedAsin) {
@@ -45,16 +45,16 @@ class InternationalUrlSupportTest extends TestCase
     public function it_detects_country_from_international_urls()
     {
         $testCases = [
-            'https://www.amazon.de/some-product/dp/B00YYBBUBY/' => 'de',
-            'https://www.amazon.ca/some-product/dp/B0F5RQDJD3/' => 'ca',
-            'https://www.amazon.co.uk/some-product/dp/B0BHF3NKLK/' => 'gb',
-            'https://www.amazon.fr/some-product/dp/B0FCS5ZRB4' => 'fr',
-            'https://www.amazon.in/some-product/dp/B0BK1KS6ZD/' => 'in',
-            'https://www.amazon.co.jp/some-product/dp/B0BLNHG168' => 'jp',
+            'https://www.amazon.de/some-product/dp/B00YYBBUBY/'     => 'de',
+            'https://www.amazon.ca/some-product/dp/B0F5RQDJD3/'     => 'ca',
+            'https://www.amazon.co.uk/some-product/dp/B0BHF3NKLK/'  => 'gb',
+            'https://www.amazon.fr/some-product/dp/B0FCS5ZRB4'      => 'fr',
+            'https://www.amazon.in/some-product/dp/B0BK1KS6ZD/'     => 'in',
+            'https://www.amazon.co.jp/some-product/dp/B0BLNHG168'   => 'jp',
             'https://www.amazon.com.mx/some-product/dp/B0CQ84BYDC/' => 'mx',
             'https://www.amazon.com.br/some-product/dp/B07FN1MZBH/' => 'br',
-            'https://www.amazon.es/some-product/dp/B0CZRTHM6T/' => 'es',
-            'https://www.amazon.sg/some-product/dp/B0TESTSING/' => 'sg',
+            'https://www.amazon.es/some-product/dp/B0CZRTHM6T/'     => 'es',
+            'https://www.amazon.sg/some-product/dp/B0TESTSING/'     => 'sg',
             'https://www.amazon.com.au/some-product/dp/B0TESTAUST/' => 'au',
         ];
 
@@ -104,8 +104,8 @@ class InternationalUrlSupportTest extends TestCase
     public function it_supports_all_documented_countries()
     {
         $supportedCountries = [
-            'us', 'gb', 'ca', 'de', 'fr', 'it', 'es', 'jp', 'au', 
-            'mx', 'in', 'sg', 'br', 'nl', 'tr', 'ae', 'sa', 'se', 'pl', 'eg', 'be'
+            'us', 'gb', 'ca', 'de', 'fr', 'it', 'es', 'jp', 'au',
+            'mx', 'in', 'sg', 'br', 'nl', 'tr', 'ae', 'sa', 'se', 'pl', 'eg', 'be',
         ];
 
         $service = new BrightDataScraperService();

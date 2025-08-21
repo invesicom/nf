@@ -15,8 +15,8 @@ use Tests\TestCase;
 
 /**
  * CRITICAL: Tests for BrightData sync mode failures that weren't caught by existing tests.
- * 
- * This test class addresses the gap that allowed the "No reviews available for analysis" 
+ *
+ * This test class addresses the gap that allowed the "No reviews available for analysis"
  * bug to pass all tests while failing in production.
  */
 class BrightDataSyncModeFailureTest extends TestCase
@@ -60,16 +60,16 @@ class BrightDataSyncModeFailureTest extends TestCase
 
         // Mock BrightData API responses that return empty results
         // This simulates the exact scenario that was happening in production
-        
+
         // 1. Mock successful job trigger
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_empty_results'
+            'snapshot_id' => 's_test_empty_results',
         ])));
 
         // 2. Mock job polling - job completes but with 0 results
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0  // This is the key issue - 0 results
+            'status'  => 'ready',
+            'records' => 0,  // This is the key issue - 0 results
         ])));
 
         // 3. Mock data fetch - returns empty array (the actual problem)
@@ -90,13 +90,13 @@ class BrightDataSyncModeFailureTest extends TestCase
 
         // Mock BrightData API failure
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_api_failure'
+            'snapshot_id' => 's_test_api_failure',
         ])));
 
         // Mock job polling failure
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'failed',
-            'records' => 0
+            'status'  => 'failed',
+            'records' => 0,
         ])));
 
         // This should throw an exception
@@ -114,14 +114,14 @@ class BrightDataSyncModeFailureTest extends TestCase
 
         // Mock BrightData job trigger
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_timeout'
+            'snapshot_id' => 's_test_timeout',
         ])));
 
         // Mock job polling - always returns "running" (simulates timeout)
         for ($i = 0; $i < 3; $i++) {
             $this->mockHandler->append(new Response(200, [], json_encode([
-                'status' => 'running',
-                'records' => 0
+                'status'  => 'running',
+                'records' => 0,
             ])));
         }
 
@@ -140,12 +140,12 @@ class BrightDataSyncModeFailureTest extends TestCase
 
         // Mock BrightData failure scenario
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_no_data'
+            'snapshot_id' => 's_test_no_data',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0
+            'status'  => 'ready',
+            'records' => 0,
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([])));
@@ -156,8 +156,8 @@ class BrightDataSyncModeFailureTest extends TestCase
         } catch (\Exception $e) {
             // Verify no AsinData record was created
             $this->assertDatabaseMissing('asin_data', [
-                'asin' => 'B0TEST12345',
-                'country' => 'us'
+                'asin'    => 'B0TEST12345',
+                'country' => 'us',
             ]);
         }
     }
@@ -170,24 +170,24 @@ class BrightDataSyncModeFailureTest extends TestCase
 
         // Mock successful BrightData responses
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_success'
+            'snapshot_id' => 's_test_success',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 25
+            'status'  => 'ready',
+            'records' => 25,
         ])));
 
         // Mock successful data fetch with actual reviews
         $mockReviewData = [
             [
-                'review_id' => 'R123',
-                'rating' => 5,
-                'review_text' => 'Great product!',
+                'review_id'         => 'R123',
+                'rating'            => 5,
+                'review_text'       => 'Great product!',
                 'verified_purchase' => true,
-                'product_name' => 'Test Product',
-                'product_image_url' => 'https://example.com/image.jpg'
-            ]
+                'product_name'      => 'Test Product',
+                'product_image_url' => 'https://example.com/image.jpg',
+            ],
         ];
         $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
 
@@ -198,12 +198,12 @@ class BrightDataSyncModeFailureTest extends TestCase
         $this->assertEquals('B0TEST12345', $result->asin);
         $this->assertEquals('us', $result->country);
         $this->assertGreaterThan(0, count($result->getReviewsArray()));
-        
+
         // Verify database record was created
         $this->assertDatabaseHas('asin_data', [
-            'asin' => 'B0TEST12345',
+            'asin'    => 'B0TEST12345',
             'country' => 'us',
-            'status' => 'pending_analysis'
+            'status'  => 'pending_analysis',
         ]);
     }
 }

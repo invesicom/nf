@@ -4,9 +4,9 @@ namespace Tests\Unit;
 
 use App\Models\AsinData;
 use App\Services\ReviewAnalysisService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class ReviewAnalysisServiceFakeDetectionTest extends TestCase
 {
@@ -37,24 +37,24 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
                 'review_2' => 45, // Should be genuine (< 85)
                 'review_3' => 90, // Should be fake (>= 85)
                 'review_4' => 25, // Should be genuine (< 85)
-            ]
+            ],
         ];
 
         $asinData = AsinData::create([
-            'asin' => 'B0TEST123',
-            'country' => 'us',
-            'reviews' => json_encode($reviews),
-            'openai_result' => json_encode($openaiResult),
-            'status' => 'completed',
+            'asin'              => 'B0TEST123',
+            'country'           => 'us',
+            'reviews'           => json_encode($reviews),
+            'openai_result'     => json_encode($openaiResult),
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product'
+            'product_title'     => 'Test Product',
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
 
         // Verify that only 1 review (score 85) is considered fake
         $this->assertEquals(25.0, $result['fake_percentage']); // 1 fake out of 4 = 25%
-        
+
         // Verify that 3 reviews are considered genuine
         $this->assertArrayHasKey('amazon_rating', $result);
         $this->assertArrayHasKey('adjusted_rating', $result);
@@ -66,7 +66,7 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
     {
         // Test heuristic scoring through the MetricsCalculationService
         $metricsService = app(\App\Services\MetricsCalculationService::class);
-        
+
         // Create test data with different review types
         $reviews = [
             ['id' => 'short', 'review_text' => 'Great!', 'rating' => 5],
@@ -75,17 +75,17 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
         ];
 
         $asinData = AsinData::create([
-            'asin' => 'B0HEURISTIC',
-            'country' => 'us',
-            'reviews' => $reviews,
+            'asin'          => 'B0HEURISTIC',
+            'country'       => 'us',
+            'reviews'       => $reviews,
             'openai_result' => ['detailed_scores' => [
-                'short' => 65,      // High score for short review
-                'detailed' => 15,   // Low score for detailed review  
-                'generic' => 75,    // High score for generic review
+                'short'    => 65,      // High score for short review
+                'detailed' => 15,   // Low score for detailed review
+                'generic'  => 75,    // High score for generic review
             ]],
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product'
+            'product_title'     => 'Test Product',
         ]);
 
         $result = $metricsService->calculateFinalMetrics($asinData);
@@ -93,7 +93,7 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
         // Verify the scoring reflects different review qualities
         $this->assertArrayHasKey('fake_percentage', $result);
         $this->assertArrayHasKey('adjusted_rating', $result);
-        
+
         // Should identify no reviews as fake (all scores < 85)
         $this->assertEquals(0.0, $result['fake_percentage']);
     }
@@ -110,17 +110,17 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
             'detailed_scores' => [
                 'review_1' => 60, // Only one score provided
                 // review_2 missing - should default to 0
-            ]
+            ],
         ];
 
         $asinData = AsinData::create([
-            'asin' => 'B0TEST456',
-            'country' => 'us',
-            'reviews' => json_encode($reviews),
-            'openai_result' => json_encode($openaiResult),
-            'status' => 'completed',
+            'asin'              => 'B0TEST456',
+            'country'           => 'us',
+            'reviews'           => json_encode($reviews),
+            'openai_result'     => json_encode($openaiResult),
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product'
+            'product_title'     => 'Test Product',
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -145,31 +145,31 @@ class ReviewAnalysisServiceFakeDetectionTest extends TestCase
             'detailed_scores' => [
                 'review_1' => 90, // Fake - should be excluded from rating calculation
                 'review_2' => 45, // Genuine
-                'review_3' => 30, // Genuine  
+                'review_3' => 30, // Genuine
                 'review_4' => 25, // Genuine
-            ]
+            ],
         ];
 
         $asinData = AsinData::create([
-            'asin' => 'B0TEST789',
-            'country' => 'us',
-            'reviews' => json_encode($reviews),
-            'openai_result' => json_encode($openaiResult),
-            'status' => 'completed',
+            'asin'              => 'B0TEST789',
+            'country'           => 'us',
+            'reviews'           => json_encode($reviews),
+            'openai_result'     => json_encode($openaiResult),
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product'
+            'product_title'     => 'Test Product',
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
 
         // Amazon rating should include all reviews: (5+4+3+2)/4 = 3.5
         $this->assertEquals(3.5, $result['amazon_rating']);
-        
+
         // Adjusted rating should exclude fake review: (4+3+2)/3 = 3.0
         // Note: The actual calculation might differ due to service refactoring
         $this->assertGreaterThan(2.5, $result['adjusted_rating']);
         $this->assertLessThan(4.0, $result['adjusted_rating']);
-        
+
         // Fake percentage: 1 fake out of 4 = 25%
         $this->assertEquals(25.0, $result['fake_percentage']);
     }

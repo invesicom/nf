@@ -2,12 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\ScrapeAmazonProductData;
 use App\Models\AsinData;
 use App\Services\LoggingService;
-use App\Services\Amazon\AmazonProductDataService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\Queue;
 
 class ProcessExistingAsinData extends Command
 {
@@ -52,7 +49,7 @@ class ProcessExistingAsinData extends Command
 
         // Build query for records that need processing
         $query = AsinData::query();
-        
+
         // Handle single ASIN processing
         if ($singleAsin) {
             $query->where('asin', $singleAsin);
@@ -114,33 +111,34 @@ class ProcessExistingAsinData extends Command
 
         if ($totalRecords === 0) {
             $this->info('✅ No records found that need processing.');
+
             return Command::SUCCESS;
         }
 
         $this->info("📊 Found {$totalRecords} records to process");
         $this->info("⚙️  Batch size: {$batchSize}");
         $this->info("⏱️  Delay between batches: {$delay} seconds");
-        $this->info("⚡ Processing: Direct (no queuing)");
-        
+        $this->info('⚡ Processing: Direct (no queuing)');
+
         // Show filtering mode
         if ($missingImage && !$missingDescription && !$missingAny) {
-            $this->info("🖼️  Filter: Products missing images only");
+            $this->info('🖼️  Filter: Products missing images only');
         } elseif ($missingDescription && !$missingImage && !$missingAny) {
-            $this->info("📝 Filter: Products missing descriptions only");
+            $this->info('📝 Filter: Products missing descriptions only');
         } elseif ($missingAny) {
-            $this->info("🔍 Filter: Products missing ANY product data (image, description, or valid title)");
+            $this->info('🔍 Filter: Products missing ANY product data (image, description, or valid title)');
         } elseif ($missingImage && $missingDescription) {
-            $this->info("🖼️📝 Filter: Products missing BOTH images AND descriptions");
+            $this->info('🖼️📝 Filter: Products missing BOTH images AND descriptions');
         } elseif (!$force) {
-            $this->info("📋 Filter: Products with have_product_data=false");
+            $this->info('📋 Filter: Products with have_product_data=false');
         } else {
-            $this->info("🌐 Filter: ALL products (force mode)");
+            $this->info('🌐 Filter: ALL products (force mode)');
         }
-        
+
         if ($force) {
             $this->warn('⚠️  Force mode: Processing ALL records (including already processed)');
         }
-        
+
         if ($dryRun) {
             $this->warn('🧪 DRY RUN MODE: No actual processing will occur');
         }
@@ -158,11 +156,11 @@ class ProcessExistingAsinData extends Command
         $progressBar->setFormat('verbose');
 
         LoggingService::log('Starting batch processing of existing ASIN data', [
-            'total_records' => $totalRecords,
-            'batch_size' => $batchSize,
-            'delay' => $delay,
-            'force' => $force,
-            'dry_run' => $dryRun,
+            'total_records'   => $totalRecords,
+            'batch_size'      => $batchSize,
+            'delay'           => $delay,
+            'force'           => $force,
+            'dry_run'         => $dryRun,
             'processing_mode' => 'direct',
         ]);
 
@@ -172,7 +170,7 @@ class ProcessExistingAsinData extends Command
         foreach ($asinRecords as $asinData) {
             try {
                 $shouldProcess = $this->shouldProcessRecord($asinData);
-                
+
                 if (!$shouldProcess['process']) {
                     $skipped++;
                     $this->line("\n🔄 Skipped {$asinData->asin}: {$shouldProcess['reason']}");
@@ -180,39 +178,39 @@ class ProcessExistingAsinData extends Command
                     if (!$dryRun) {
                         // Use the same job approach as the analysis flow for consistency
                         $this->line("\n🔄 Processing {$asinData->asin}...");
-                        
+
                         $scrapeJob = new \App\Jobs\ScrapeAmazonProductData($asinData);
+
                         try {
                             $scrapeJob->handle();
                             $scraped++;
                             $this->line("✅ Successfully scraped product data for {$asinData->asin}");
                         } catch (\Exception $e) {
-                            $this->line("⚠️ Failed to scrape product data for {$asinData->asin}: " . $e->getMessage());
+                            $this->line("⚠️ Failed to scrape product data for {$asinData->asin}: ".$e->getMessage());
                         }
                     } else {
                         $this->line("\n🧪 Would process {$asinData->asin} directly");
                         $scraped++;
                     }
                 }
-                
+
                 $processed++;
                 $progressBar->advance();
-                
+
                 // Add delay between individual records to avoid rate limiting
                 if ($delay > 0 && !$dryRun && $processed < $batchSize) {
                     $this->line("⏳ Waiting {$delay} seconds before next record...");
                     sleep($delay);
                 }
-                
             } catch (\Exception $e) {
                 $errors++;
-                $this->error("\n❌ Error processing {$asinData->asin}: " . $e->getMessage());
-                
+                $this->error("\n❌ Error processing {$asinData->asin}: ".$e->getMessage());
+
                 LoggingService::log('Error in batch processing', [
-                    'asin' => $asinData->asin,
+                    'asin'  => $asinData->asin,
                     'error' => $e->getMessage(),
                 ]);
-                
+
                 $progressBar->advance();
             }
         }
@@ -227,19 +225,19 @@ class ProcessExistingAsinData extends Command
         $this->info("✅ Product data scraped: {$scraped}");
         $this->info("🔄 Records skipped: {$skipped}");
         $this->info("❌ Errors encountered: {$errors}");
-        
+
         if ($processed < $totalRecords) {
             $remaining = $totalRecords - $processed;
             $this->newLine();
             $this->info("📊 {$remaining} records remaining to process");
-            $this->info("💡 Run the command again to process the next batch");
+            $this->info('💡 Run the command again to process the next batch');
         }
 
         LoggingService::log('Batch processing completed', [
-            'total_processed' => $processed,
+            'total_processed'      => $processed,
             'product_data_scraped' => $scraped,
-            'records_skipped' => $skipped,
-            'errors' => $errors,
+            'records_skipped'      => $skipped,
+            'errors'               => $errors,
         ]);
 
         return Command::SUCCESS;
@@ -295,17 +293,17 @@ class ProcessExistingAsinData extends Command
         if (!$singleAsin && !$missingImage && !$missingDescription && !$missingAny && !$asinData->isAnalyzed()) {
             return [
                 'process' => false,
-                'reason' => 'Not fully analyzed yet'
+                'reason'  => 'Not fully analyzed yet',
             ];
         }
 
         // Check if recently scraped (within last 24 hours) to avoid duplicates
-        if ($asinData->product_data_scraped_at && 
+        if ($asinData->product_data_scraped_at &&
             $asinData->product_data_scraped_at->diffInHours(now()) < 24 &&
             !$force) {
             return [
                 'process' => false,
-                'reason' => 'Recently scraped (within 24 hours)'
+                'reason'  => 'Recently scraped (within 24 hours)',
             ];
         }
 
@@ -313,15 +311,21 @@ class ProcessExistingAsinData extends Command
         $needsImage = empty($asinData->product_image_url);
         $needsDescription = empty($asinData->product_description);
         $needsValidTitle = empty($asinData->product_title) || $asinData->product_title === 'Amazon.com';
-        
+
         $reasons = [];
-        if ($needsImage) $reasons[] = 'image';
-        if ($needsDescription) $reasons[] = 'description';
-        if ($needsValidTitle) $reasons[] = 'valid title';
+        if ($needsImage) {
+            $reasons[] = 'image';
+        }
+        if ($needsDescription) {
+            $reasons[] = 'description';
+        }
+        if ($needsValidTitle) {
+            $reasons[] = 'valid title';
+        }
 
         return [
             'process' => true,
-            'reason' => 'Needs: ' . implode(', ', $reasons ?: ['product data'])
+            'reason'  => 'Needs: '.implode(', ', $reasons ?: ['product data']),
         ];
     }
 
@@ -336,12 +340,12 @@ class ProcessExistingAsinData extends Command
                            ->where('reviews', '!=', '[]')
                            ->where('openai_result', '!=', '[]')
                            ->count();
-        
+
         $hasProductData = AsinData::where('have_product_data', true)->count();
         $needsProcessing = AsinData::where(function ($q) {
-                                $q->where('have_product_data', false)
-                                  ->orWhereNull('have_product_data');
-                            })
+            $q->where('have_product_data', false)
+              ->orWhereNull('have_product_data');
+        })
                             ->whereNotNull('reviews')
                             ->whereNotNull('openai_result')
                             ->where('reviews', '!=', '[]')
@@ -349,8 +353,8 @@ class ProcessExistingAsinData extends Command
                             ->count();
 
         return [
-            'total' => $total,
-            'analyzed' => $analyzed,
+            'total'            => $total,
+            'analyzed'         => $analyzed,
             'has_product_data' => $hasProductData,
             'needs_processing' => $needsProcessing,
         ];

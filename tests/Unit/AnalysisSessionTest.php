@@ -14,10 +14,10 @@ class AnalysisSessionTest extends TestCase
     {
         $session = AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'pending',
-            'total_steps' => 7,
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'pending',
+            'total_steps'  => 7,
         ]);
 
         $this->assertNotNull($session->id);
@@ -31,9 +31,9 @@ class AnalysisSessionTest extends TestCase
     {
         $session = AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'pending',
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'pending',
         ]);
 
         // Update progress
@@ -55,16 +55,16 @@ class AnalysisSessionTest extends TestCase
     {
         $session = AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'pending',
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'pending',
         ]);
 
         // Simulate concurrent update directly to database
         AnalysisSession::where('id', $session->id)->update([
-            'current_step' => 1,
+            'current_step'        => 1,
             'progress_percentage' => 10.0,
-            'current_message' => 'Concurrent update',
+            'current_message'     => 'Concurrent update',
         ]);
 
         // Now call updateProgress - should refresh and work correctly
@@ -81,9 +81,9 @@ class AnalysisSessionTest extends TestCase
     {
         $session = AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'pending',
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'pending',
         ]);
 
         $session->markAsProcessing();
@@ -97,9 +97,9 @@ class AnalysisSessionTest extends TestCase
     {
         $session = AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'processing',
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'processing',
         ]);
 
         $result = ['success' => true, 'analysis_result' => ['fake_percentage' => 25.0]];
@@ -117,9 +117,9 @@ class AnalysisSessionTest extends TestCase
     {
         $session = AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'processing',
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'processing',
         ]);
 
         $session->markAsFailed('Test error message');
@@ -134,9 +134,9 @@ class AnalysisSessionTest extends TestCase
     {
         $session = AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'pending',
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'pending',
         ]);
 
         // Test pending status

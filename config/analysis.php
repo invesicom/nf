@@ -43,10 +43,10 @@ return [
     |
     */
     'queue' => [
-        'connection' => env('ANALYSIS_QUEUE_CONNECTION', 'analysis'),
-        'timeout' => env('ANALYSIS_QUEUE_TIMEOUT', 300), // 5 minutes
+        'connection'  => env('ANALYSIS_QUEUE_CONNECTION', 'analysis'),
+        'timeout'     => env('ANALYSIS_QUEUE_TIMEOUT', 300), // 5 minutes
         'retry_after' => env('ANALYSIS_QUEUE_RETRY_AFTER', 360), // 6 minutes
-        'max_tries' => env('ANALYSIS_QUEUE_MAX_TRIES', 3),
+        'max_tries'   => env('ANALYSIS_QUEUE_MAX_TRIES', 3),
     ],
 
     /*
@@ -58,14 +58,14 @@ return [
     |
     */
     'steps' => [
-        'validation' => ['weight' => 12, 'message' => 'Validating product URL...'],
-        'authentication' => ['weight' => 13, 'message' => 'Authenticating request...'],
-        'database_check' => ['weight' => 25, 'message' => 'Checking product database...'],
-        'fetch_reviews' => ['weight' => 52, 'message' => 'Gathering review information...'],
-        'openai_analysis' => ['weight' => 70, 'message' => 'Analyzing reviews with AI...'],
-        'calculate_metrics' => ['weight' => 85, 'message' => 'Computing authenticity metrics...'],
+        'validation'         => ['weight' => 12, 'message' => 'Validating product URL...'],
+        'authentication'     => ['weight' => 13, 'message' => 'Authenticating request...'],
+        'database_check'     => ['weight' => 25, 'message' => 'Checking product database...'],
+        'fetch_reviews'      => ['weight' => 52, 'message' => 'Gathering review information...'],
+        'openai_analysis'    => ['weight' => 70, 'message' => 'Analyzing reviews with AI...'],
+        'calculate_metrics'  => ['weight' => 85, 'message' => 'Computing authenticity metrics...'],
         'fetch_product_data' => ['weight' => 92, 'message' => 'Fetching product information...'],
-        'finalize' => ['weight' => 98, 'message' => 'Generating final report...'],
-        'complete' => ['weight' => 100, 'message' => 'Analysis complete!'],
+        'finalize'           => ['weight' => 98, 'message' => 'Generating final report...'],
+        'complete'           => ['weight' => 100, 'message' => 'Analysis complete!'],
     ],
-]; 
+];

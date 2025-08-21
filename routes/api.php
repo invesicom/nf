@@ -1,8 +1,8 @@
 <?php
 
+use App\Http\Controllers\AnalysisController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AnalysisController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,5 +31,3 @@ Route::prefix('analysis')->name('api.analysis.')
         Route::delete('/cancel/{sessionId}', [AnalysisController::class, 'cancelAnalysis'])->name('cancel');
         Route::post('/cleanup', [AnalysisController::class, 'cleanup'])->name('cleanup');
     });
-
-

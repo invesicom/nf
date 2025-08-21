@@ -4,15 +4,14 @@ namespace Tests\Feature;
 
 use App\Services\Amazon\AmazonScrapingService;
 use App\Services\Amazon\CookieSessionManager;
-use App\Services\AlertService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class AmazonMultiSessionIntegrationTest extends TestCase
 {
@@ -21,10 +20,10 @@ class AmazonMultiSessionIntegrationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Clear cache
         Cache::flush();
-        
+
         // Clear any existing environment variables from previous tests
         for ($i = 1; $i <= 10; $i++) {
             putenv("AMAZON_COOKIES_{$i}");
@@ -39,7 +38,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
             putenv("AMAZON_COOKIES_{$i}");
         }
         putenv('AMAZON_COOKIES');
-        
+
         parent::tearDown();
     }
 
@@ -50,7 +49,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
         $mockHandler = new MockHandler([
             new Response(200, [], $this->getMockAmazonHtml()),
         ]);
-        
+
         $handlerStack = HandlerStack::create($mockHandler);
         $mockClient = new Client(['handler' => $handlerStack]);
 
@@ -66,7 +65,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
     public function captcha_detection_marks_session_unhealthy_and_alerts_with_session_info()
     {
         // Create a mock manager with specific sessions for this test
-        $manager = new class extends CookieSessionManager {
+        $manager = new class() extends CookieSessionManager {
             protected function getEnvironmentVariable(string $key, $default = ''): string
             {
                 switch ($key) {
@@ -79,13 +78,13 @@ class AmazonMultiSessionIntegrationTest extends TestCase
                 }
             }
         };
-        
+
         $this->assertEquals(2, $manager->getSessionCount());
-        
+
         // The multi-session system is working if we can get sessions
         $session1 = $manager->getNextCookieSession();
         $session2 = $manager->getNextCookieSession();
-        
+
         $this->assertNotNull($session1);
         $this->assertNotNull($session2);
         $this->assertEquals(1, $session1['index']);
@@ -96,7 +95,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
     public function session_rotation_distributes_load_across_sessions()
     {
         // Create a mock manager with 3 specific sessions
-        $manager = new class extends CookieSessionManager {
+        $manager = new class() extends CookieSessionManager {
             protected function getEnvironmentVariable(string $key, $default = ''): string
             {
                 switch ($key) {
@@ -127,7 +126,7 @@ class AmazonMultiSessionIntegrationTest extends TestCase
     public function unhealthy_sessions_are_skipped_in_rotation()
     {
         // Create a mock manager with 3 specific sessions
-        $manager = new class extends CookieSessionManager {
+        $manager = new class() extends CookieSessionManager {
             protected function getEnvironmentVariable(string $key, $default = ''): string
             {
                 switch ($key) {
@@ -171,12 +170,10 @@ class AmazonMultiSessionIntegrationTest extends TestCase
     {
         // Test that the service can be created (which tests the fallback logic)
         $service = new AmazonScrapingService();
-        
+
         // If we get here without errors, the service handles missing sessions correctly
         $this->assertTrue(true);
     }
-
-
 
     /**
      * Get mock Amazon HTML for testing.

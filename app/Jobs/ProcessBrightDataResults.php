@@ -10,11 +10,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class ProcessBrightDataResults implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public $tries = 3;
     public $timeout = 300; // 5 minutes to download and process data
@@ -32,16 +34,16 @@ class ProcessBrightDataResults implements ShouldQueue
     public function handle(): void
     {
         LoggingService::log('Processing BrightData results', [
-            'asin' => $this->asin,
-            'job_id' => $this->jobId
+            'asin'   => $this->asin,
+            'job_id' => $this->jobId,
         ]);
 
         try {
             $brightDataService = $this->mockService ?? new BrightDataScraperService();
-            
+
             // Download the job data
             $results = $this->fetchJobData($brightDataService, $this->jobId);
-            
+
             if (empty($results)) {
                 throw new \Exception('No results returned from BrightData job');
             }
@@ -53,18 +55,18 @@ class ProcessBrightDataResults implements ShouldQueue
             $asinData = $this->saveResults($transformedData);
 
             LoggingService::log('BrightData results processed successfully', [
-                'asin' => $this->asin,
-                'job_id' => $this->jobId,
-                'reviews_count' => count($transformedData['reviews']),
-                'have_product_data' => $asinData->have_product_data
+                'asin'              => $this->asin,
+                'job_id'            => $this->jobId,
+                'reviews_count'     => count($transformedData['reviews']),
+                'have_product_data' => $asinData->have_product_data,
             ]);
-
         } catch (\Exception $e) {
             LoggingService::log('Failed to process BrightData results', [
-                'asin' => $this->asin,
+                'asin'   => $this->asin,
                 'job_id' => $this->jobId,
-                'error' => $e->getMessage()
+                'error'  => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -75,7 +77,7 @@ class ProcessBrightDataResults implements ShouldQueue
         $reflection = new \ReflectionClass($service);
         $method = $reflection->getMethod('fetchJobData');
         $method->setAccessible(true);
-        
+
         return $method->invoke($service, $jobId);
     }
 
@@ -85,7 +87,7 @@ class ProcessBrightDataResults implements ShouldQueue
         $reflection = new \ReflectionClass($service);
         $method = $reflection->getMethod('transformBrightDataResults');
         $method->setAccessible(true);
-        
+
         return $method->invoke($service, $results, $asin);
     }
 
@@ -96,17 +98,17 @@ class ProcessBrightDataResults implements ShouldQueue
             ['asin' => $this->asin, 'country' => $this->country],
             ['status' => 'pending_analysis']
         );
-        
+
         $asinData->reviews = json_encode($transformedData['reviews']);
         $asinData->product_description = $transformedData['description'] ?? '';
         $asinData->total_reviews_on_amazon = $transformedData['total_reviews'] ?? count($transformedData['reviews']);
         $asinData->country = $this->country;
         $asinData->status = 'pending_analysis';
-        
+
         // Extract product data if available from BrightData
         $hasProductTitle = false;
         $hasProductImage = false;
-        
+
         if (!empty($transformedData['product_name'])) {
             $asinData->product_title = $transformedData['product_name'];
             $hasProductTitle = true;
@@ -115,19 +117,19 @@ class ProcessBrightDataResults implements ShouldQueue
             $asinData->product_image_url = $transformedData['product_image_url'];
             $hasProductImage = true;
         }
-        
+
         // Only set have_product_data = true if we actually have both title and image
         // If BrightData doesn't provide complete product metadata, let AmazonProductDataService handle it
         $asinData->have_product_data = $hasProductTitle && $hasProductImage;
-        
+
         LoggingService::log('BrightData product data extraction results', [
-            'asin' => $this->asin,
-            'has_product_title' => $hasProductTitle,
-            'has_product_image' => $hasProductImage,
-            'have_product_data' => $asinData->have_product_data,
-            'will_trigger_separate_scraping' => !$asinData->have_product_data
+            'asin'                           => $this->asin,
+            'has_product_title'              => $hasProductTitle,
+            'has_product_image'              => $hasProductImage,
+            'have_product_data'              => $asinData->have_product_data,
+            'will_trigger_separate_scraping' => !$asinData->have_product_data,
         ]);
-        
+
         $asinData->save();
 
         return $asinData;
@@ -136,9 +138,9 @@ class ProcessBrightDataResults implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         LoggingService::log('BrightData results processing job failed permanently', [
-            'asin' => $this->asin,
+            'asin'   => $this->asin,
             'job_id' => $this->jobId,
-            'error' => $exception->getMessage()
+            'error'  => $exception->getMessage(),
         ]);
     }
 }

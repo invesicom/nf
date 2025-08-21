@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\AsinData;
-use Tests\TestCase;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Tests\TestCase;
 
 class CleanupZeroReviewProductsTest extends TestCase
 {
@@ -16,44 +16,44 @@ class CleanupZeroReviewProductsTest extends TestCase
     {
         // Create products with reviews (should be kept)
         $productWithReviews = AsinData::factory()->create([
-            'asin' => 'B0WITHREVIEWS',
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'asin'              => 'B0WITHREVIEWS',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Product with Reviews',
-            'reviews' => [['rating' => 5, 'text' => 'Great product']],
+            'product_title'     => 'Product with Reviews',
+            'reviews'           => [['rating' => 5, 'text' => 'Great product']],
         ]);
 
         // Create products with zero reviews (should be removed)
         $productEmptyArray = AsinData::factory()->create([
-            'asin' => 'B0EMPTYARRAY',
-            'status' => 'completed',
-            'fake_percentage' => 30.0,
-            'grade' => 'C',
+            'asin'              => 'B0EMPTYARRAY',
+            'status'            => 'completed',
+            'fake_percentage'   => 30.0,
+            'grade'             => 'C',
             'have_product_data' => true,
-            'product_title' => 'Product Empty Array',
-            'reviews' => [],
+            'product_title'     => 'Product Empty Array',
+            'reviews'           => [],
         ]);
 
         $productNullReviews = AsinData::factory()->create([
-            'asin' => 'B0NULLREVIEWS',
-            'status' => 'completed',
-            'fake_percentage' => 15.0,
-            'grade' => 'A',
+            'asin'              => 'B0NULLREVIEWS',
+            'status'            => 'completed',
+            'fake_percentage'   => 15.0,
+            'grade'             => 'A',
             'have_product_data' => true,
-            'product_title' => 'Product Null Reviews',
-            'reviews' => null,
+            'product_title'     => 'Product Null Reviews',
+            'reviews'           => null,
         ]);
 
         $productEmptyString = AsinData::factory()->create([
-            'asin' => 'B0EMPTYSTRING',
-            'status' => 'completed',
-            'fake_percentage' => 20.0,
-            'grade' => 'B',
+            'asin'              => 'B0EMPTYSTRING',
+            'status'            => 'completed',
+            'fake_percentage'   => 20.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Product Empty String',
-            'reviews' => '',
+            'product_title'     => 'Product Empty String',
+            'reviews'           => '',
         ]);
 
         // Verify initial state
@@ -75,23 +75,23 @@ class CleanupZeroReviewProductsTest extends TestCase
     {
         // Create products with zero reviews
         AsinData::factory()->create([
-            'asin' => 'B0DRYRUN001',
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'asin'              => 'B0DRYRUN001',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Dry Run Product 1',
-            'reviews' => [],
+            'product_title'     => 'Dry Run Product 1',
+            'reviews'           => [],
         ]);
 
         AsinData::factory()->create([
-            'asin' => 'B0DRYRUN002',
-            'status' => 'completed',
-            'fake_percentage' => 30.0,
-            'grade' => 'C',
+            'asin'              => 'B0DRYRUN002',
+            'status'            => 'completed',
+            'fake_percentage'   => 30.0,
+            'grade'             => 'C',
             'have_product_data' => true,
-            'product_title' => 'Dry Run Product 2',
-            'reviews' => null,
+            'product_title'     => 'Dry Run Product 2',
+            'reviews'           => null,
         ]);
 
         // Verify initial state
@@ -111,23 +111,23 @@ class CleanupZeroReviewProductsTest extends TestCase
     {
         // Create only products with reviews
         AsinData::factory()->create([
-            'asin' => 'B0VALIDONLY1',
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'asin'              => 'B0VALIDONLY1',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Valid Product 1',
-            'reviews' => [['rating' => 5, 'text' => 'Great']],
+            'product_title'     => 'Valid Product 1',
+            'reviews'           => [['rating' => 5, 'text' => 'Great']],
         ]);
 
         AsinData::factory()->create([
-            'asin' => 'B0VALIDONLY2',
-            'status' => 'completed',
-            'fake_percentage' => 30.0,
-            'grade' => 'C',
+            'asin'              => 'B0VALIDONLY2',
+            'status'            => 'completed',
+            'fake_percentage'   => 30.0,
+            'grade'             => 'C',
             'have_product_data' => true,
-            'product_title' => 'Valid Product 2',
-            'reviews' => [['rating' => 4, 'text' => 'Good']],
+            'product_title'     => 'Valid Product 2',
+            'reviews'           => [['rating' => 4, 'text' => 'Good']],
         ]);
 
         // Verify initial state
@@ -146,34 +146,34 @@ class CleanupZeroReviewProductsTest extends TestCase
     {
         // Create products with different valid review formats
         $productArrayReviews = AsinData::factory()->create([
-            'asin' => 'B0ARRAYREVS',
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'asin'              => 'B0ARRAYREVS',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Product with Array Reviews',
-            'reviews' => [['rating' => 5, 'text' => 'Great']],
+            'product_title'     => 'Product with Array Reviews',
+            'reviews'           => [['rating' => 5, 'text' => 'Great']],
         ]);
 
         $productJsonStringReviews = AsinData::factory()->create([
-            'asin' => 'B0JSONSTRING',
-            'status' => 'completed',
-            'fake_percentage' => 30.0,
-            'grade' => 'C',
+            'asin'              => 'B0JSONSTRING',
+            'status'            => 'completed',
+            'fake_percentage'   => 30.0,
+            'grade'             => 'C',
             'have_product_data' => true,
-            'product_title' => 'Product with JSON String Reviews',
-            'reviews' => json_encode([['rating' => 4, 'text' => 'Good']]),
+            'product_title'     => 'Product with JSON String Reviews',
+            'reviews'           => json_encode([['rating' => 4, 'text' => 'Good']]),
         ]);
 
         // Create products with zero reviews (should be removed)
         $productZeroReviews = AsinData::factory()->create([
-            'asin' => 'B0ZEROCREATED',
-            'status' => 'completed',
-            'fake_percentage' => 15.0,
-            'grade' => 'A',
+            'asin'              => 'B0ZEROCREATED',
+            'status'            => 'completed',
+            'fake_percentage'   => 15.0,
+            'grade'             => 'A',
             'have_product_data' => true,
-            'product_title' => 'Product Zero Reviews',
-            'reviews' => [],
+            'product_title'     => 'Product Zero Reviews',
+            'reviews'           => [],
         ]);
 
         // Verify initial state
@@ -195,13 +195,13 @@ class CleanupZeroReviewProductsTest extends TestCase
         // Create a moderate number of zero-review products to test progress reporting
         for ($i = 1; $i <= 25; $i++) {
             AsinData::factory()->create([
-                'asin' => sprintf('B0PROGRESS%02d', $i),
-                'status' => 'completed',
-                'fake_percentage' => 25.0,
-                'grade' => 'B',
+                'asin'              => sprintf('B0PROGRESS%02d', $i),
+                'status'            => 'completed',
+                'fake_percentage'   => 25.0,
+                'grade'             => 'B',
                 'have_product_data' => true,
-                'product_title' => "Progress Product {$i}",
-                'reviews' => [],
+                'product_title'     => "Progress Product {$i}",
+                'reviews'           => [],
             ]);
         }
 

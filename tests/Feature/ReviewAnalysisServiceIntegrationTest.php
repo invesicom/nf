@@ -16,10 +16,10 @@ use Tests\TestCase;
 
 /**
  * Integration tests for the full review analysis service chain.
- * 
+ *
  * These tests exercise the complete flow:
  * ReviewAnalysisService -> ReviewFetchingService -> BrightDataScraperService
- * 
+ *
  * This addresses the gap where individual unit tests passed but the integration failed.
  */
 class ReviewAnalysisServiceIntegrationTest extends TestCase
@@ -65,12 +65,12 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
 
         // Mock BrightData failure scenario
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_integration_failure'
+            'snapshot_id' => 's_test_integration_failure',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0
+            'status'  => 'ready',
+            'records' => 0,
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([])));
@@ -92,42 +92,42 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
 
         // Mock successful BrightData responses
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_integration_success'
+            'snapshot_id' => 's_test_integration_success',
         ])));
 
         // Add multiple progress responses in case of polling
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'running',
-            'records' => 0
+            'status'  => 'running',
+            'records' => 0,
         ])));
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 25
+            'status'  => 'ready',
+            'records' => 25,
         ])));
 
         // Mock successful data fetch with actual reviews in raw BrightData format
         $mockReviewData = [
             [
-                'review_id' => 'R123',
-                'rating' => 5,
-                'review_text' => 'Great product! Highly recommend.',
-                'is_verified' => true,
-                'product_name' => 'Test Product',
+                'review_id'            => 'R123',
+                'rating'               => 5,
+                'review_text'          => 'Great product! Highly recommend.',
+                'is_verified'          => true,
+                'product_name'         => 'Test Product',
                 'product_rating_count' => 100,
-                'product_image_url' => 'https://example.com/image.jpg'
+                'product_image_url'    => 'https://example.com/image.jpg',
             ],
             [
-                'review_id' => 'R124',
-                'rating' => 4,
+                'review_id'   => 'R124',
+                'rating'      => 4,
                 'review_text' => 'Good quality, fast shipping.',
-                'is_verified' => true
+                'is_verified' => true,
             ],
             [
-                'review_id' => 'R125',
-                'rating' => 1,
+                'review_id'   => 'R125',
+                'rating'      => 1,
                 'review_text' => 'Terrible fake product, avoid!',
-                'is_verified' => false
-            ]
+                'is_verified' => false,
+            ],
         ];
         $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
 
@@ -139,7 +139,7 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
         $this->assertEquals('B0TEST12345', $result->asin);
         $this->assertEquals('us', $result->country);
         $this->assertCount(3, $result->getReviewsArray());
-        
+
         // Verify the reviews were properly stored
         $reviews = $result->getReviewsArray();
         $this->assertEquals('R123', $reviews[0]['id']);
@@ -152,10 +152,10 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
     {
         // Create an AsinData record with no reviews (simulates products without reviews)
         $asinData = AsinData::create([
-            'asin' => 'B0TEST12345',
+            'asin'    => 'B0TEST12345',
             'country' => 'us',
             'reviews' => json_encode([]), // Empty reviews array
-            'status' => 'pending_analysis'
+            'status'  => 'pending_analysis',
         ]);
 
         $analysisService = app(ReviewAnalysisService::class);
@@ -166,24 +166,24 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
         // Verify the product was marked as completed with default analysis using centralized policy
         $this->assertEquals('completed', $result->status);
         $this->assertNotNull($result->openai_result);
-        
+
         $openaiResult = $result->openai_result;
         if (is_string($openaiResult)) {
             $openaiResult = json_decode($openaiResult, true);
         }
-        
+
         // Verify default analysis structure from ProductAnalysisPolicy
         $this->assertEquals([], $openaiResult['detailed_scores']);
         $this->assertEquals('system', $openaiResult['analysis_provider']);
         $this->assertEquals(0.0, $openaiResult['total_cost']);
-        
+
         // Verify default metrics were applied
         $this->assertEquals(0, $result->fake_percentage);
         $this->assertEquals('U', $result->grade);
         $this->assertEquals('Unable to analyze reviews at this time.', $result->explanation);
         $this->assertEquals(0.0, $result->amazon_rating);
         $this->assertEquals(0.0, $result->adjusted_rating);
-        
+
         $this->assertNotNull($result->first_analyzed_at);
         $this->assertNotNull($result->last_analyzed_at);
     }
@@ -196,12 +196,12 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
 
         // Mock BrightData failure
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_no_creation'
+            'snapshot_id' => 's_test_no_creation',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0
+            'status'  => 'ready',
+            'records' => 0,
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([])));
@@ -214,8 +214,8 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
         } catch (\Exception $e) {
             // Verify no AsinData record was created by the ReviewFetchingService
             $this->assertDatabaseMissing('asin_data', [
-                'asin' => 'B0TEST12345',
-                'country' => 'us'
+                'asin'    => 'B0TEST12345',
+                'country' => 'us',
             ]);
         }
     }
@@ -229,13 +229,13 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
 
         // Verify that ReviewFetchingService uses the factory
         $reviewFetchingService = app(\App\Services\Amazon\ReviewFetchingService::class);
-        
+
         // Use reflection to check the internal service
         $reflection = new \ReflectionClass($reviewFetchingService);
         $property = $reflection->getProperty('fetchService');
         $property->setAccessible(true);
         $internalService = $property->getValue($reviewFetchingService);
-        
+
         $this->assertInstanceOf(BrightDataScraperService::class, $internalService);
     }
 }

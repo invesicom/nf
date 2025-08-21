@@ -20,31 +20,31 @@ class AsinDataFactory extends Factory
     public function definition(): array
     {
         return [
-            'asin' => $this->faker->unique()->regexify('B0[A-Z0-9]{8}'),
-            'country' => 'US',
-            'status' => 'completed',
-            'fake_percentage' => $this->faker->randomFloat(1, 0, 100),
-            'grade' => $this->faker->randomElement(['A', 'B', 'C', 'D', 'F']),
-            'have_product_data' => true,
+            'asin'                    => $this->faker->unique()->regexify('B0[A-Z0-9]{8}'),
+            'country'                 => 'US',
+            'status'                  => 'completed',
+            'fake_percentage'         => $this->faker->randomFloat(1, 0, 100),
+            'grade'                   => $this->faker->randomElement(['A', 'B', 'C', 'D', 'F']),
+            'have_product_data'       => true,
             'total_reviews_on_amazon' => $this->faker->numberBetween(50, 5000),
-            'product_title' => $this->faker->sentence(4),
-            'product_image_url' => $this->faker->imageUrl(300, 300, 'products'),
-            'product_description' => $this->faker->paragraph(),
-            'openai_result' => json_encode([
-                'fake_indicators' => $this->faker->sentences(3),
+            'product_title'           => $this->faker->sentence(4),
+            'product_image_url'       => $this->faker->imageUrl(300, 300, 'products'),
+            'product_description'     => $this->faker->paragraph(),
+            'openai_result'           => json_encode([
+                'fake_indicators'    => $this->faker->sentences(3),
                 'overall_assessment' => $this->faker->paragraph(),
-                'confidence_score' => $this->faker->randomFloat(2, 0.5, 1.0),
+                'confidence_score'   => $this->faker->randomFloat(2, 0.5, 1.0),
             ]),
             'reviews' => json_encode([
                 [
-                    'rating' => $this->faker->numberBetween(1, 5),
-                    'text' => $this->faker->paragraph(),
+                    'rating'        => $this->faker->numberBetween(1, 5),
+                    'text'          => $this->faker->paragraph(),
                     'helpful_votes' => $this->faker->numberBetween(0, 100),
-                ]
+                ],
             ]),
-            'amazon_rating' => $this->faker->randomFloat(1, 1, 5),
+            'amazon_rating'   => $this->faker->randomFloat(1, 1, 5),
             'adjusted_rating' => $this->faker->randomFloat(1, 1, 5),
-            'explanation' => $this->faker->paragraph(),
+            'explanation'     => $this->faker->paragraph(),
         ];
     }
 
@@ -54,10 +54,10 @@ class AsinDataFactory extends Factory
     public function processing(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'openai_result' => null,
+            'grade'           => null,
+            'openai_result'   => null,
         ]);
     }
 
@@ -67,10 +67,10 @@ class AsinDataFactory extends Factory
     public function failed(): static
     {
         return $this->state(fn (array $attributes) => [
-            'status' => 'failed',
+            'status'          => 'failed',
             'fake_percentage' => null,
-            'grade' => null,
-            'openai_result' => null,
+            'grade'           => null,
+            'openai_result'   => null,
         ]);
     }
 
@@ -80,11 +80,11 @@ class AsinDataFactory extends Factory
     public function withoutProductData(): static
     {
         return $this->state(fn (array $attributes) => [
-            'have_product_data' => false,
-            'product_title' => null,
-            'product_image_url' => null,
-            'product_price' => null,
-            'product_rating' => null,
+            'have_product_data'    => false,
+            'product_title'        => null,
+            'product_image_url'    => null,
+            'product_price'        => null,
+            'product_rating'       => null,
             'product_review_count' => null,
         ]);
     }
@@ -96,7 +96,7 @@ class AsinDataFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'fake_percentage' => $this->faker->randomFloat(1, 0, 10),
-            'grade' => 'A',
+            'grade'           => 'A',
         ]);
     }
 
@@ -107,7 +107,7 @@ class AsinDataFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'fake_percentage' => $this->faker->randomFloat(1, 80, 100),
-            'grade' => 'F',
+            'grade'           => 'F',
         ]);
     }
 }

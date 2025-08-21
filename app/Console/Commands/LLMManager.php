@@ -11,7 +11,7 @@ class LLMManager extends Command
                             {action : Action to perform (status, switch, test, costs)}
                             {--provider= : Provider name for switch/test actions}
                             {--reviews=50 : Number of reviews for cost estimation}';
-    
+
     protected $description = 'Manage LLM providers and compare costs';
 
     public function handle()
@@ -23,22 +23,23 @@ class LLMManager extends Command
             case 'status':
                 $this->showStatus($manager);
                 break;
-                
+
             case 'switch':
                 $this->switchProvider($manager);
                 break;
-                
+
             case 'test':
                 $this->testProvider($manager);
                 break;
-                
+
             case 'costs':
                 $this->compareCosts($manager);
                 break;
-                
+
             default:
                 $this->error("Unknown action: {$action}");
-                $this->info("Available actions: status, switch, test, costs");
+                $this->info('Available actions: status, switch, test, costs');
+
                 return 1;
         }
 
@@ -51,7 +52,7 @@ class LLMManager extends Command
         $this->line('');
 
         $metrics = $manager->getProviderMetrics();
-        
+
         $headers = ['Provider', 'Available', 'Health Score', 'Success Rate', 'Avg Response (s)', 'Total Requests'];
         $rows = [];
 
@@ -59,29 +60,30 @@ class LLMManager extends Command
             $rows[] = [
                 $name,
                 $data['available'] ? '✅ Yes' : '❌ No',
-                $data['health_score'] . '%',
-                round($data['success_rate'], 1) . '%',
+                $data['health_score'].'%',
+                round($data['success_rate'], 1).'%',
                 round($data['avg_response_time'], 2),
-                $data['total_requests']
+                $data['total_requests'],
             ];
         }
 
         $this->table($headers, $rows);
-        
+
         $optimal = $manager->getOptimalProvider();
         if ($optimal) {
             $this->info("🎯 Optimal Provider: {$optimal->getProviderName()}");
         } else {
-            $this->error("❌ No providers available");
+            $this->error('❌ No providers available');
         }
     }
 
     private function switchProvider(LLMServiceManager $manager)
     {
         $provider = $this->option('provider');
-        
+
         if (!$provider) {
             $this->error('Provider name is required. Use --provider=<name>');
+
             return;
         }
 
@@ -95,11 +97,12 @@ class LLMManager extends Command
     private function testProvider(LLMServiceManager $manager)
     {
         $provider = $this->option('provider');
-        
+
         if (!$provider) {
             $optimal = $manager->getOptimalProvider();
             if (!$optimal) {
                 $this->error('No providers available for testing');
+
                 return;
             }
             $provider = $optimal->getProviderName();
@@ -120,16 +123,15 @@ class LLMManager extends Command
             $result = $manager->analyzeReviews($testReviews);
             $duration = microtime(true) - $startTime;
 
-            $this->info("✅ Test successful in " . round($duration, 2) . " seconds");
+            $this->info('✅ Test successful in '.round($duration, 2).' seconds');
             $this->line('');
-            
+
             if (isset($result['results'])) {
                 $this->info('📊 Analysis Results:');
                 foreach ($result['results'] as $analysis) {
                     $this->line("  Review {$analysis['id']}: {$analysis['score']}% fake probability");
                 }
             }
-
         } catch (\Exception $e) {
             $this->error("❌ Test failed: {$e->getMessage()}");
         }
@@ -138,12 +140,12 @@ class LLMManager extends Command
     private function compareCosts(LLMServiceManager $manager)
     {
         $reviewCount = (int) $this->option('reviews');
-        
+
         $this->info("💰 Cost Comparison for {$reviewCount} reviews");
         $this->line('');
 
         $comparison = $manager->getCostComparison($reviewCount);
-        
+
         $headers = ['Provider', 'Available', 'Cost per Analysis', 'Monthly Cost (1000 analyses)', 'Health Score'];
         $rows = [];
 
@@ -153,9 +155,9 @@ class LLMManager extends Command
                 $rows[] = [
                     $name,
                     '✅ Available',
-                    '$' . number_format($data['cost'], 4),
-                    '$' . number_format($monthlyCost, 2),
-                    $data['health_score'] . '%'
+                    '$'.number_format($data['cost'], 4),
+                    '$'.number_format($monthlyCost, 2),
+                    $data['health_score'].'%',
                 ];
             } else {
                 $rows[] = [
@@ -163,7 +165,7 @@ class LLMManager extends Command
                     '❌ Unavailable',
                     'N/A',
                     'N/A',
-                    '0%'
+                    '0%',
                 ];
             }
         }
@@ -171,15 +173,15 @@ class LLMManager extends Command
         $this->table($headers, $rows);
 
         // Show potential savings
-        $costs = array_filter(array_column($comparison, 'cost'), function($cost) { return $cost !== null; });
+        $costs = array_filter(array_column($comparison, 'cost'), function ($cost) { return $cost !== null; });
         if (count($costs) > 1) {
             $minCost = min($costs);
             $maxCost = max($costs);
             $savings = (($maxCost - $minCost) / $maxCost) * 100;
-            
+
             $this->line('');
-            $this->info("💡 Potential Savings: " . round($savings, 1) . "% by choosing the cheapest provider");
-            $this->info("💡 Monthly savings on 1000 analyses: $" . number_format(($maxCost - $minCost) * 1000, 2));
+            $this->info('💡 Potential Savings: '.round($savings, 1).'% by choosing the cheapest provider');
+            $this->info('💡 Monthly savings on 1000 analyses: $'.number_format(($maxCost - $minCost) * 1000, 2));
         }
     }
-} 
+}

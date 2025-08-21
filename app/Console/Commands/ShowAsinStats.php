@@ -37,7 +37,7 @@ class ShowAsinStats extends Command
 
         // Basic statistics
         $stats = $this->getBasicStats();
-        
+
         $this->table(
             ['Metric', 'Count', 'Percentage'],
             [
@@ -53,12 +53,12 @@ class ShowAsinStats extends Command
         $this->newLine();
         $this->info('🎯 Processing Readiness');
         $this->info('=======================');
-        
+
         if ($stats['needs_processing'] > 0) {
             $this->line("✅ {$stats['needs_processing']} records are ready for product data scraping");
-            $this->line("💡 Run: php artisan asin:process-existing --dry-run");
+            $this->line('💡 Run: php artisan asin:process-existing --dry-run');
         } else {
-            $this->line("🎉 All analyzed records already have product data!");
+            $this->line('🎉 All analyzed records already have product data!');
         }
 
         if ($stats['never_analyzed'] > 0) {
@@ -70,7 +70,7 @@ class ShowAsinStats extends Command
             $this->newLine();
             $this->info("📅 Recent Activity (Last {$recentDays} days)");
             $this->info('=============================');
-            
+
             $recentStats = $this->getRecentStats($recentDays);
             $this->table(
                 ['Activity', 'Count'],
@@ -91,7 +91,7 @@ class ShowAsinStats extends Command
         $this->newLine();
         $this->info('📋 Sample Records');
         $this->info('=================');
-        
+
         $this->showSampleRecords();
 
         return Command::SUCCESS;
@@ -103,19 +103,19 @@ class ShowAsinStats extends Command
     private function getBasicStats(): array
     {
         $total = AsinData::count();
-        
+
         $analyzed = AsinData::whereNotNull('reviews')
                            ->whereNotNull('openai_result')
                            ->where('reviews', '!=', '[]')
                            ->where('openai_result', '!=', '[]')
                            ->count();
-        
+
         $hasProductData = AsinData::where('have_product_data', true)->count();
-        
+
         $needsProcessing = AsinData::where(function ($q) {
-                                $q->where('have_product_data', false)
-                                  ->orWhereNull('have_product_data');
-                            })
+            $q->where('have_product_data', false)
+              ->orWhereNull('have_product_data');
+        })
                             ->whereNotNull('reviews')
                             ->whereNotNull('openai_result')
                             ->where('reviews', '!=', '[]')
@@ -123,19 +123,19 @@ class ShowAsinStats extends Command
                             ->count();
 
         $neverAnalyzed = AsinData::where(function ($q) {
-                                $q->whereNull('reviews')
-                                  ->orWhereNull('openai_result')
-                                  ->orWhere('reviews', '[]')
-                                  ->orWhere('openai_result', '[]');
-                            })
+            $q->whereNull('reviews')
+              ->orWhereNull('openai_result')
+              ->orWhere('reviews', '[]')
+              ->orWhere('openai_result', '[]');
+        })
                             ->count();
 
         return [
-            'total' => $total,
-            'analyzed' => $analyzed,
+            'total'            => $total,
+            'analyzed'         => $analyzed,
             'has_product_data' => $hasProductData,
             'needs_processing' => $needsProcessing,
-            'never_analyzed' => $neverAnalyzed,
+            'never_analyzed'   => $neverAnalyzed,
         ];
     }
 
@@ -147,7 +147,7 @@ class ShowAsinStats extends Command
         $since = now()->subDays($days);
 
         $newRecords = AsinData::where('created_at', '>=', $since)->count();
-        
+
         $analyzed = AsinData::where('updated_at', '>=', $since)
                            ->whereNotNull('reviews')
                            ->whereNotNull('openai_result')
@@ -160,8 +160,8 @@ class ShowAsinStats extends Command
                                    ->count();
 
         return [
-            'new_records' => $newRecords,
-            'analyzed' => $analyzed,
+            'new_records'        => $newRecords,
+            'analyzed'           => $analyzed,
             'product_data_added' => $productDataAdded,
         ];
     }
@@ -185,12 +185,12 @@ class ShowAsinStats extends Command
             $this->line("\n🌍 By Country:");
             $countryData = $byCountry->map(function ($item) {
                 return [
-                    'Country' => strtoupper($item->country),
-                    'Count' => $item->count,
-                    'Percentage' => $this->percentage($item->count, AsinData::count())
+                    'Country'    => strtoupper($item->country),
+                    'Count'      => $item->count,
+                    'Percentage' => $this->percentage($item->count, AsinData::count()),
                 ];
             })->toArray();
-            
+
             $this->table(['Country', 'Count', 'Percentage'], $countryData);
         }
 
@@ -209,10 +209,10 @@ class ShowAsinStats extends Command
 
         $topFakeData = $topFake->map(function ($item) {
             return [
-                'ASIN' => $item->asin,
-                'Title' => \Str::limit($item->product_title ?? 'N/A', 40),
-                'Fake %' => $item->fake_percentage . '%',
-                'Grade' => $item->grade,
+                'ASIN'   => $item->asin,
+                'Title'  => \Str::limit($item->product_title ?? 'N/A', 40),
+                'Fake %' => $item->fake_percentage.'%',
+                'Grade'  => $item->grade,
             ];
         })->toArray();
 
@@ -242,9 +242,9 @@ class ShowAsinStats extends Command
 
         return collect($grades)->map(function ($count, $grade) use ($total) {
             return [
-                'Grade' => $grade,
-                'Count' => $count,
-                'Percentage' => $this->percentage($count, $total)
+                'Grade'      => $grade,
+                'Count'      => $count,
+                'Percentage' => $this->percentage($count, $total),
             ];
         })->values()->toArray();
     }
@@ -256,9 +256,9 @@ class ShowAsinStats extends Command
     {
         // Sample of records that need processing
         $needsProcessing = AsinData::where(function ($q) {
-                                $q->where('have_product_data', false)
-                                  ->orWhereNull('have_product_data');
-                            })
+            $q->where('have_product_data', false)
+              ->orWhereNull('have_product_data');
+        })
                             ->whereNotNull('reviews')
                             ->whereNotNull('openai_result')
                             ->where('reviews', '!=', '[]')
@@ -270,14 +270,14 @@ class ShowAsinStats extends Command
             $this->line("\n🔄 Sample records needing processing:");
             $sampleData = $needsProcessing->map(function ($item) {
                 return [
-                    'ASIN' => $item->asin,
+                    'ASIN'    => $item->asin,
                     'Country' => strtoupper($item->country),
                     'Reviews' => count($item->getReviewsArray()),
-                    'Grade' => $item->grade ?? 'N/A',
+                    'Grade'   => $item->grade ?? 'N/A',
                     'Created' => $item->created_at->format('M j, Y'),
                 ];
             })->toArray();
-            
+
             $this->table(['ASIN', 'Country', 'Reviews', 'Grade', 'Created'], $sampleData);
         }
 
@@ -291,14 +291,14 @@ class ShowAsinStats extends Command
             $this->line("\n✅ Sample processed records:");
             $processedData = $processed->map(function ($item) {
                 return [
-                    'ASIN' => $item->asin,
-                    'Title' => \Str::limit($item->product_title, 30),
-                    'Grade' => $item->grade,
-                    'Fake %' => $item->fake_percentage . '%',
+                    'ASIN'    => $item->asin,
+                    'Title'   => \Str::limit($item->product_title, 30),
+                    'Grade'   => $item->grade,
+                    'Fake %'  => $item->fake_percentage.'%',
                     'SEO URL' => $item->seo_url,
                 ];
             })->toArray();
-            
+
             $this->table(['ASIN', 'Title', 'Grade', 'Fake %', 'SEO URL'], $processedData);
         }
     }
@@ -311,7 +311,7 @@ class ShowAsinStats extends Command
         if ($total === 0) {
             return '0%';
         }
-        
-        return round(($part / $total) * 100, 1) . '%';
+
+        return round(($part / $total) * 100, 1).'%';
     }
 }

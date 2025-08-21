@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Console\Commands\BackfillTotalReviewCounts;
 use App\Models\AsinData;
 use App\Services\LoggingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -17,10 +15,10 @@ class BackfillTotalReviewCountsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock external services to prevent real HTTP requests
         Http::preventStrayRequests();
-        
+
         // Mock LoggingService to prevent actual logging during tests
         $this->mock(LoggingService::class, function ($mock) {
             $mock->shouldReceive('log')->andReturn(true);
@@ -44,7 +42,7 @@ class BackfillTotalReviewCountsTest extends TestCase
     {
         // Create products that already have total_reviews_on_amazon
         AsinData::factory()->count(3)->create([
-            'status' => 'completed',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => 100,
         ]);
 
@@ -58,22 +56,22 @@ class BackfillTotalReviewCountsTest extends TestCase
     {
         // Create products without total_reviews_on_amazon
         $product1 = AsinData::factory()->create([
-            'asin' => 'B0TESTPROD1',
-            'status' => 'completed',
+            'asin'                    => 'B0TESTPROD1',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
-            'product_title' => 'Test Product 1',
+            'product_title'           => 'Test Product 1',
         ]);
 
         $product2 = AsinData::factory()->create([
-            'asin' => 'B0TESTPROD2',
-            'status' => 'completed',
+            'asin'                    => 'B0TESTPROD2',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
-            'product_title' => 'Test Product 2',
+            'product_title'           => 'Test Product 2',
         ]);
 
         // Create a product that shouldn't be included (wrong status)
         AsinData::factory()->create([
-            'status' => 'processing',
+            'status'                  => 'processing',
             'total_reviews_on_amazon' => null,
         ]);
 
@@ -88,7 +86,7 @@ class BackfillTotalReviewCountsTest extends TestCase
     {
         // Create 5 products needing backfill
         AsinData::factory()->count(5)->create([
-            'status' => 'completed',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
         ]);
 
@@ -102,7 +100,7 @@ class BackfillTotalReviewCountsTest extends TestCase
     {
         // Create products that already have total_reviews_on_amazon
         AsinData::factory()->count(2)->create([
-            'status' => 'completed',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => 500,
         ]);
 
@@ -115,10 +113,10 @@ class BackfillTotalReviewCountsTest extends TestCase
     public function command_successfully_extracts_total_review_counts()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TESTPROD1',
-            'status' => 'completed',
+            'asin'                    => 'B0TESTPROD1',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
-            'product_title' => 'Test Product',
+            'product_title'           => 'Test Product',
         ]);
 
         // Mock successful Amazon response with review count
@@ -141,8 +139,8 @@ class BackfillTotalReviewCountsTest extends TestCase
     public function command_handles_amazon_http_errors_gracefully()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TESTPROD1',
-            'status' => 'completed',
+            'asin'                    => 'B0TESTPROD1',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
         ]);
 
@@ -165,8 +163,8 @@ class BackfillTotalReviewCountsTest extends TestCase
     public function command_handles_invalid_html_gracefully()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TESTPROD1',
-            'status' => 'completed',
+            'asin'                    => 'B0TESTPROD1',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
         ]);
 
@@ -188,8 +186,8 @@ class BackfillTotalReviewCountsTest extends TestCase
     public function command_handles_oversized_responses()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TESTPROD1',
-            'status' => 'completed',
+            'asin'                    => 'B0TESTPROD1',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
         ]);
 
@@ -213,7 +211,7 @@ class BackfillTotalReviewCountsTest extends TestCase
     public function command_respects_delay_option()
     {
         AsinData::factory()->count(2)->create([
-            'status' => 'completed',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
         ]);
 
@@ -222,7 +220,7 @@ class BackfillTotalReviewCountsTest extends TestCase
         ]);
 
         $startTime = microtime(true);
-        
+
         $this->artisan('reviews:backfill-totals', ['--limit' => 2, '--delay' => 1, '--no-interaction' => true])
             ->assertExitCode(0);
 
@@ -237,8 +235,8 @@ class BackfillTotalReviewCountsTest extends TestCase
     public function command_uses_optimized_http_configuration()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TESTPROD1',
-            'status' => 'completed',
+            'asin'                    => 'B0TESTPROD1',
+            'status'                  => 'completed',
             'total_reviews_on_amazon' => null,
         ]);
 
@@ -248,7 +246,7 @@ class BackfillTotalReviewCountsTest extends TestCase
                 $this->assertEquals('gzip, deflate', $request->header('Accept-Encoding')[0]);
                 $this->assertEquals('close', $request->header('Connection')[0]);
                 $this->assertEquals('no-cache', $request->header('Cache-Control')[0]);
-                
+
                 return Http::response($this->getMockAmazonHtml(123), 200);
             },
         ]);
@@ -261,15 +259,15 @@ class BackfillTotalReviewCountsTest extends TestCase
     public function command_extracts_review_counts_from_different_selectors()
     {
         $testCases = [
-            'data-hook' => '<span data-hook="total-review-count">1,234 global ratings</span>',
-            'cr-pivot' => '<div class="cr-pivot-review-count-info"><span class="totalReviewCount">2,345 reviews</span></div>',
+            'data-hook'   => '<span data-hook="total-review-count">1,234 global ratings</span>',
+            'cr-pivot'    => '<div class="cr-pivot-review-count-info"><span class="totalReviewCount">2,345 reviews</span></div>',
             'text-search' => '<div>Customer Reviews: 3,456 ratings and reviews</div>',
         ];
 
         foreach ($testCases as $testName => $html) {
             $product = AsinData::factory()->create([
-                'asin' => "B0TEST{$testName}",
-                'status' => 'completed',
+                'asin'                    => "B0TEST{$testName}",
+                'status'                  => 'completed',
                 'total_reviews_on_amazon' => null,
             ]);
 
@@ -286,7 +284,7 @@ class BackfillTotalReviewCountsTest extends TestCase
     }
 
     /**
-     * Generate mock Amazon product page HTML with review count
+     * Generate mock Amazon product page HTML with review count.
      */
     private function getMockAmazonHtml(int $reviewCount): string
     {

@@ -54,13 +54,13 @@ class GradeCalculationServiceTest extends TestCase
         // Test exact boundary values
         $this->assertEquals('A', GradeCalculationService::calculateGrade(15.0));
         $this->assertEquals('B', GradeCalculationService::calculateGrade(15.1));
-        
+
         $this->assertEquals('B', GradeCalculationService::calculateGrade(30.0));
         $this->assertEquals('C', GradeCalculationService::calculateGrade(30.1));
-        
+
         $this->assertEquals('C', GradeCalculationService::calculateGrade(50.0));
         $this->assertEquals('D', GradeCalculationService::calculateGrade(50.1));
-        
+
         $this->assertEquals('D', GradeCalculationService::calculateGrade(70.0));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(70.1));
     }
@@ -81,7 +81,7 @@ class GradeCalculationServiceTest extends TestCase
         // Test negative values (shouldn't happen in practice, but handle gracefully)
         $this->assertEquals('A', GradeCalculationService::calculateGrade(-1));
         $this->assertEquals('A', GradeCalculationService::calculateGrade(-10.5));
-        
+
         // Test very high values
         $this->assertEquals('F', GradeCalculationService::calculateGrade(150));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(999.99));
@@ -91,14 +91,14 @@ class GradeCalculationServiceTest extends TestCase
     public function it_returns_correct_grade_thresholds()
     {
         $thresholds = GradeCalculationService::getGradeThresholds();
-        
+
         $this->assertIsArray($thresholds);
         $this->assertArrayHasKey('A', $thresholds);
         $this->assertArrayHasKey('B', $thresholds);
         $this->assertArrayHasKey('C', $thresholds);
         $this->assertArrayHasKey('D', $thresholds);
         $this->assertArrayHasKey('F', $thresholds);
-        
+
         // Verify threshold values
         $this->assertEquals(['min' => 0, 'max' => 15], $thresholds['A']);
         $this->assertEquals(['min' => 16, 'max' => 30], $thresholds['B']);
@@ -110,18 +110,30 @@ class GradeCalculationServiceTest extends TestCase
     #[Test]
     public function it_returns_correct_grade_descriptions()
     {
-        $this->assertEquals('Excellent - Very few fake reviews detected', 
-                          GradeCalculationService::getGradeDescription('A'));
-        $this->assertEquals('Good - Low fake review percentage', 
-                          GradeCalculationService::getGradeDescription('B'));
-        $this->assertEquals('Fair - Moderate fake review concerns', 
-                          GradeCalculationService::getGradeDescription('C'));
-        $this->assertEquals('Poor - High fake review percentage', 
-                          GradeCalculationService::getGradeDescription('D'));
-        $this->assertEquals('Failing - Majority of reviews appear fake', 
-                          GradeCalculationService::getGradeDescription('F'));
-        $this->assertEquals('Unknown grade', 
-                          GradeCalculationService::getGradeDescription('X'));
+        $this->assertEquals(
+            'Excellent - Very few fake reviews detected',
+            GradeCalculationService::getGradeDescription('A')
+        );
+        $this->assertEquals(
+            'Good - Low fake review percentage',
+            GradeCalculationService::getGradeDescription('B')
+        );
+        $this->assertEquals(
+            'Fair - Moderate fake review concerns',
+            GradeCalculationService::getGradeDescription('C')
+        );
+        $this->assertEquals(
+            'Poor - High fake review percentage',
+            GradeCalculationService::getGradeDescription('D')
+        );
+        $this->assertEquals(
+            'Failing - Majority of reviews appear fake',
+            GradeCalculationService::getGradeDescription('F')
+        );
+        $this->assertEquals(
+            'Unknown grade',
+            GradeCalculationService::getGradeDescription('X')
+        );
     }
 
     #[Test]
@@ -129,27 +141,27 @@ class GradeCalculationServiceTest extends TestCase
     {
         // Test that the new standardized thresholds work correctly
         // These are the thresholds we're standardizing to (A≤15%, B≤30%, C≤50%, D≤70%)
-        
+
         // Grade A: 0-15%
         $this->assertEquals('A', GradeCalculationService::calculateGrade(0));
         $this->assertEquals('A', GradeCalculationService::calculateGrade(10));
         $this->assertEquals('A', GradeCalculationService::calculateGrade(15));
-        
+
         // Grade B: 16-30%
         $this->assertEquals('B', GradeCalculationService::calculateGrade(16));
         $this->assertEquals('B', GradeCalculationService::calculateGrade(25));
         $this->assertEquals('B', GradeCalculationService::calculateGrade(30));
-        
+
         // Grade C: 31-50%
         $this->assertEquals('C', GradeCalculationService::calculateGrade(31));
         $this->assertEquals('C', GradeCalculationService::calculateGrade(40));
         $this->assertEquals('C', GradeCalculationService::calculateGrade(50));
-        
+
         // Grade D: 51-70%
         $this->assertEquals('D', GradeCalculationService::calculateGrade(51));
         $this->assertEquals('D', GradeCalculationService::calculateGrade(65));
         $this->assertEquals('D', GradeCalculationService::calculateGrade(70));
-        
+
         // Grade F: 71-100%
         $this->assertEquals('F', GradeCalculationService::calculateGrade(71));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(85));

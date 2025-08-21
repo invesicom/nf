@@ -2,10 +2,8 @@
 
 namespace Tests\Unit;
 
-use App\Services\LLMServiceManager;
 use App\Services\LLMProviderInterface;
-use App\Services\Providers\OpenAIProvider;
-use App\Services\Providers\DeepSeekProvider;
+use App\Services\LLMServiceManager;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -13,19 +11,19 @@ use Tests\TestCase;
 class LLMServiceManagerTest extends TestCase
 {
     private LLMServiceManager $manager;
-    
+
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Set up test configuration
         config([
             'services.llm.primary_provider' => 'openai',
-            'services.llm.fallback_order' => ['deepseek', 'openai'],
-            'services.openai.api_key' => 'test_openai_key',
-            'services.deepseek.api_key' => 'test_deepseek_key',
+            'services.llm.fallback_order'   => ['deepseek', 'openai'],
+            'services.openai.api_key'       => 'test_openai_key',
+            'services.deepseek.api_key'     => 'test_deepseek_key',
         ]);
-        
+
         Cache::flush();
         $this->manager = new LLMServiceManager();
     }
@@ -41,8 +39,8 @@ class LLMServiceManagerTest extends TestCase
         Http::fake([
             'api.openai.com/*' => Http::response([
                 'choices' => [
-                    ['message' => ['content' => '[{"id":"1","score":25},{"id":"2","score":85}]']]
-                ]
+                    ['message' => ['content' => '[{"id":"1","score":25},{"id":"2","score":85}]']],
+                ],
             ], 200),
         ]);
 
@@ -60,11 +58,11 @@ class LLMServiceManagerTest extends TestCase
 
         // Mock OpenAI failure and DeepSeek success
         Http::fake([
-            'api.openai.com/*' => Http::response(['error' => 'API Error'], 500),
+            'api.openai.com/*'   => Http::response(['error' => 'API Error'], 500),
             'api.deepseek.com/*' => Http::response([
                 'choices' => [
-                    ['message' => ['content' => '[{"id":"1","score":30}]']]
-                ]
+                    ['message' => ['content' => '[{"id":"1","score":30}]']],
+                ],
             ], 200),
         ]);
 
@@ -100,8 +98,8 @@ class LLMServiceManagerTest extends TestCase
         Http::fake([
             'api.openai.com/*' => Http::response([
                 'choices' => [
-                    ['message' => ['content' => '[{"id":"1","score":40}]']]
-                ]
+                    ['message' => ['content' => '[{"id":"1","score":40}]']],
+                ],
             ], 200),
         ]);
 
@@ -118,7 +116,7 @@ class LLMServiceManagerTest extends TestCase
     {
         // Switch to OpenAI provider using partial name matching (case-insensitive)
         $this->assertTrue($this->manager->switchProvider('OpenAI'));
-        
+
         $optimal = $this->manager->getOptimalProvider();
         $this->assertInstanceOf(LLMProviderInterface::class, $optimal);
         $this->assertStringContainsString('OpenAI', $optimal->getProviderName());
@@ -127,10 +125,10 @@ class LLMServiceManagerTest extends TestCase
     public function test_compares_costs_across_providers()
     {
         $comparison = $this->manager->getCostComparison(100);
-        
+
         $this->assertIsArray($comparison);
         $this->assertGreaterThan(0, count($comparison));
-        
+
         foreach ($comparison as $providerName => $data) {
             $this->assertArrayHasKey('cost', $data);
             $this->assertArrayHasKey('available', $data);
@@ -141,9 +139,9 @@ class LLMServiceManagerTest extends TestCase
     public function test_returns_provider_metrics()
     {
         $metrics = $this->manager->getProviderMetrics();
-        
+
         $this->assertIsArray($metrics);
-        
+
         foreach ($metrics as $providerName => $data) {
             $this->assertArrayHasKey('available', $data);
             $this->assertArrayHasKey('success_rate', $data);

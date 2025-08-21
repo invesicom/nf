@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Services\AlertManager;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -36,6 +35,7 @@ class OpenAIService
         $parallelThreshold = config('services.openai.parallel_threshold', 50);
         if (count($reviews) > $parallelThreshold) {
             LoggingService::log('Large dataset detected ('.count($reviews).' reviews), processing in parallel chunks');
+
             return $this->analyzeReviewsInParallelChunks($reviews);
         }
 
@@ -77,7 +77,7 @@ class OpenAIService
                 ],
                 'temperature' => 0.0, // Deterministic for consistency and speed
                 'max_tokens'  => $maxTokens,
-                'top_p' => 0.1, // More focused responses
+                'top_p'       => 0.1, // More focused responses
             ]);
 
             if ($response->successful()) {
@@ -88,7 +88,7 @@ class OpenAIService
             } else {
                 $statusCode = $response->status();
                 $responseBody = $response->body();
-                
+
                 Log::error('OpenAI API error', [
                     'status' => $statusCode,
                     'body'   => $responseBody,
@@ -98,14 +98,14 @@ class OpenAIService
                 if ($statusCode === 429) {
                     $errorData = json_decode($responseBody, true);
                     $errorMessage = $errorData['error']['message'] ?? 'Rate limit exceeded';
-                    
+
                     if (str_contains($errorMessage, 'quota')) {
                         app(AlertManager::class)->recordFailure(
                             'OpenAI Service',
                             'QUOTA_EXCEEDED',
                             $errorMessage,
                             [
-                                'status_code' => $statusCode,
+                                'status_code'   => $statusCode,
                                 'response_body' => substr($responseBody, 0, 500),
                             ]
                         );
@@ -117,7 +117,7 @@ class OpenAIService
                         'API_ERROR',
                         $errorMessage,
                         [
-                            'status_code' => $statusCode,
+                            'status_code'   => $statusCode,
                             'response_body' => substr($responseBody, 0, 500),
                         ]
                     );
@@ -125,6 +125,7 @@ class OpenAIService
 
                 // Handle specific error types with user-friendly messages
                 $errorMessage = $this->getErrorMessage($statusCode, $responseBody);
+
                 throw new \Exception($errorMessage);
             }
         } catch (\Exception $e) {
@@ -140,8 +141,8 @@ class OpenAIService
                         $errorMessage,
                         [
                             'status_code' => 429,
-                            'error_type' => 'quota_exceeded',
-                            'source' => 'http_exception'
+                            'error_type'  => 'quota_exceeded',
+                            'source'      => 'http_exception',
                         ],
                         $e
                     );
@@ -154,8 +155,8 @@ class OpenAIService
             }
 
             // Don't re-wrap already formatted error messages
-            if (str_contains($e->getMessage(), 'quota') || 
-                str_contains($e->getMessage(), 'rate limit') || 
+            if (str_contains($e->getMessage(), 'quota') ||
+                str_contains($e->getMessage(), 'rate limit') ||
                 str_contains($e->getMessage(), 'temporarily unavailable')) {
                 throw $e;
             }
@@ -165,7 +166,7 @@ class OpenAIService
     }
 
     /**
-     * Process reviews in parallel chunks for better performance with large datasets
+     * Process reviews in parallel chunks for better performance with large datasets.
      */
     private function analyzeReviewsInParallelChunks(array $reviews): array
     {
@@ -204,7 +205,7 @@ class OpenAIService
                     ],
                     'temperature' => 0.0,
                     'max_tokens'  => $maxTokens,
-                    'top_p' => 0.1,
+                    'top_p'       => 0.1,
                 ]);
             }
         });
@@ -263,7 +264,7 @@ class OpenAIService
     }
 
     /**
-     * Build an optimized prompt that uses fewer tokens while maintaining accuracy
+     * Build an optimized prompt that uses fewer tokens while maintaining accuracy.
      */
     private function buildOptimizedPrompt($reviews): string
     {
@@ -277,13 +278,13 @@ class OpenAIService
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
             $vine = isset($review['meta_data']['is_vine_voice']) && $review['meta_data']['is_vine_voice'] ? 'Vine' : '';
-            
+
             // Handle both old and new review data structures
             // New structure (bandwidth optimized): has 'text' field but no 'review_title'
             // Old structure: has 'review_title' and 'review_text' fields
             $title = '';
             $text = '';
-            
+
             // Try to get title (optional - bandwidth optimization removed this)
             if (isset($review['review_title'])) {
                 $title = $this->cleanUtf8Text(substr($review['review_title'], 0, 100));
@@ -291,10 +292,10 @@ class OpenAIService
                 // No title available in bandwidth-optimized structure - use first part of review text
                 $reviewText = $review['text'] ?? $review['review_text'] ?? '';
                 if (!empty($reviewText)) {
-                    $title = $this->cleanUtf8Text(substr($reviewText, 0, 50) . '...');
+                    $title = $this->cleanUtf8Text(substr($reviewText, 0, 50).'...');
                 }
             }
-            
+
             // Get review text - try multiple field names for compatibility
             if (isset($review['review_text'])) {
                 $text = $this->cleanUtf8Text(substr($review['review_text'], 0, 400));
@@ -311,36 +312,36 @@ class OpenAIService
     }
 
     /**
-     * Clean text to ensure valid UTF-8 encoding for JSON serialization
+     * Clean text to ensure valid UTF-8 encoding for JSON serialization.
      */
     private function cleanUtf8Text(string $text): string
     {
         // Remove or replace invalid UTF-8 sequences
         $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
-        
+
         // Remove null bytes and other problematic characters
         $text = str_replace(["\0", "\x1A"], '', $text);
-        
+
         // Ensure string is valid UTF-8
         if (!mb_check_encoding($text, 'UTF-8')) {
             $text = mb_convert_encoding($text, 'UTF-8', 'auto');
         }
-        
+
         return trim($text);
     }
 
     /**
-     * Get optimized max_tokens based on number of reviews for faster processing
+     * Get optimized max_tokens based on number of reviews for faster processing.
      */
     private function getOptimizedMaxTokens(int $reviewCount): int
     {
         // GPT-4o-mini needs more tokens than GPT-4-turbo for the same output
         // Calculate based on expected output size: roughly 25-30 chars per review for JSON response
         $baseTokens = $reviewCount * 12; // Increased from 8 to 12 for GPT-4o-mini
-        
+
         // Add larger buffer for GPT-4o-mini to prevent truncation
         $buffer = min(1000, $reviewCount * 5); // Increased buffer
-        
+
         return $baseTokens + $buffer;
     }
 
@@ -381,6 +382,7 @@ class OpenAIService
                         }
 
                         LoggingService::log('Successfully parsed complete JSON with '.count($detailedScores).' scores');
+
                         return [
                             'detailed_scores' => $detailedScores,
                         ];
@@ -391,6 +393,7 @@ class OpenAIService
 
                 // If complete JSON parsing fails, try to parse partial JSON
                 LoggingService::log('Attempting to parse partial JSON response');
+
                 return $this->parsePartialJsonResponse($jsonString, $reviews);
             }
         }
@@ -404,32 +407,33 @@ class OpenAIService
     }
 
     /**
-     * Parse partial JSON responses that may be truncated due to max_tokens limit
+     * Parse partial JSON responses that may be truncated due to max_tokens limit.
      */
     private function parsePartialJsonResponse(string $jsonString, array $reviews): array
     {
         $detailedScores = [];
-        
+
         // Fix common truncation issues
         $jsonString = rtrim($jsonString, ',');
-        
+
         // If the JSON doesn't end with ], try to close it
         if (!str_ends_with(trim($jsonString), ']')) {
-            $jsonString = rtrim($jsonString, ',') . ']';
+            $jsonString = rtrim($jsonString, ',').']';
         }
 
         // Try parsing the fixed JSON
         try {
             $results = json_decode($jsonString, true);
-            
+
             if (json_last_error() === JSON_ERROR_NONE && is_array($results)) {
                 foreach ($results as $result) {
                     if (isset($result['id']) && isset($result['score'])) {
                         $detailedScores[$result['id']] = (int) $result['score'];
                     }
                 }
-                
+
                 LoggingService::log('Successfully parsed partial JSON with '.count($detailedScores).' scores');
+
                 return ['detailed_scores' => $detailedScores];
             }
         } catch (\Exception $e) {
@@ -438,13 +442,13 @@ class OpenAIService
 
         // If still failing, try regex parsing individual entries
         preg_match_all('/\{"id":"([^"]+)","score":(\d+)\}/', $jsonString, $matches, PREG_SET_ORDER);
-        
+
         foreach ($matches as $match) {
             $detailedScores[$match[1]] = (int) $match[2];
         }
 
         LoggingService::log('Regex parsing extracted '.count($detailedScores).' scores from partial response');
-        
+
         return ['detailed_scores' => $detailedScores];
     }
 
@@ -470,7 +474,7 @@ class OpenAIService
     }
 
     /**
-     * Get user-friendly error message based on API response
+     * Get user-friendly error message based on API response.
      */
     private function getErrorMessage(int $statusCode, string $responseBody): string
     {
@@ -483,22 +487,23 @@ class OpenAIService
                 if (str_contains($errorMessage, 'quota')) {
                     return 'OpenAI quota exceeded. Please check your billing and usage limits at https://platform.openai.com/usage';
                 }
+
                 return 'OpenAI rate limit exceeded. Please try again in a few moments.';
-                
+
             case 401:
                 return 'OpenAI authentication failed. Please check your API key configuration.';
-                
+
             case 400:
                 return 'Invalid request to OpenAI API. Please contact support if this persists.';
-                
+
             case 503:
                 return 'OpenAI service is temporarily unavailable. Please try again later.';
-                
+
             case 500:
             case 502:
             case 504:
                 return 'OpenAI service error. Please try again in a few moments.';
-                
+
             default:
                 return "OpenAI API error (HTTP {$statusCode}). Please try again or contact support if this persists.";
         }
@@ -507,24 +512,24 @@ class OpenAIService
     private function generateExplanation(float $score): string
     {
         if ($score >= 70) {
-            return "High fake risk: Multiple suspicious indicators detected";
+            return 'High fake risk: Multiple suspicious indicators detected';
         } elseif ($score >= 40) {
-            return "Medium fake risk: Some concerning patterns found";
+            return 'Medium fake risk: Some concerning patterns found';
         } elseif ($score >= 20) {
-            return "Low fake risk: Minor inconsistencies noted";
+            return 'Low fake risk: Minor inconsistencies noted';
         } else {
-            return "Appears genuine: Natural language and specific details";
+            return 'Appears genuine: Natural language and specific details';
         }
     }
 
     private function calculateConfidence(float $score): string
     {
         if ($score >= 80 || $score <= 20) {
-            return "high";
+            return 'high';
         } elseif ($score >= 60 || $score <= 40) {
-            return "medium";
+            return 'medium';
         } else {
-            return "low";
+            return 'low';
         }
     }
 }

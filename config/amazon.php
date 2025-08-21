@@ -31,11 +31,11 @@ return [
     |
     */
     'scraping' => [
-        'max_pages' => env('AMAZON_SCRAPING_MAX_PAGES', 10),
-        'target_reviews' => env('AMAZON_SCRAPING_TARGET_REVIEWS', 30),
-        'max_reviews' => env('AMAZON_SCRAPING_MAX_REVIEWS', 100),
-        'timeout' => env('AMAZON_SCRAPING_TIMEOUT', 30),
-        'user_agent' => env('AMAZON_SCRAPING_USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'),
+        'max_pages'              => env('AMAZON_SCRAPING_MAX_PAGES', 10),
+        'target_reviews'         => env('AMAZON_SCRAPING_TARGET_REVIEWS', 30),
+        'max_reviews'            => env('AMAZON_SCRAPING_MAX_REVIEWS', 100),
+        'timeout'                => env('AMAZON_SCRAPING_TIMEOUT', 30),
+        'user_agent'             => env('AMAZON_SCRAPING_USER_AGENT', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'),
         'delay_between_requests' => env('AMAZON_SCRAPING_DELAY', 2), // seconds
     ],
 
@@ -48,10 +48,10 @@ return [
     |
     */
     'brightdata' => [
-        'api_key' => env('BRIGHTDATA_API_KEY'),
-        'base_url' => env('BRIGHTDATA_BASE_URL', 'https://api.brightdata.com'),
-        'timeout' => env('BRIGHTDATA_TIMEOUT', 300), // 5 minutes
-        'polling_interval' => env('BRIGHTDATA_POLLING_INTERVAL', 10), // seconds
+        'api_key'              => env('BRIGHTDATA_API_KEY'),
+        'base_url'             => env('BRIGHTDATA_BASE_URL', 'https://api.brightdata.com'),
+        'timeout'              => env('BRIGHTDATA_TIMEOUT', 300), // 5 minutes
+        'polling_interval'     => env('BRIGHTDATA_POLLING_INTERVAL', 10), // seconds
         'max_polling_attempts' => env('BRIGHTDATA_MAX_POLLING', 60), // 10 minutes total
     ],
 
@@ -65,7 +65,7 @@ return [
     */
     'affiliate' => [
         'enabled' => env('AMAZON_AFFILIATE_ENABLED', true),
-        'tags' => [
+        'tags'    => [
             'us' => env('AMAZON_AFFILIATE_TAG_US'),
             'uk' => env('AMAZON_AFFILIATE_TAG_UK'),
             'ca' => env('AMAZON_AFFILIATE_TAG_CA'),
@@ -119,10 +119,10 @@ return [
     |
     */
     'sessions' => [
-        'rotation_enabled' => env('AMAZON_SESSION_ROTATION', true),
+        'rotation_enabled'      => env('AMAZON_SESSION_ROTATION', true),
         'health_check_interval' => env('AMAZON_SESSION_HEALTH_CHECK', 3600), // 1 hour
-        'unhealthy_cooldown' => env('AMAZON_SESSION_COOLDOWN', 1800), // 30 minutes
-        'max_sessions' => env('AMAZON_MAX_SESSIONS', 10),
+        'unhealthy_cooldown'    => env('AMAZON_SESSION_COOLDOWN', 1800), // 30 minutes
+        'max_sessions'          => env('AMAZON_MAX_SESSIONS', 10),
     ],
 
     /*
@@ -134,8 +134,8 @@ return [
     |
     */
     'rate_limiting' => [
-        'requests_per_minute' => env('AMAZON_RATE_LIMIT_RPM', 30),
-        'burst_limit' => env('AMAZON_RATE_LIMIT_BURST', 5),
+        'requests_per_minute'  => env('AMAZON_RATE_LIMIT_RPM', 30),
+        'burst_limit'          => env('AMAZON_RATE_LIMIT_BURST', 5),
         'cooldown_after_block' => env('AMAZON_COOLDOWN_MINUTES', 60), // 1 hour
     ],
 
@@ -148,9 +148,9 @@ return [
     |
     */
     'proxy' => [
-        'enabled' => env('AMAZON_PROXY_ENABLED', false),
-        'provider' => env('AMAZON_PROXY_PROVIDER', 'brightdata'),
-        'rotation_enabled' => env('AMAZON_PROXY_ROTATION', true),
+        'enabled'           => env('AMAZON_PROXY_ENABLED', false),
+        'provider'          => env('AMAZON_PROXY_PROVIDER', 'brightdata'),
+        'rotation_enabled'  => env('AMAZON_PROXY_ROTATION', true),
         'failure_threshold' => env('AMAZON_PROXY_FAILURE_THRESHOLD', 3),
     ],
 
@@ -164,11 +164,11 @@ return [
     */
     'captcha' => [
         'detection_enabled' => env('AMAZON_CAPTCHA_DETECTION', true),
-        'keywords' => [
+        'keywords'          => [
             'captcha', 'robot', 'automated', 'verify', 'security check',
-            'unusual traffic', 'please confirm', 'prove you\'re human'
+            'unusual traffic', 'please confirm', 'prove you\'re human',
         ],
-        'size_threshold' => env('AMAZON_CAPTCHA_SIZE_THRESHOLD', 5000), // bytes
+        'size_threshold'     => env('AMAZON_CAPTCHA_SIZE_THRESHOLD', 5000), // bytes
         'alert_on_detection' => env('AMAZON_CAPTCHA_ALERT', true),
     ],
 
@@ -190,8 +190,8 @@ return [
             '/ASIN=([A-Z0-9]{10})/',
             '/\/([A-Z0-9]{10})(?:\/|\?|$)/',
         ],
-        'required_fields' => ['asin', 'title', 'rating', 'reviews'],
-        'max_title_length' => 500,
+        'required_fields'        => ['asin', 'title', 'rating', 'reviews'],
+        'max_title_length'       => 500,
         'max_description_length' => 5000,
     ],
 ];

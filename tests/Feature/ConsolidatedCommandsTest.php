@@ -166,7 +166,7 @@ class ConsolidatedCommandsTest extends TestCase
         $this->artisan('analysis:manage analyze-patterns --limit=1')
             ->expectsOutputToContain('Executing: Analyze fake detection patterns in recent data')
             ->expectsOutputToContain('Options:');
-        
+
         // We don't assert exit code since it depends on data availability
         // The important thing is that the consolidated command structure works
     }
@@ -177,7 +177,7 @@ class ConsolidatedCommandsTest extends TestCase
         // Test that options are passed through correctly
         $this->artisan('analysis:manage analyze-patterns --limit=5')
             ->expectsOutputToContain('Options:');
-        
+
         // We don't assert exit code since it depends on data availability
     }
 
@@ -188,7 +188,7 @@ class ConsolidatedCommandsTest extends TestCase
         $this->artisan('analysis:manage reanalyze --dry-run --grades=F --limit=1')
             ->expectsOutputToContain('Executing: Re-analyze products with poor grades')
             ->expectsOutputToContain('Options:');
-        
+
         // We don't assert exit code since it depends on data availability
     }
 
@@ -203,7 +203,7 @@ class ConsolidatedCommandsTest extends TestCase
             ->expectsOutputToContain('proxy')
             ->expectsOutputToContain('session')
             ->expectsOutputToContain('Use --scenario=<name> to run a specific scenario');
-        
+
         // The command will fail when it tries to execute the underlying command
         // because it needs an ASIN, but that's expected - we're testing the scenario display
     }
@@ -234,16 +234,25 @@ class ConsolidatedCommandsTest extends TestCase
     {
         // Ensure that the old commands still exist and work
         // This test verifies we haven't broken existing functionality
-        
+
         // Test that original commands still exist
         $commands = Artisan::all();
-        
-        $this->assertArrayHasKey('analyze:fake-detection', $commands,
-            'Original analyze:fake-detection command should still exist');
-        $this->assertArrayHasKey('reanalyze:graded-products', $commands,
-            'Original reanalyze:graded-products command should still exist');
-        $this->assertArrayHasKey('test:amazon-scraping', $commands,
-            'Original test:amazon-scraping command should still exist');
+
+        $this->assertArrayHasKey(
+            'analyze:fake-detection',
+            $commands,
+            'Original analyze:fake-detection command should still exist'
+        );
+        $this->assertArrayHasKey(
+            'reanalyze:graded-products',
+            $commands,
+            'Original reanalyze:graded-products command should still exist'
+        );
+        $this->assertArrayHasKey(
+            'test:amazon-scraping',
+            $commands,
+            'Original test:amazon-scraping command should still exist'
+        );
     }
 
     #[Test]
@@ -251,14 +260,26 @@ class ConsolidatedCommandsTest extends TestCase
     {
         // Verify that we have the new consolidated commands
         $commands = Artisan::all();
-        
-        $this->assertArrayHasKey('system:test', $commands,
-            'New system:test consolidated command should exist');
-        $this->assertArrayHasKey('analysis:manage', $commands,
-            'New analysis:manage consolidated command should exist');
-        $this->assertArrayHasKey('data:process', $commands,
-            'New data:process consolidated command should exist');
-        $this->assertArrayHasKey('monitoring:check', $commands,
-            'New monitoring:check consolidated command should exist');
+
+        $this->assertArrayHasKey(
+            'system:test',
+            $commands,
+            'New system:test consolidated command should exist'
+        );
+        $this->assertArrayHasKey(
+            'analysis:manage',
+            $commands,
+            'New analysis:manage consolidated command should exist'
+        );
+        $this->assertArrayHasKey(
+            'data:process',
+            $commands,
+            'New data:process consolidated command should exist'
+        );
+        $this->assertArrayHasKey(
+            'monitoring:check',
+            $commands,
+            'New monitoring:check consolidated command should exist'
+        );
     }
 }

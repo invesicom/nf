@@ -4,7 +4,6 @@ namespace App\Services\Amazon;
 
 use App\Models\AsinData;
 use App\Services\AlertManager;
-use App\Services\Amazon\AmazonReviewServiceInterface;
 use App\Services\LoggingService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
@@ -28,9 +27,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         ?int $maxAttempts = null
     ) {
         $this->httpClient = $httpClient ?? new Client([
-            'timeout' => 1200, // 20 minutes - BrightData jobs can take a long time
+            'timeout'         => 1200, // 20 minutes - BrightData jobs can take a long time
             'connect_timeout' => 30,
-            'http_errors' => false,
+            'http_errors'     => false,
         ]);
 
         $this->apiKey = $apiKey ?? env('BRIGHTDATA_SCRAPER_API', '');
@@ -41,8 +40,8 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
         if (empty($this->apiKey)) {
             LoggingService::log('BrightData API key not configured', [
-                'service' => 'BrightDataScraperService',
-                'checked_vars' => ['BRIGHTDATA_SCRAPER_API']
+                'service'      => 'BrightDataScraperService',
+                'checked_vars' => ['BRIGHTDATA_SCRAPER_API'],
             ]);
         }
     }
@@ -62,72 +61,74 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     {
         if (empty($this->apiKey)) {
             LoggingService::log('BrightData API key missing, cannot fetch reviews', [
-                'asin' => $asin,
-                'service' => 'BrightDataScraperService'
+                'asin'    => $asin,
+                'service' => 'BrightDataScraperService',
             ]);
+
             return [
-                'reviews' => [],
-                'description' => '',
-                'total_reviews' => 0
+                'reviews'       => [],
+                'description'   => '',
+                'total_reviews' => 0,
             ];
         }
 
         LoggingService::log('Starting BrightData scraping for ASIN', [
-            'asin' => $asin,
+            'asin'    => $asin,
             'country' => $country,
-            'service' => 'BrightDataScraperService'
+            'service' => 'BrightDataScraperService',
         ]);
 
         try {
             // Construct Amazon product URL
             $productUrl = $this->buildAmazonUrl($asin, $country);
-            
+
             // Trigger BrightData scraping job
             $jobId = $this->triggerScrapingJob([$productUrl]);
-            
+
             if (!$jobId) {
                 LoggingService::log('Failed to trigger BrightData scraping job', [
                     'asin' => $asin,
-                    'url' => $productUrl
+                    'url'  => $productUrl,
                 ]);
+
                 return [
-                    'reviews' => [],
-                    'description' => '',
-                    'total_reviews' => 0
+                    'reviews'       => [],
+                    'description'   => '',
+                    'total_reviews' => 0,
                 ];
             }
 
             // Poll for results
             $results = $this->pollForResults($jobId, $asin);
-            
+
             if (empty($results)) {
                 LoggingService::log('No results returned from BrightData', [
-                    'asin' => $asin,
-                    'job_id' => $jobId
+                    'asin'   => $asin,
+                    'job_id' => $jobId,
                 ]);
+
                 return [
-                    'reviews' => [],
-                    'description' => '',
-                    'total_reviews' => 0
+                    'reviews'       => [],
+                    'description'   => '',
+                    'total_reviews' => 0,
                 ];
             }
 
             // Transform BrightData format to our internal format
             $transformedData = $this->transformBrightDataResults($results, $asin);
-            
+
             LoggingService::log('BrightData scraping completed successfully', [
-                'asin' => $asin,
+                'asin'          => $asin,
                 'reviews_found' => count($transformedData['reviews']),
-                'job_id' => $jobId
+                'job_id'        => $jobId,
             ]);
 
             return $transformedData;
-
         } catch (\Exception $e) {
             LoggingService::log('BrightData scraping failed', [
-                'asin' => $asin,
+                'asin'  => $asin,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             // Use context-aware alerting - let AlertManager determine if notification is needed
@@ -140,9 +141,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             );
 
             return [
-                'reviews' => [],
-                'description' => '',
-                'total_reviews' => 0
+                'reviews'       => [],
+                'description'   => '',
+                'total_reviews' => 0,
             ];
         }
     }
@@ -154,25 +155,26 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     {
         // CRITICAL: If we're already running inside a queue job, always use sync mode
         // to avoid dispatching jobs from within jobs
-        if (app()->runningInConsole() && 
+        if (app()->runningInConsole() &&
             str_contains(implode(' ', $_SERVER['argv'] ?? []), 'queue:work')) {
             LoggingService::log('BrightData forced to sync mode - running inside queue worker', [
-                'asin' => $asin,
+                'asin'    => $asin,
                 'country' => $country,
-                'argv' => $_SERVER['argv'] ?? []
+                'argv'    => $_SERVER['argv'] ?? [],
             ]);
+
             return $this->fetchReviewsSync($asin, $country);
         }
-        
+
         // For async processing, dispatch the job chain
-        $asyncEnabled = config('analysis.async_enabled') ?? 
-                       filter_var(env('ANALYSIS_ASYNC_ENABLED'), FILTER_VALIDATE_BOOLEAN) ?? 
+        $asyncEnabled = config('analysis.async_enabled') ??
+                       filter_var(env('ANALYSIS_ASYNC_ENABLED'), FILTER_VALIDATE_BOOLEAN) ??
                        (env('APP_ENV') === 'production');
-        
+
         if ($asyncEnabled) {
             return $this->fetchReviewsAsync($asin, $country);
         }
-        
+
         // Synchronous fallback for testing or when async is disabled
         return $this->fetchReviewsSync($asin, $country);
     }
@@ -183,8 +185,8 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     public function fetchReviewsAsync(string $asin, string $country): AsinData
     {
         LoggingService::log('Starting BrightData async job chain', [
-            'asin' => $asin,
-            'country' => $country
+            'asin'    => $asin,
+            'country' => $country,
         ]);
 
         // Create or get existing AsinData record and set it to processing for async mode
@@ -192,7 +194,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             ['asin' => $asin, 'country' => $country],
             ['status' => 'processing']
         );
-        
+
         // Always set to processing status for async mode
         if ($asinData->status !== 'processing') {
             $asinData->update(['status' => 'processing']);
@@ -210,28 +212,28 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     private function fetchReviewsSync(string $asin, string $country): AsinData
     {
         $result = $this->fetchReviews($asin, $country);
-        
+
         // Check if BrightData failed to fetch reviews - throw exception instead of creating empty record
         if (empty($result['reviews'])) {
             throw new \Exception("BrightData failed to fetch reviews for ASIN: {$asin}. This could be due to Amazon blocking, service issues, or account limitations.");
         }
-        
+
         // Save to database using existing columns only
         $asinData = AsinData::firstOrCreate(
             ['asin' => $asin, 'country' => $country],
             ['status' => 'pending_analysis']
         );
-        
+
         $asinData->reviews = json_encode($result['reviews']);
         $asinData->product_description = $result['description'] ?? '';
         $asinData->total_reviews_on_amazon = $result['total_reviews'] ?? count($result['reviews']);
         $asinData->country = $country;
         $asinData->status = 'pending_analysis';
-        
+
         // Extract product data if available from BrightData
         $hasProductTitle = false;
         $hasProductImage = false;
-        
+
         if (!empty($result['product_name'])) {
             $asinData->product_title = $result['product_name'];
             $hasProductTitle = true;
@@ -240,19 +242,19 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             $asinData->product_image_url = $result['product_image_url'];
             $hasProductImage = true;
         }
-        
+
         // Only set have_product_data = true if we actually have both title and image
         // If BrightData doesn't provide complete product metadata, let AmazonProductDataService handle it
         $asinData->have_product_data = $hasProductTitle && $hasProductImage;
-        
+
         LoggingService::log('BrightData product data extraction results', [
-            'asin' => $asin,
-            'has_product_title' => $hasProductTitle,
-            'has_product_image' => $hasProductImage,
-            'have_product_data' => $asinData->have_product_data,
-            'will_trigger_separate_scraping' => !$asinData->have_product_data
+            'asin'                           => $asin,
+            'has_product_title'              => $hasProductTitle,
+            'has_product_image'              => $hasProductImage,
+            'have_product_data'              => $asinData->have_product_data,
+            'will_trigger_separate_scraping' => !$asinData->have_product_data,
         ]);
-        
+
         $asinData->save();
 
         return $asinData;
@@ -264,14 +266,14 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     public function fetchProductData(string $asin, string $country = 'us'): array
     {
         $result = $this->fetchReviews($asin, $country);
-        
+
         return [
-            'title' => $result['product_name'] ?? '',
-            'description' => $result['description'] ?? '',
-            'price' => $result['price'] ?? '',
-            'image_url' => $result['product_image_url'] ?? '',
-            'rating' => 0, // Rating not available from BrightData review data
-            'total_reviews' => $result['total_reviews'] ?? 0
+            'title'         => $result['product_name'] ?? '',
+            'description'   => $result['description'] ?? '',
+            'price'         => $result['price'] ?? '',
+            'image_url'     => $result['product_image_url'] ?? '',
+            'rating'        => 0, // Rating not available from BrightData review data
+            'total_reviews' => $result['total_reviews'] ?? 0,
         ];
     }
 
@@ -304,10 +306,11 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'se' => 'amazon.se',
             'pl' => 'amazon.pl',
             'eg' => 'amazon.eg',
-            'be' => 'amazon.be'
+            'be' => 'amazon.be',
         ];
 
         $domain = $domains[$country] ?? $domains['us'];
+
         return "https://www.{$domain}/dp/{$asin}/";
     }
 
@@ -317,26 +320,26 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     private function triggerScrapingJob(array $urls): ?string
     {
         try {
-            $payload = array_map(function($url) {
+            $payload = array_map(function ($url) {
                 return ['url' => $url];
             }, $urls);
 
             LoggingService::log('Triggering BrightData scraping job', [
                 'urls_count' => count($urls),
                 'dataset_id' => $this->datasetId,
-                'payload' => $payload
+                'payload'    => $payload,
             ]);
 
             $response = $this->httpClient->post("{$this->baseUrl}/trigger", [
                 'headers' => [
                     'Authorization' => "Bearer {$this->apiKey}",
-                    'Content-Type' => 'application/json',
+                    'Content-Type'  => 'application/json',
                 ],
                 'query' => [
-                    'dataset_id' => $this->datasetId,
-                    'include_errors' => 'true'  // Include errors as per API docs
+                    'dataset_id'     => $this->datasetId,
+                    'include_errors' => 'true',  // Include errors as per API docs
                 ],
-                'json' => $payload
+                'json' => $payload,
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -344,9 +347,10 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
             if ($statusCode !== 200) {
                 LoggingService::log('BrightData job trigger failed', [
-                    'status_code' => $statusCode,
-                    'response_body' => $body
+                    'status_code'   => $statusCode,
+                    'response_body' => $body,
                 ]);
+
                 return null;
             }
 
@@ -354,16 +358,15 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             $jobId = $data['snapshot_id'] ?? null;
 
             LoggingService::log('BrightData job triggered successfully', [
-                'job_id' => $jobId,
-                'response' => $data
+                'job_id'   => $jobId,
+                'response' => $data,
             ]);
 
             return $jobId;
-
         } catch (RequestException $e) {
             LoggingService::log('BrightData job trigger request failed', [
-                'error' => $e->getMessage(),
-                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null
+                'error'    => $e->getMessage(),
+                'response' => $e->hasResponse() ? $e->getResponse()->getBody()->getContents() : null,
             ]);
 
             // Use context-aware alerting for API trigger failures
@@ -374,7 +377,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 [
                     'dataset_id' => $this->datasetId,
                     'urls_count' => count($urls),
-                    'response' => $e->hasResponse() ? substr($e->getResponse()->getBody()->getContents(), 0, 200) : null
+                    'response'   => $e->hasResponse() ? substr($e->getResponse()->getBody()->getContents(), 0, 200) : null,
                 ],
                 $e
             );
@@ -391,10 +394,10 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         $attempt = 0;
 
         LoggingService::log('Starting to poll for BrightData results', [
-            'job_id' => $jobId,
-            'asin' => $asin,
-            'max_attempts' => $this->maxAttempts,
-            'poll_interval' => $this->pollInterval
+            'job_id'        => $jobId,
+            'asin'          => $asin,
+            'max_attempts'  => $this->maxAttempts,
+            'poll_interval' => $this->pollInterval,
         ]);
 
         while ($attempt < $this->maxAttempts) {
@@ -403,7 +406,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 $response = $this->httpClient->get("{$this->baseUrl}/progress/{$jobId}", [
                     'headers' => [
                         'Authorization' => "Bearer {$this->apiKey}",
-                    ]
+                    ],
                 ]);
 
                 $statusCode = $response->getStatusCode();
@@ -411,12 +414,12 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
                 if ($statusCode !== 200) {
                     LoggingService::log('BrightData progress check failed', [
-                        'job_id' => $jobId,
-                        'attempt' => $attempt + 1,
-                        'status_code' => $statusCode,
-                        'response_body' => substr($body, 0, 500)
+                        'job_id'        => $jobId,
+                        'attempt'       => $attempt + 1,
+                        'status_code'   => $statusCode,
+                        'response_body' => substr($body, 0, 500),
                     ]);
-                    
+
                     $attempt++;
                     if ($this->pollInterval > 0) {
                         sleep($this->pollInterval);
@@ -428,10 +431,10 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 $status = $progressData['status'] ?? 'unknown';
 
                 LoggingService::log('BrightData job progress check', [
-                    'job_id' => $jobId,
-                    'attempt' => $attempt + 1,
-                    'status' => $status,
-                    'total_rows' => $progressData['records'] ?? 0
+                    'job_id'     => $jobId,
+                    'attempt'    => $attempt + 1,
+                    'status'     => $status,
+                    'total_rows' => $progressData['records'] ?? 0,
                 ]);
 
                 if ($status === 'ready') {
@@ -439,20 +442,21 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     return $this->fetchJobData($jobId);
                 } elseif ($status === 'failed' || $status === 'error') {
                     LoggingService::log('BrightData job failed', [
-                        'job_id' => $jobId,
-                        'status' => $status,
-                        'progress_data' => $progressData
+                        'job_id'        => $jobId,
+                        'status'        => $status,
+                        'progress_data' => $progressData,
                     ]);
+
                     return [];
                 } elseif ($status === 'running') {
                     LoggingService::log('BrightData job still running', [
-                        'job_id' => $jobId,
-                        'attempt' => $attempt + 1,
-                        'max_attempts' => $this->maxAttempts,
-                        'time_elapsed' => ($attempt * $this->pollInterval) . 's',
-                        'estimated_remaining' => (($this->maxAttempts - $attempt) * $this->pollInterval) . 's'
+                        'job_id'              => $jobId,
+                        'attempt'             => $attempt + 1,
+                        'max_attempts'        => $this->maxAttempts,
+                        'time_elapsed'        => ($attempt * $this->pollInterval).'s',
+                        'estimated_remaining' => (($this->maxAttempts - $attempt) * $this->pollInterval).'s',
                     ]);
-                    
+
                     $attempt++;
                     if ($this->pollInterval > 0) {
                         sleep($this->pollInterval);
@@ -463,12 +467,11 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 // Unknown status - continue polling
                 $attempt++;
                 sleep($pollInterval);
-
             } catch (RequestException $e) {
                 LoggingService::log('BrightData polling request failed', [
-                    'job_id' => $jobId,
+                    'job_id'  => $jobId,
                     'attempt' => $attempt + 1,
-                    'error' => $e->getMessage()
+                    'error'   => $e->getMessage(),
                 ]);
 
                 // Record polling failure - AlertManager handles pattern detection automatically
@@ -477,13 +480,13 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     'POLLING_FAILED',
                     $e->getMessage(),
                     [
-                        'job_id' => $jobId,
-                        'attempt' => $attempt + 1,
-                        'max_attempts' => $this->maxAttempts
+                        'job_id'       => $jobId,
+                        'attempt'      => $attempt + 1,
+                        'max_attempts' => $this->maxAttempts,
                     ],
                     $e
                 );
-                
+
                 $attempt++;
                 sleep($pollInterval);
             }
@@ -491,15 +494,15 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
         // Get final status before giving up
         $finalProgressInfo = $this->getJobProgressInfo($jobId);
-        
+
         LoggingService::log('BrightData polling timeout - job may still be running', [
-            'job_id' => $jobId,
-            'asin' => $asin,
+            'job_id'       => $jobId,
+            'asin'         => $asin,
             'max_attempts' => $this->maxAttempts,
-            'total_time' => ($this->maxAttempts * $this->pollInterval) . 's',
+            'total_time'   => ($this->maxAttempts * $this->pollInterval).'s',
             'final_status' => $finalProgressInfo['status'] ?? 'unknown',
-            'final_rows' => $finalProgressInfo['total_rows'] ?? 0,
-            'suggestion' => 'Job may complete later - check progress manually or increase timeout'
+            'final_rows'   => $finalProgressInfo['total_rows'] ?? 0,
+            'suggestion'   => 'Job may complete later - check progress manually or increase timeout',
         ]);
 
         // Record timeout failure - AlertManager will determine appropriate response
@@ -508,12 +511,12 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'POLLING_TIMEOUT',
             "Job polling timed out after {$this->maxAttempts} attempts",
             [
-                'job_id' => $jobId,
-                'asin' => $asin,
+                'job_id'           => $jobId,
+                'asin'             => $asin,
                 'timeout_duration' => $this->maxAttempts * $this->pollInterval,
-                'max_attempts' => $this->maxAttempts,
-                'final_status' => $finalProgressInfo['status'] ?? 'unknown',
-                'final_rows' => $finalProgressInfo['total_rows'] ?? 0
+                'max_attempts'     => $this->maxAttempts,
+                'final_status'     => $finalProgressInfo['status'] ?? 'unknown',
+                'final_rows'       => $finalProgressInfo['total_rows'] ?? 0,
             ]
         );
 
@@ -527,7 +530,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     {
         $maxRetries = 3;
         $retryDelay = 30; // seconds
-        
+
         for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
             try {
                 $response = $this->httpClient->get("{$this->baseUrl}/snapshot/{$jobId}", [
@@ -535,8 +538,8 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                         'Authorization' => "Bearer {$this->apiKey}",
                     ],
                     'query' => [
-                        'format' => 'json'
-                    ]
+                        'format' => 'json',
+                    ],
                 ]);
 
                 $statusCode = $response->getStatusCode();
@@ -546,64 +549,64 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     $data = json_decode($body, true);
 
                     LoggingService::log('BrightData data fetched successfully', [
-                        'job_id' => $jobId,
+                        'job_id'        => $jobId,
                         'records_count' => is_array($data) ? count($data) : 0,
-                        'attempt' => $attempt
+                        'attempt'       => $attempt,
                     ]);
 
                     return is_array($data) ? $data : [];
-                    
                 } elseif ($statusCode === 202) {
                     // Snapshot is still building
                     $responseData = json_decode($body, true);
                     $status = $responseData['status'] ?? 'unknown';
                     $message = $responseData['message'] ?? 'Snapshot building';
-                    
+
                     LoggingService::log('BrightData snapshot still building', [
-                        'job_id' => $jobId,
-                        'attempt' => $attempt,
-                        'max_retries' => $maxRetries,
-                        'status' => $status,
-                        'message' => $message,
-                        'retry_in_seconds' => $retryDelay
+                        'job_id'           => $jobId,
+                        'attempt'          => $attempt,
+                        'max_retries'      => $maxRetries,
+                        'status'           => $status,
+                        'message'          => $message,
+                        'retry_in_seconds' => $retryDelay,
                     ]);
-                    
+
                     if ($attempt < $maxRetries) {
                         sleep($retryDelay);
                         continue;
                     } else {
                         LoggingService::log('BrightData snapshot build timeout', [
-                            'job_id' => $jobId,
-                            'max_retries' => $maxRetries,
-                            'total_wait_time' => $maxRetries * $retryDelay
+                            'job_id'          => $jobId,
+                            'max_retries'     => $maxRetries,
+                            'total_wait_time' => $maxRetries * $retryDelay,
                         ]);
+
                         return [];
                     }
                 } else {
                     LoggingService::log('BrightData data fetch failed', [
-                        'job_id' => $jobId,
-                        'status_code' => $statusCode,
+                        'job_id'        => $jobId,
+                        'status_code'   => $statusCode,
                         'response_body' => substr($body, 0, 500),
-                        'attempt' => $attempt
+                        'attempt'       => $attempt,
                     ]);
+
                     return [];
                 }
-
             } catch (RequestException $e) {
                 LoggingService::log('BrightData data fetch request failed', [
-                    'job_id' => $jobId,
-                    'error' => $e->getMessage(),
-                    'attempt' => $attempt
+                    'job_id'  => $jobId,
+                    'error'   => $e->getMessage(),
+                    'attempt' => $attempt,
                 ]);
-                
+
                 if ($attempt === $maxRetries) {
                     return [];
                 }
-                
+
                 sleep($retryDelay);
             }
         }
-        
+
         return [];
     }
 
@@ -624,7 +627,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             if (empty($productName) && !empty($item['product_name'])) {
                 $productName = $item['product_name'];
                 $totalReviews = $item['product_rating_count'] ?? 0;
-                
+
                 // Extract product image URL if provided by BrightData
                 if (empty($productImageUrl) && !empty($item['product_image_url'])) {
                     $productImageUrl = $item['product_image_url'];
@@ -634,25 +637,25 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             // Transform review data - BrightData provides very rich data
             if (!empty($item['review_text']) && !empty($item['review_id'])) {
                 $review = [
-                    'id' => $item['review_id'],
-                    'rating' => $item['rating'] ?? 0,
-                    'title' => $item['review_header'] ?? '',
-                    'text' => $item['review_text'], // Use 'text' field for consistency with other services
-                    'author' => $item['author_name'] ?? 'Anonymous',
-                    'date' => $item['review_posted_date'] ?? '',
+                    'id'        => $item['review_id'],
+                    'rating'    => $item['rating'] ?? 0,
+                    'title'     => $item['review_header'] ?? '',
+                    'text'      => $item['review_text'], // Use 'text' field for consistency with other services
+                    'author'    => $item['author_name'] ?? 'Anonymous',
+                    'date'      => $item['review_posted_date'] ?? '',
                     'meta_data' => [
                         'verified_purchase' => $item['is_verified'] ?? false,
-                        'helpful_count' => $item['helpful_count'] ?? 0,
-                        'vine_review' => $item['is_amazon_vine'] ?? false,
-                        'country' => $item['review_country'] ?? '',
-                        'badge' => $item['badge'] ?? '',
-                        'author_id' => $item['author_id'] ?? '',
-                        'author_link' => $item['author_link'] ?? '',
-                        'variant_asin' => $item['variant_asin'] ?? null,
-                        'variant_name' => $item['variant_name'] ?? null,
-                        'brand' => $item['brand'] ?? '',
-                        'timestamp' => $item['timestamp'] ?? '',
-                    ]
+                        'helpful_count'     => $item['helpful_count'] ?? 0,
+                        'vine_review'       => $item['is_amazon_vine'] ?? false,
+                        'country'           => $item['review_country'] ?? '',
+                        'badge'             => $item['badge'] ?? '',
+                        'author_id'         => $item['author_id'] ?? '',
+                        'author_link'       => $item['author_link'] ?? '',
+                        'variant_asin'      => $item['variant_asin'] ?? null,
+                        'variant_name'      => $item['variant_name'] ?? null,
+                        'brand'             => $item['brand'] ?? '',
+                        'timestamp'         => $item['timestamp'] ?? '',
+                    ],
                 ];
 
                 // Add image URLs if available
@@ -660,7 +663,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     $review['images'] = $item['review_images'];
                 }
 
-                // Add video URLs if available  
+                // Add video URLs if available
                 if (!empty($item['videos']) && is_array($item['videos'])) {
                     $review['videos'] = $item['videos'];
                 }
@@ -670,19 +673,19 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         }
 
         LoggingService::log('BrightData results transformed', [
-            'asin' => $asin,
-            'total_items' => count($results),
-            'reviews_extracted' => count($reviews),
-            'product_name' => $productName,
-            'total_reviews_on_amazon' => $totalReviews
+            'asin'                    => $asin,
+            'total_items'             => count($results),
+            'reviews_extracted'       => count($reviews),
+            'product_name'            => $productName,
+            'total_reviews_on_amazon' => $totalReviews,
         ]);
 
         return [
-            'reviews' => $reviews,
-            'description' => $description,
-            'total_reviews' => $totalReviews,
-            'product_name' => $productName,
-            'product_image_url' => $productImageUrl
+            'reviews'           => $reviews,
+            'description'       => $description,
+            'total_reviews'     => $totalReviews,
+            'product_name'      => $productName,
+            'product_image_url' => $productImageUrl,
         ];
     }
 
@@ -695,7 +698,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             $response = $this->httpClient->get("{$this->baseUrl}/progress/", [
                 'headers' => [
                     'Authorization' => "Bearer {$this->apiKey}",
-                ]
+                ],
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -703,24 +706,25 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
             if ($statusCode !== 200) {
                 LoggingService::log('BrightData progress check failed', [
-                    'status_code' => $statusCode,
-                    'response_body' => substr($body, 0, 500)
+                    'status_code'   => $statusCode,
+                    'response_body' => substr($body, 0, 500),
                 ]);
+
                 return [];
             }
 
             $data = json_decode($body, true);
-            
+
             LoggingService::log('BrightData progress check successful', [
-                'active_jobs' => is_array($data) ? count($data) : 0
+                'active_jobs' => is_array($data) ? count($data) : 0,
             ]);
 
             return is_array($data) ? $data : [];
-
         } catch (\Exception $e) {
             LoggingService::log('BrightData progress check error', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
+
             return [];
         }
     }
@@ -734,19 +738,19 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             $response = $this->httpClient->get("{$this->baseUrl}/progress/{$jobId}", [
                 'headers' => [
                     'Authorization' => "Bearer {$this->apiKey}",
-                ]
+                ],
             ]);
 
             if ($response->getStatusCode() === 200) {
                 $progressData = json_decode($response->getBody()->getContents(), true);
-                
+
                 // Response is directly for the specific job
                 if (is_array($progressData)) {
                     return [
-                        'status' => $progressData['status'] ?? 'unknown',
+                        'status'     => $progressData['status'] ?? 'unknown',
                         'total_rows' => $progressData['records'] ?? 0,
                         'created_at' => $progressData['created_at'] ?? null,
-                        'updated_at' => $progressData['updated_at'] ?? null
+                        'updated_at' => $progressData['updated_at'] ?? null,
                     ];
                 }
             }
@@ -756,5 +760,4 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
         return ['status' => 'unknown', 'total_rows' => 0];
     }
-
 }

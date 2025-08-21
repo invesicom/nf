@@ -29,8 +29,9 @@ class NewsletterService
     /**
      * Subscribe an email address to the newsletter.
      *
-     * @param string $email The email address to subscribe
-     * @param array $additionalData Optional additional subscriber data
+     * @param string $email          The email address to subscribe
+     * @param array  $additionalData Optional additional subscriber data
+     *
      * @return array Result array with success status and message
      */
     public function subscribe(string $email, array $additionalData = []): array
@@ -39,7 +40,7 @@ class NewsletterService
             $this->validateConfiguration();
 
             $data = array_merge([
-                'EMAIL' => $email,
+                'EMAIL'           => $email,
                 'FORCE_SUBSCRIBE' => 'yes', // Force subscription without confirmation
             ], $additionalData);
 
@@ -49,53 +50,53 @@ class NewsletterService
 
             if ($response->successful()) {
                 $result = $response->json();
-                
+
                 Log::info('Newsletter subscription successful', [
-                    'email' => $email,
-                    'list_id' => $this->listId,
-                    'response' => $result
+                    'email'    => $email,
+                    'list_id'  => $this->listId,
+                    'response' => $result,
                 ]);
 
                 return [
                     'success' => true,
                     'message' => 'Successfully subscribed to newsletter!',
-                    'data' => $result
+                    'data'    => $result,
                 ];
             } else {
                 $errorData = $response->json();
-                
+
                 // Handle specific Mailtrain error codes
                 if (isset($errorData['error']) && $errorData['error'] === 'ALREADY_SUBSCRIBED') {
                     return [
                         'success' => false,
                         'message' => 'This email is already subscribed to our newsletter.',
-                        'code' => 'ALREADY_SUBSCRIBED'
+                        'code'    => 'ALREADY_SUBSCRIBED',
                     ];
                 }
 
                 Log::warning('Newsletter subscription failed', [
-                    'email' => $email,
-                    'status' => $response->status(),
-                    'response' => $errorData
+                    'email'    => $email,
+                    'status'   => $response->status(),
+                    'response' => $errorData,
                 ]);
 
                 return [
                     'success' => false,
                     'message' => 'Failed to subscribe. Please try again later.',
-                    'error' => $errorData
+                    'error'   => $errorData,
                 ];
             }
         } catch (\Exception $e) {
             Log::error('Newsletter subscription error', [
                 'email' => $email,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
                 'message' => 'An error occurred while processing your subscription. Please try again later.',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ];
         }
     }
@@ -104,6 +105,7 @@ class NewsletterService
      * Unsubscribe an email address from the newsletter.
      *
      * @param string $email The email address to unsubscribe
+     *
      * @return array Result array with success status and message
      */
     public function unsubscribe(string $email): array
@@ -114,49 +116,49 @@ class NewsletterService
             $response = Http::timeout($this->timeout)
                 ->asForm() // Use form encoding instead of JSON
                 ->post("{$this->baseUrl}/api/unsubscribe/{$this->listId}?access_token={$this->apiToken}", [
-                    'EMAIL' => $email
+                    'EMAIL' => $email,
                 ]);
 
             if ($response->successful()) {
                 $result = $response->json();
-                
+
                 Log::info('Newsletter unsubscription successful', [
-                    'email' => $email,
-                    'list_id' => $this->listId,
-                    'response' => $result
+                    'email'    => $email,
+                    'list_id'  => $this->listId,
+                    'response' => $result,
                 ]);
 
                 return [
                     'success' => true,
                     'message' => 'Successfully unsubscribed from newsletter.',
-                    'data' => $result
+                    'data'    => $result,
                 ];
             } else {
                 $errorData = $response->json();
-                
+
                 Log::warning('Newsletter unsubscription failed', [
-                    'email' => $email,
-                    'status' => $response->status(),
-                    'response' => $errorData
+                    'email'    => $email,
+                    'status'   => $response->status(),
+                    'response' => $errorData,
                 ]);
 
                 return [
                     'success' => false,
                     'message' => 'Failed to unsubscribe. Please try again later.',
-                    'error' => $errorData
+                    'error'   => $errorData,
                 ];
             }
         } catch (\Exception $e) {
             Log::error('Newsletter unsubscription error', [
                 'email' => $email,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return [
                 'success' => false,
                 'message' => 'An error occurred while processing your unsubscription. Please try again later.',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ];
         }
     }
@@ -165,6 +167,7 @@ class NewsletterService
      * Check if an email is subscribed to the newsletter.
      *
      * @param string $email The email address to check
+     *
      * @return array Result array with subscription status
      */
     public function checkSubscription(string $email): array
@@ -177,29 +180,29 @@ class NewsletterService
 
             if ($response->successful()) {
                 $result = $response->json();
-                
+
                 return [
-                    'success' => true,
+                    'success'    => true,
                     'subscribed' => $result['subscribed'] ?? false,
-                    'data' => $result
+                    'data'       => $result,
                 ];
             } else {
                 return [
-                    'success' => false,
+                    'success'    => false,
                     'subscribed' => false,
-                    'error' => $response->json()
+                    'error'      => $response->json(),
                 ];
             }
         } catch (\Exception $e) {
             Log::error('Newsletter subscription check error', [
                 'email' => $email,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return [
-                'success' => false,
+                'success'    => false,
                 'subscribed' => false,
-                'error' => $e->getMessage()
+                'error'      => $e->getMessage(),
             ];
         }
     }
@@ -241,21 +244,21 @@ class NewsletterService
                 return [
                     'success' => true,
                     'message' => 'Successfully connected to Mailtrain API',
-                    'data' => $response->json()
+                    'data'    => $response->json(),
                 ];
             } else {
                 return [
                     'success' => false,
                     'message' => 'Failed to connect to Mailtrain API',
-                    'error' => $response->json()
+                    'error'   => $response->json(),
                 ];
             }
         } catch (\Exception $e) {
             return [
                 'success' => false,
                 'message' => 'Connection test failed',
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ];
         }
     }
-} 
+}

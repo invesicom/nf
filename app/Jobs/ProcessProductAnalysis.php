@@ -15,7 +15,10 @@ use Illuminate\Support\Facades\Log;
 
 class ProcessProductAnalysis implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public $tries = 3;
     public $timeout = 360; // 6 minutes - sufficient for BrightData processing
@@ -32,19 +35,20 @@ class ProcessProductAnalysis implements ShouldQueue
     public function handle(): void
     {
         $session = AnalysisSession::find($this->sessionId);
-        
+
         if (!$session) {
             Log::error('Analysis session not found', ['session_id' => $this->sessionId]);
+
             return;
         }
 
         try {
             $session->markAsProcessing();
-            
+
             LoggingService::log('Starting async product analysis', [
                 'session_id' => $this->sessionId,
-                'asin' => $session->asin,
-                'attempt' => $this->attempts(),
+                'asin'       => $session->asin,
+                'attempt'    => $this->attempts(),
             ]);
 
             // Step 1: Captcha already validated in controller
@@ -54,7 +58,7 @@ class ProcessProductAnalysis implements ShouldQueue
             $session->updateProgress(2, 25, 'Checking product database...');
             $analysisService = app(ReviewAnalysisService::class);
             $productInfo = $analysisService->checkProductExists($this->productUrl);
-            
+
             $asinData = $productInfo['asin_data'];
 
             // Step 3: Fetch reviews if needed
@@ -80,17 +84,17 @@ class ProcessProductAnalysis implements ShouldQueue
             // Step 6: Execute product data scraping as part of analysis flow (user waits for complete result)
             if (!$asinData->have_product_data) {
                 $session->updateProgress(6, 92, 'Fetching product information...');
-                
+
                 // Execute product scraping synchronously as part of the analysis process
                 $scrapeJob = new ScrapeAmazonProductData($asinData);
                 $scrapeJob->handle();
-                
+
                 // Refresh the model to get updated product data
                 $asinData = $asinData->fresh();
-                
+
                 LoggingService::log('Product scraping completed as part of analysis', [
-                    'asin' => $asinData->asin,
-                    'session_id' => $this->sessionId,
+                    'asin'              => $asinData->asin,
+                    'session_id'        => $this->sessionId,
                     'have_product_data' => $asinData->have_product_data,
                 ]);
             } else {
@@ -100,81 +104,80 @@ class ProcessProductAnalysis implements ShouldQueue
 
             // Step 7: Complete analysis with full product data available
             $session->updateProgress(7, 98, 'Generating final report...');
-            
+
             // Check if analysis completed successfully (including graceful handling of no reviews)
             if ($asinData->status !== 'completed') {
                 // Mark as failed - analysis didn't complete successfully
                 $session->markAsFailed('Analysis could not be completed. Please try again later.');
-                
+
                 LoggingService::log('Analysis failed - status not completed', [
-                    'asin' => $asinData->asin,
-                    'session_id' => $this->sessionId,
-                    'status' => $asinData->status,
+                    'asin'          => $asinData->asin,
+                    'session_id'    => $this->sessionId,
+                    'status'        => $asinData->status,
                     'reviews_count' => count($asinData->getReviewsArray()),
                 ]);
+
                 return;
             }
-            
+
             LoggingService::log('Analysis completed successfully', [
-                'asin' => $asinData->asin,
-                'session_id' => $this->sessionId,
-                'status' => $asinData->status,
+                'asin'          => $asinData->asin,
+                'session_id'    => $this->sessionId,
+                'status'        => $asinData->status,
                 'reviews_count' => count($asinData->getReviewsArray()),
-                'grade' => $asinData->grade,
+                'grade'         => $asinData->grade,
             ]);
-            
+
             // Prepare final result
             $redirectUrl = $this->determineRedirectUrl($asinData);
-            
+
             LoggingService::log('Async analysis completed successfully', [
-                'asin' => $asinData->asin,
+                'asin'         => $asinData->asin,
                 'redirect_url' => $redirectUrl,
             ]);
-            
+
             $finalResult = [
-                'success' => true,
-                'asin_data' => $asinData->fresh(),
+                'success'         => true,
+                'asin_data'       => $asinData->fresh(),
                 'analysis_result' => $analysisResult,
-                'redirect_url' => $redirectUrl,
+                'redirect_url'    => $redirectUrl,
             ];
 
             // Step 8: Mark as completed (100%)
             $session->markAsCompleted($finalResult);
-            
+
             LoggingService::log('Async product analysis completed successfully', [
                 'session_id' => $this->sessionId,
-                'asin' => $session->asin,
+                'asin'       => $session->asin,
                 'total_time' => now()->diffInSeconds($session->started_at),
             ]);
-
         } catch (\Exception $e) {
             $this->handleFailure($session, $e);
         }
     }
 
-
-
     private function determineRedirectUrl(AsinData $asinData): ?string
     {
         $policy = app(\App\Services\ProductAnalysisPolicy::class);
-        
+
         // CRITICAL: Only redirect if the product has meaningful analysis results
         // Products with 0 reviews should never be shown (not useful for users)
         $hasReviews = $policy->isAnalyzable($asinData);
-        $hasAnalysis = $asinData->status === 'completed' && 
-                       !is_null($asinData->fake_percentage) && 
+        $hasAnalysis = $asinData->status === 'completed' &&
+                       !is_null($asinData->fake_percentage) &&
                        !is_null($asinData->grade);
-                       
+
         if (!$hasReviews || !$hasAnalysis) {
             LoggingService::log('Product not analyzable - no redirect URL generated', [
-                'asin' => $asinData->asin,
-                'reviews_count' => count($asinData->getReviewsArray()),
-                'status' => $asinData->status,
-                'fake_percentage' => $asinData->fake_percentage,
+                'asin'              => $asinData->asin,
+                'reviews_count'     => count($asinData->getReviewsArray()),
+                'status'            => $asinData->status,
+                'fake_percentage'   => $asinData->fake_percentage,
                 'have_product_data' => $asinData->have_product_data,
-                'has_reviews' => $hasReviews,
-                'has_analysis' => $hasAnalysis
+                'has_reviews'       => $hasReviews,
+                'has_analysis'      => $hasAnalysis,
             ]);
+
             return null;
         }
 
@@ -183,14 +186,14 @@ class ProcessProductAnalysis implements ShouldQueue
         if ($asinData->slug) {
             return route('amazon.product.show.slug', [
                 'country' => $asinData->country,
-                'asin' => $asinData->asin,
-                'slug' => $asinData->slug
+                'asin'    => $asinData->asin,
+                'slug'    => $asinData->slug,
             ]);
         }
 
         return route('amazon.product.show', [
             'country' => $asinData->country,
-            'asin' => $asinData->asin
+            'asin'    => $asinData->asin,
         ]);
     }
 
@@ -201,9 +204,9 @@ class ProcessProductAnalysis implements ShouldQueue
 
         LoggingService::log('Async product analysis failed', [
             'session_id' => $this->sessionId,
-            'asin' => $session->asin,
-            'error' => $e->getMessage(),
-            'attempt' => $this->attempts(),
+            'asin'       => $session->asin,
+            'error'      => $e->getMessage(),
+            'attempt'    => $this->attempts(),
         ]);
 
         // Re-throw for retry mechanism if not final attempt
@@ -215,7 +218,7 @@ class ProcessProductAnalysis implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         $session = AnalysisSession::find($this->sessionId);
-        
+
         if ($session && !$session->isFailed()) {
             $userMessage = LoggingService::handleException($exception);
             $session->markAsFailed($userMessage);
@@ -223,8 +226,8 @@ class ProcessProductAnalysis implements ShouldQueue
 
         Log::error('Product analysis job failed permanently', [
             'session_id' => $this->sessionId,
-            'error' => $exception->getMessage(),
-            'attempts' => $this->attempts(),
+            'error'      => $exception->getMessage(),
+            'attempts'   => $this->attempts(),
         ]);
     }
-} 
+}

@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Model for Amazon product review analysis data.
@@ -76,7 +76,7 @@ class AsinData extends Model
     */
 
     /**
-     * Scope for completed analysis
+     * Scope for completed analysis.
      */
     public function scopeCompleted(Builder $query): Builder
     {
@@ -86,7 +86,7 @@ class AsinData extends Model
     }
 
     /**
-     * Scope for products with specific grades
+     * Scope for products with specific grades.
      */
     public function scopeWithGrades(Builder $query, array $grades): Builder
     {
@@ -94,7 +94,7 @@ class AsinData extends Model
     }
 
     /**
-     * Scope for products with product data
+     * Scope for products with product data.
      */
     public function scopeWithProductData(Builder $query): Builder
     {
@@ -103,7 +103,7 @@ class AsinData extends Model
     }
 
     /**
-     * Scope for products needing reanalysis
+     * Scope for products needing reanalysis.
      */
     public function scopeNeedsReanalysis(Builder $query): Builder
     {
@@ -115,7 +115,7 @@ class AsinData extends Model
     }
 
     /**
-     * Scope for recent analysis
+     * Scope for recent analysis.
      */
     public function scopeRecentlyAnalyzed(Builder $query, int $days = 30): Builder
     {
@@ -123,7 +123,7 @@ class AsinData extends Model
     }
 
     /**
-     * Scope for products by country
+     * Scope for products by country.
      */
     public function scopeForCountry(Builder $query, string $country): Builder
     {
@@ -131,14 +131,12 @@ class AsinData extends Model
     }
 
     /**
-     * Scope for products with minimum review count
+     * Scope for products with minimum review count.
      */
     public function scopeWithMinimumReviews(Builder $query, int $minReviews = 1): Builder
     {
         return $query->whereRaw('JSON_LENGTH(reviews) >= ?', [$minReviews]);
     }
-
-
 
     /*
     |--------------------------------------------------------------------------
@@ -151,22 +149,22 @@ class AsinData extends Model
     */
 
     /**
-     * Get the grade color for UI display
+     * Get the grade color for UI display.
      */
     public function getGradeColorAttribute(): string
     {
-        return match($this->grade) {
-            'A' => 'green',
-            'B' => 'blue', 
-            'C' => 'yellow',
-            'D' => 'orange',
-            'F' => 'red',
+        return match ($this->grade) {
+            'A'     => 'green',
+            'B'     => 'blue',
+            'C'     => 'yellow',
+            'D'     => 'orange',
+            'F'     => 'red',
             default => 'gray'
         };
     }
 
     /**
-     * Get the grade description
+     * Get the grade description.
      */
     public function getGradeDescriptionAttribute(): string
     {
@@ -174,19 +172,19 @@ class AsinData extends Model
     }
 
     /**
-     * Get review statistics
+     * Get review statistics.
      */
     public function getReviewStatsAttribute(): array
     {
         $reviews = $this->getReviewsArray();
         $totalReviews = count($reviews);
-        
+
         if ($totalReviews === 0) {
             return [
-                'total' => 0,
-                'verified_count' => 0,
+                'total'               => 0,
+                'verified_count'      => 0,
                 'verified_percentage' => 0,
-                'average_rating' => 0,
+                'average_rating'      => 0,
                 'rating_distribution' => [1 => 0, 2 => 0, 3 => 0, 4 => 0, 5 => 0],
             ];
         }
@@ -199,7 +197,7 @@ class AsinData extends Model
             if (isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase']) {
                 $verifiedCount++;
             }
-            
+
             if (isset($review['rating']) && is_numeric($review['rating'])) {
                 $rating = (int) $review['rating'];
                 $ratingSum += $rating;
@@ -210,36 +208,36 @@ class AsinData extends Model
         }
 
         return [
-            'total' => $totalReviews,
-            'verified_count' => $verifiedCount,
+            'total'               => $totalReviews,
+            'verified_count'      => $verifiedCount,
             'verified_percentage' => round(($verifiedCount / $totalReviews) * 100, 1),
-            'average_rating' => round($ratingSum / $totalReviews, 2),
+            'average_rating'      => round($ratingSum / $totalReviews, 2),
             'rating_distribution' => $ratingDistribution,
         ];
     }
 
     /**
-     * Check if analysis is stale and needs refresh
+     * Check if analysis is stale and needs refresh.
      */
     public function getIsStaleAttribute(): bool
     {
         if (!$this->first_analyzed_at) {
             return true;
         }
-        
+
         // Consider analysis stale after 30 days
         return $this->first_analyzed_at->diffInDays() > 30;
     }
 
     /**
-     * Get analysis age in human readable format
+     * Get analysis age in human readable format.
      */
     public function getAnalysisAgeAttribute(): ?string
     {
         if (!$this->first_analyzed_at) {
             return null;
         }
-        
+
         return $this->first_analyzed_at->diffForHumans();
     }
 
@@ -282,7 +280,7 @@ class AsinData extends Model
     public function isAnalyzed(): bool
     {
         $policy = app(\App\Services\ProductAnalysisPolicy::class);
-        
+
         // A product is considered analyzed if it has:
         // 1. Status is completed AND
         // 2. Has fake_percentage and grade (key analysis results) AND
@@ -329,11 +327,11 @@ class AsinData extends Model
     public function getSeoUrlAttribute(): string
     {
         $slug = $this->slug;
-        
+
         if ($slug) {
             return "/amazon/{$this->asin}/{$slug}";
         }
-        
+
         // Fallback to basic URL if no slug available
         return "/amazon/{$this->asin}";
     }

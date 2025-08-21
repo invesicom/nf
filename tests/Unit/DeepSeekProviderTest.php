@@ -9,17 +9,17 @@ use Tests\TestCase;
 class DeepSeekProviderTest extends TestCase
 {
     private DeepSeekProvider $provider;
-    
+
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         config([
-            'services.deepseek.api_key' => 'test_deepseek_key',
+            'services.deepseek.api_key'  => 'test_deepseek_key',
             'services.deepseek.base_url' => 'https://api.deepseek.com/v1',
-            'services.deepseek.model' => 'deepseek-v3',
+            'services.deepseek.model'    => 'deepseek-v3',
         ]);
-        
+
         $this->provider = new DeepSeekProvider();
     }
 
@@ -33,8 +33,8 @@ class DeepSeekProviderTest extends TestCase
         Http::fake([
             'api.deepseek.com/*' => Http::response([
                 'choices' => [
-                    ['message' => ['content' => '[{"id":"1","score":25},{"id":"2","score":75}]']]
-                ]
+                    ['message' => ['content' => '[{"id":"1","score":25},{"id":"2","score":75}]']],
+                ],
             ], 200),
         ]);
 
@@ -43,7 +43,7 @@ class DeepSeekProviderTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('results', $result);
         $this->assertCount(2, $result['results']);
-        
+
         $firstResult = $result['results'][0];
         $this->assertEquals(1, $firstResult['id']);
         $this->assertEquals(25, $firstResult['score']);
@@ -69,7 +69,7 @@ class DeepSeekProviderTest extends TestCase
     public function test_returns_empty_results_for_empty_reviews()
     {
         $result = $this->provider->analyzeReviews([]);
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('results', $result);
         $this->assertEmpty($result['results']);
@@ -78,10 +78,10 @@ class DeepSeekProviderTest extends TestCase
     public function test_calculates_optimized_max_tokens()
     {
         $tokens = $this->provider->getOptimizedMaxTokens(10);
-        
+
         $this->assertIsInt($tokens);
         $this->assertGreaterThan(0, $tokens);
-        
+
         // Should be less than OpenAI for same review count (more efficient)
         $this->assertLessThan(500, $tokens);
     }
@@ -114,10 +114,10 @@ class DeepSeekProviderTest extends TestCase
     public function test_calculates_api_cost()
     {
         $cost = $this->provider->getEstimatedCost(100);
-        
+
         $this->assertIsFloat($cost);
         $this->assertGreaterThan(0, $cost);
-        
+
         // Should be significantly cheaper than OpenAI (less than $0.10 for 100 reviews)
         $this->assertLessThan(0.10, $cost);
     }
@@ -126,7 +126,7 @@ class DeepSeekProviderTest extends TestCase
     {
         config(['services.deepseek.base_url' => 'http://localhost:8000/v1']);
         $provider = new DeepSeekProvider();
-        
+
         $cost = $provider->getEstimatedCost(100);
         $this->assertEquals(0.0, $cost);
     }
@@ -140,8 +140,8 @@ class DeepSeekProviderTest extends TestCase
         Http::fake([
             'api.deepseek.com/*' => Http::response([
                 'choices' => [
-                    ['message' => ['content' => 'invalid json response']]
-                ]
+                    ['message' => ['content' => 'invalid json response']],
+                ],
             ], 200),
         ]);
 
