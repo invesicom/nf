@@ -130,7 +130,23 @@ class ReviewAnalysisService
         $reviews = $asinData->getReviewsArray();
 
         if (empty($reviews)) {
-            throw new \Exception('No reviews available for analysis');
+            LoggingService::log("Product has no reviews to analyze, setting default analysis results for ASIN: {$asinData->asin}");
+            
+            // Set default analysis for products with no reviews
+            $defaultResult = [
+                'detailed_scores' => [],
+                'analysis_provider' => 'system',
+                'total_cost' => 0.0
+            ];
+            
+            $asinData->update([
+                'openai_result' => $defaultResult,
+                'status' => 'completed',
+                'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
+                'last_analyzed_at' => now(),
+            ]);
+            
+            return $asinData->fresh();
         }
 
         LoggingService::log('Starting LLM analysis for ASIN: ' . $asinData->asin);

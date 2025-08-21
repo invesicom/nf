@@ -148,9 +148,9 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
     }
 
     #[Test]
-    public function it_handles_analyze_with_llm_failure_when_no_reviews_available()
+    public function it_handles_products_with_no_reviews_gracefully()
     {
-        // Create an AsinData record with no reviews (simulates the bug scenario)
+        // Create an AsinData record with no reviews (simulates products without reviews)
         $asinData = AsinData::create([
             'asin' => 'B0TEST12345',
             'country' => 'us',
@@ -160,11 +160,23 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
 
         $analysisService = app(ReviewAnalysisService::class);
 
-        // This should throw the "No reviews available for analysis" exception
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('No reviews available for analysis');
+        // This should now handle gracefully by setting default analysis results
+        $result = $analysisService->analyzeWithLLM($asinData);
 
-        $analysisService->analyzeWithLLM($asinData);
+        // Verify the product was marked as completed with default analysis
+        $this->assertEquals('completed', $result->status);
+        $this->assertNotNull($result->openai_result);
+        
+        $openaiResult = $result->openai_result;
+        if (is_string($openaiResult)) {
+            $openaiResult = json_decode($openaiResult, true);
+        }
+        
+        $this->assertEquals([], $openaiResult['detailed_scores']);
+        $this->assertEquals('system', $openaiResult['analysis_provider']);
+        $this->assertEquals(0.0, $openaiResult['total_cost']);
+        $this->assertNotNull($result->first_analyzed_at);
+        $this->assertNotNull($result->last_analyzed_at);
     }
 
     #[Test]
