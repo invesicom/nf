@@ -6,19 +6,19 @@ use App\Enums\AlertType;
 use App\Notifications\Channels\PushoverChannel;
 use App\Notifications\SystemAlert;
 use Illuminate\Support\Facades\Config;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class SystemAlertTest extends TestCase
 {
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Mock Pushover configuration
         Config::set('services.pushover', [
             'token' => 'test-token',
-            'user' => 'test-user',
+            'user'  => 'test-user',
         ]);
     }
 
@@ -103,9 +103,9 @@ class SystemAlertTest extends TestCase
     public function it_includes_context_in_message()
     {
         $context = [
-            'asin' => 'B0TEST1234',
+            'asin'        => 'B0TEST1234',
             'status_code' => 429,
-            'error_code' => 'QUOTA_EXCEEDED'
+            'error_code'  => 'QUOTA_EXCEEDED',
         ];
 
         $alert = new SystemAlert(
@@ -127,11 +127,11 @@ class SystemAlertTest extends TestCase
     public function it_filters_sensitive_context_data()
     {
         $context = [
-            'asin' => 'B0TEST1234',
+            'asin'     => 'B0TEST1234',
             'password' => 'secret123',
-            'token' => 'sensitive-token',
-            'trace' => 'very-long-stack-trace',
-            'secret' => 'another-secret'
+            'token'    => 'sensitive-token',
+            'trace'    => 'very-long-stack-trace',
+            'secret'   => 'another-secret',
         ];
 
         $alert = new SystemAlert(
@@ -183,7 +183,7 @@ class SystemAlertTest extends TestCase
     {
         $context = [
             'verified' => true,
-            'enabled' => false,
+            'enabled'  => false,
         ];
 
         $alert = new SystemAlert(
@@ -203,7 +203,7 @@ class SystemAlertTest extends TestCase
     public function it_handles_array_context_values()
     {
         $context = [
-            'tags' => ['urgent', 'api', 'error'],
+            'tags'        => ['urgent', 'api', 'error'],
             'large_array' => ['item1', 'item2', 'item3', 'item4'], // Should be filtered out
         ];
 
@@ -235,7 +235,7 @@ class SystemAlertTest extends TestCase
     public function it_returns_context()
     {
         $context = ['test' => 'value'];
-        
+
         $alert = new SystemAlert(
             AlertType::SYSTEM_ERROR,
             'System error',
@@ -257,4 +257,4 @@ class SystemAlertTest extends TestCase
 
         $this->assertEquals(2, $pushoverData['priority']);
     }
-} 
+}

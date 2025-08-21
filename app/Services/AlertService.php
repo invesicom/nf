@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Notification;
 class AlertService
 {
     /**
-     * Send an alert notification
+     * Send an alert notification.
      */
     public function alert(
         AlertType $type,
@@ -24,10 +24,11 @@ class AlertService
         // Check if this alert should be throttled
         if ($type->shouldThrottle() && $this->isThrottled($type, $context)) {
             Log::info('Alert throttled', [
-                'type' => $type->value,
+                'type'    => $type->value,
                 'message' => $message,
                 'context' => $context,
             ]);
+
             return;
         }
 
@@ -44,13 +45,13 @@ class AlertService
 
         // Create and send notification
         $notification = new SystemAlert($type, $message, $context, $priority, $url, $urlTitle);
-        
+
         // Send to configured notification channels
         $this->sendNotification($notification);
     }
 
     /**
-     * Send Amazon session expired alert
+     * Send Amazon session expired alert.
      */
     public function amazonSessionExpired(string $errorMessage, array $context = []): void
     {
@@ -59,35 +60,35 @@ class AlertService
             "Amazon session has expired and needs re-authentication. Error: {$errorMessage}",
             array_merge($context, ['error_code' => 'AMAZON_SIGNIN_REQUIRED']),
             null,
-            config('app.url') . '/admin/amazon-config',
+            config('app.url').'/admin/amazon-config',
             'Update Amazon Configuration'
         );
     }
 
     /**
-     * Send Amazon CAPTCHA detected alert
+     * Send Amazon CAPTCHA detected alert.
      */
     public function amazonCaptchaDetected(string $url, array $indicators, array $context = []): void
     {
         $indicatorsList = implode(', ', $indicators);
-        
+
         $this->alert(
             AlertType::AMAZON_SESSION_EXPIRED, // Reuse same alert type but with specific messaging
             "Amazon CAPTCHA detected - cookies need renewal. URL: {$url}. Indicators found: {$indicatorsList}",
             array_merge($context, [
-                'error_code' => 'AMAZON_CAPTCHA_DETECTED',
+                'error_code'         => 'AMAZON_CAPTCHA_DETECTED',
                 'captcha_indicators' => $indicators,
-                'detection_url' => $url,
-                'alert_subtype' => 'captcha_detection'
+                'detection_url'      => $url,
+                'alert_subtype'      => 'captcha_detection',
             ]),
             1, // High priority since this directly impacts scraping
-            config('app.url') . '/admin/amazon-config',
+            config('app.url').'/admin/amazon-config',
             'Refresh Amazon Cookies'
         );
     }
 
     /**
-     * Send OpenAI quota exceeded alert
+     * Send OpenAI quota exceeded alert.
      */
     public function openaiQuotaExceeded(string $errorMessage, array $context = []): void
     {
@@ -102,12 +103,12 @@ class AlertService
     }
 
     /**
-     * Send OpenAI API error alert
+     * Send OpenAI API error alert.
      */
     public function openaiApiError(string $errorMessage, int $statusCode, array $context = []): void
     {
         $priority = $statusCode >= 500 ? 1 : 0; // High priority for server errors
-        
+
         $this->alert(
             AlertType::OPENAI_API_ERROR,
             "OpenAI API error (HTTP {$statusCode}): {$errorMessage}",
@@ -117,7 +118,7 @@ class AlertService
     }
 
     /**
-     * Send system error alert
+     * Send system error alert.
      */
     public function systemError(string $message, \Throwable $exception, array $context = []): void
     {
@@ -126,16 +127,16 @@ class AlertService
             "System error: {$message}",
             array_merge($context, [
                 'exception' => get_class($exception),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'trace' => $exception->getTraceAsString(),
+                'file'      => $exception->getFile(),
+                'line'      => $exception->getLine(),
+                'trace'     => $exception->getTraceAsString(),
             ]),
             1 // High priority
         );
     }
 
     /**
-     * Send database error alert
+     * Send database error alert.
      */
     public function databaseError(string $message, \Throwable $exception, array $context = []): void
     {
@@ -144,14 +145,14 @@ class AlertService
             "Database error: {$message}",
             array_merge($context, [
                 'exception' => get_class($exception),
-                'message' => $exception->getMessage(),
+                'message'   => $exception->getMessage(),
             ]),
             2 // Emergency priority
         );
     }
 
     /**
-     * Send security alert
+     * Send security alert.
      */
     public function securityAlert(string $message, array $context = []): void
     {
@@ -164,7 +165,7 @@ class AlertService
     }
 
     /**
-     * Send API timeout alert
+     * Send API timeout alert.
      */
     public function apiTimeout(string $service, string $asin, int $timeoutDuration, array $context = []): void
     {
@@ -172,16 +173,16 @@ class AlertService
             AlertType::API_TIMEOUT,
             "API timeout for {$service} after {$timeoutDuration}s (ASIN: {$asin})",
             array_merge($context, [
-                'service' => $service,
-                'asin' => $asin,
+                'service'          => $service,
+                'asin'             => $asin,
                 'timeout_duration' => $timeoutDuration,
-                'error_type' => 'timeout'
+                'error_type'       => 'timeout',
             ])
         );
     }
 
     /**
-     * Send connectivity issue alert
+     * Send connectivity issue alert.
      */
     public function connectivityIssue(string $service, string $errorType, string $errorMessage, array $context = []): void
     {
@@ -189,7 +190,7 @@ class AlertService
             AlertType::CONNECTIVITY_ISSUE,
             "Connectivity issue with {$service}: {$errorType} - {$errorMessage}",
             array_merge($context, [
-                'service' => $service,
+                'service'    => $service,
                 'error_type' => $errorType,
             ]),
             1 // High priority since connectivity affects the whole service
@@ -197,7 +198,7 @@ class AlertService
     }
 
     /**
-     * Send proxy service issue alert
+     * Send proxy service issue alert.
      */
     public function proxyServiceIssue(string $message, array $context = []): void
     {
@@ -210,7 +211,7 @@ class AlertService
     }
 
     /**
-     * Format bytes for human-readable display
+     * Format bytes for human-readable display.
      */
     private function formatBytes(int $bytes): string
     {
@@ -218,23 +219,24 @@ class AlertService
         $bytes = max($bytes, 0);
         $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
         $pow = min($pow, count($units) - 1);
-        
+
         $bytes /= pow(1024, $pow);
-        
-        return round($bytes, 2) . ' ' . $units[$pow];
+
+        return round($bytes, 2).' '.$units[$pow];
     }
 
     /**
-     * Check if an alert type is currently throttled
+     * Check if an alert type is currently throttled.
      */
     private function isThrottled(AlertType $type, array $context = []): bool
     {
         $key = $this->getThrottleKey($type, $context);
+
         return Cache::has($key);
     }
 
     /**
-     * Set throttle for an alert type
+     * Set throttle for an alert type.
      */
     private function setThrottle(AlertType $type, array $context = []): void
     {
@@ -244,44 +246,46 @@ class AlertService
     }
 
     /**
-     * Generate throttle cache key
+     * Generate throttle cache key.
      */
     private function getThrottleKey(AlertType $type, array $context = []): string
     {
         $contextHash = md5(serialize($context));
+
         return "alert_throttle:{$type->value}:{$contextHash}";
     }
 
     /**
-     * Log the alert
+     * Log the alert.
      */
     private function logAlert(AlertType $type, string $message, array $context, int $priority): void
     {
-        $logLevel = match($priority) {
-            2 => 'critical',
-            1 => 'error',
-            0 => 'warning',
-            -1 => 'info',
-            -2 => 'debug',
+        $logLevel = match ($priority) {
+            2       => 'critical',
+            1       => 'error',
+            0       => 'warning',
+            -1      => 'info',
+            -2      => 'debug',
             default => 'warning',
         };
 
         Log::log($logLevel, "ALERT: {$type->getDisplayName()}", [
-            'type' => $type->value,
-            'message' => $message,
+            'type'     => $type->value,
+            'message'  => $message,
             'priority' => $priority,
-            'context' => $context,
+            'context'  => $context,
         ]);
     }
 
     /**
-     * Send notification to configured channels
+     * Send notification to configured channels.
      */
     private function sendNotification(SystemAlert $notification): void
     {
         // Check if alerts are globally enabled
         if (!config('alerts.enabled', true)) {
             Log::info('Alerts disabled globally');
+
             return;
         }
 
@@ -289,37 +293,39 @@ class AlertService
         $alertType = $notification->getAlertType();
         if (!config("alerts.enabled_types.{$alertType->value}", true)) {
             Log::info("Alert type {$alertType->value} is disabled");
+
             return;
         }
 
         // In development, only log if configured
         if (config('alerts.development.log_only', false)) {
             Log::info('Alert (log only mode)', [
-                'type' => $alertType->value,
+                'type'    => $alertType->value,
                 'context' => $notification->getContext(),
             ]);
+
             return;
         }
 
         try {
             // Create anonymous notifiable with Pushover routing
             $pushoverConfig = config('services.pushover');
-            
+
             if (!$pushoverConfig['token'] || !$pushoverConfig['user']) {
                 Log::warning('Pushover not configured - missing token or user key');
+
                 return;
             }
 
             // Send notification using the custom channel
             Notification::route('pushover', $pushoverConfig)
                 ->notify($notification);
-
         } catch (\Exception $e) {
             Log::error('Failed to send alert notification', [
-                'error' => $e->getMessage(),
+                'error'        => $e->getMessage(),
                 'notification' => get_class($notification),
-                'alert_type' => $alertType->value,
+                'alert_type'   => $alertType->value,
             ]);
         }
     }
-} 
+}

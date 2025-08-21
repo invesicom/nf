@@ -107,7 +107,7 @@ class AsinDataModelTest extends TestCase
     public function test_explanation_stored_in_database()
     {
         $explanation = 'Analysis of 10 reviews found 2 potentially fake reviews (20%). This product has moderate fake review activity. Exercise some caution.';
-        
+
         $asinData = AsinData::create([
             'asin'          => 'B08N5WRWNW',
             'country'       => 'us',
@@ -224,9 +224,9 @@ class AsinDataModelTest extends TestCase
 
         // Test with all required fields - should be analyzed
         $asinData->update([
-            'status' => 'completed',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'grade'           => 'B',
         ]);
         $this->assertTrue($asinData->fresh()->isAnalyzed());
 
@@ -336,7 +336,7 @@ class AsinDataModelTest extends TestCase
     {
         // Test that explanation is stored and retrieved from database
         $explanation = 'Analysis of 10 reviews found 2 potentially fake reviews (20%). This product has moderate fake review activity. Exercise some caution.';
-        
+
         $asinData = AsinData::create([
             'asin'          => 'B08N5WRWNW',
             'country'       => 'us',
@@ -346,11 +346,11 @@ class AsinDataModelTest extends TestCase
         ]);
 
         $this->assertEquals($explanation, $asinData->explanation);
-        
+
         // Test updating explanation
         $newExplanation = 'Updated explanation with new analysis results.';
         $asinData->update(['explanation' => $newExplanation]);
-        
+
         $this->assertEquals($newExplanation, $asinData->fresh()->explanation);
     }
 
@@ -374,7 +374,7 @@ class AsinDataModelTest extends TestCase
                 ['rating' => 5, 'text' => 'Great'],
                 ['rating' => 3, 'text' => 'OK'],
             ],
-            'openai_result' => null,
+            'openai_result'   => null,
             'adjusted_rating' => 4.0, // Set directly in database
         ]);
 
@@ -391,7 +391,7 @@ class AsinDataModelTest extends TestCase
                 ['rating' => 5, 'text' => 'Great'],
                 ['rating' => 3, 'text' => 'OK'],
             ],
-            'openai_result' => ['other_data' => 'value'], // No 'results' key
+            'openai_result'   => ['other_data' => 'value'], // No 'results' key
             'adjusted_rating' => 4.0, // Set value directly
         ]);
 

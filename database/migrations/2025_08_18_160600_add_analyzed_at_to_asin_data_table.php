@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class() extends Migration {
     /**
      * Run the migrations.
      */
@@ -15,7 +14,7 @@ return new class extends Migration
             $table->timestamp('first_analyzed_at')->nullable()->after('analysis_notes');
             $table->timestamp('last_analyzed_at')->nullable()->after('first_analyzed_at');
         });
-        
+
         // Backfill existing records
         // For completed analyses, set both timestamps to preserve original dates
         DB::statement('UPDATE asin_data SET first_analyzed_at = updated_at, last_analyzed_at = updated_at WHERE status = "completed"');

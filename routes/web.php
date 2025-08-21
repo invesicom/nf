@@ -1,9 +1,9 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\AmazonProductController;
+use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\SitemapController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,12 +47,12 @@ Route::get('/robots.txt', function () {
     $robotsTxt .= "# Allow all search engines to crawl everything\n";
     $robotsTxt .= "# No restrictions or disallowed paths\n\n";
     $robotsTxt .= "# Dynamic sitemap with all analyzed products\n";
-    $robotsTxt .= "Sitemap: " . url('/sitemap.xml') . "\n\n";
+    $robotsTxt .= 'Sitemap: '.url('/sitemap.xml')."\n\n";
     $robotsTxt .= "# Additional sitemap information\n";
     $robotsTxt .= "# - Main sitemap includes homepage, static pages, and recent products\n";
     $robotsTxt .= "# - Additional product sitemaps are generated automatically as needed\n";
     $robotsTxt .= "# - All analyzed Amazon products are included for better discoverability\n";
-    
+
     return response($robotsTxt, 200, ['Content-Type' => 'text/plain']);
 })->name('robots');
 

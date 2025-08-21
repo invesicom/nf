@@ -17,22 +17,22 @@ class AlertServiceTest extends TestCase
     {
         parent::setUp();
         $this->alertService = new AlertService();
-        
+
         // Override parent TestCase to enable alerts for testing the framework
         // but ALWAYS keep log_only mode enabled
         config([
-            'alerts.enabled' => true,
+            'alerts.enabled'              => true,
             'alerts.development.log_only' => true, // ALWAYS log only, never send real notifications
-            'services.pushover.token' => 'test-token',
-            'services.pushover.user' => 'test-user',
-            'alerts.enabled_types' => [
+            'services.pushover.token'     => 'test-token',
+            'services.pushover.user'      => 'test-user',
+            'alerts.enabled_types'        => [
                 'amazon_session_expired' => true,
-                'openai_quota_exceeded' => true,
-                'openai_api_error' => true,
-                'system_error' => true,
-                'database_error' => true,
-                'security_alert' => true,
-            ]
+                'openai_quota_exceeded'  => true,
+                'openai_api_error'       => true,
+                'system_error'           => true,
+                'database_error'         => true,
+                'security_alert'         => true,
+            ],
         ]);
     }
 
@@ -64,7 +64,7 @@ class AlertServiceTest extends TestCase
     public function it_handles_system_error_alert()
     {
         $exception = new \Exception('Test exception');
-        
+
         // Test passes if no exception is thrown
         $this->alertService->systemError('System error', $exception, ['component' => 'test']);
         $this->assertTrue(true);
@@ -74,7 +74,7 @@ class AlertServiceTest extends TestCase
     public function it_handles_database_error_alert()
     {
         $exception = new \Exception('DB connection failed');
-        
+
         // Test passes if no exception is thrown
         $this->alertService->databaseError('DB error', $exception, ['connection' => 'mysql']);
         $this->assertTrue(true);
@@ -92,7 +92,7 @@ class AlertServiceTest extends TestCase
     public function it_respects_global_alert_disable()
     {
         config(['alerts.enabled' => false]);
-        
+
         // Test passes if no exception is thrown when alerts are disabled
         $this->alertService->amazonSessionExpired('Session expired', ['asin' => 'B0TEST1234']);
         $this->assertTrue(true);
@@ -102,7 +102,7 @@ class AlertServiceTest extends TestCase
     public function it_respects_specific_alert_type_disable()
     {
         config(['alerts.enabled_types.amazon_session_expired' => false]);
-        
+
         // Test passes if no exception is thrown when specific alert type is disabled
         $this->alertService->amazonSessionExpired('Session expired', ['asin' => 'B0TEST1234']);
         $this->assertTrue(true);
@@ -112,13 +112,13 @@ class AlertServiceTest extends TestCase
     public function it_handles_throttling()
     {
         Cache::flush();
-        
+
         // Send first alert - should go through
         $this->alertService->amazonSessionExpired('First alert', ['asin' => 'B0TEST1234']);
-        
+
         // Send second alert immediately - should be throttled (no exception thrown)
         $this->alertService->amazonSessionExpired('Second alert', ['asin' => 'B0TEST1234']);
-        
+
         $this->assertTrue(true);
     }
 
@@ -126,7 +126,7 @@ class AlertServiceTest extends TestCase
     public function it_handles_log_only_mode()
     {
         config(['alerts.development.log_only' => true]);
-        
+
         // Test passes if no exception is thrown in log-only mode
         $this->alertService->amazonSessionExpired('Test alert', ['asin' => 'B0TEST1234']);
         $this->assertTrue(true);
@@ -137,10 +137,10 @@ class AlertServiceTest extends TestCase
     {
         config([
             'services.pushover.token' => null,
-            'services.pushover.user' => null,
+            'services.pushover.user'  => null,
             // REMOVED: 'alerts.development.log_only' => false - this was causing real notifications
         ]);
-        
+
         // Test passes if no exception is thrown when config is missing
         $this->alertService->amazonSessionExpired('Test alert', ['asin' => 'B0TEST1234']);
         $this->assertTrue(true);
@@ -160,9 +160,9 @@ class AlertServiceTest extends TestCase
     {
         // Test passes if no exception is thrown with context data
         $this->alertService->amazonSessionExpired('Test alert', [
-            'asin' => 'B0TEST1234',
+            'asin'       => 'B0TEST1234',
             'error_code' => 'AMAZON_SIGNIN_REQUIRED',
-            'timestamp' => '2024-01-01 12:00:00'
+            'timestamp'  => '2024-01-01 12:00:00',
         ]);
         $this->assertTrue(true);
     }
@@ -174,11 +174,11 @@ class AlertServiceTest extends TestCase
         $this->assertEquals('Amazon Session Expired', AlertType::AMAZON_SESSION_EXPIRED->getDisplayName());
         $this->assertEquals('OpenAI Quota Exceeded', AlertType::OPENAI_QUOTA_EXCEEDED->getDisplayName());
         $this->assertEquals('Security Alert', AlertType::SECURITY_ALERT->getDisplayName());
-        
+
         $this->assertEquals(1, AlertType::AMAZON_SESSION_EXPIRED->getDefaultPriority());
         $this->assertEquals(2, AlertType::SECURITY_ALERT->getDefaultPriority());
-        
+
         $this->assertEquals('pushover', AlertType::AMAZON_SESSION_EXPIRED->getDefaultSound());
         $this->assertEquals('siren', AlertType::SECURITY_ALERT->getDefaultSound());
     }
-} 
+}

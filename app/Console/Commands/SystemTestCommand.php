@@ -17,65 +17,65 @@ class SystemTestCommand extends Command
 
     private array $availableServices = [
         'amazon-scraping' => [
-            'command' => 'test:amazon-scraping',
+            'command'     => 'test:amazon-scraping',
             'description' => 'Test Amazon scraping functionality',
-            'scenarios' => ['basic', 'captcha', 'proxy', 'session']
+            'scenarios'   => ['basic', 'captcha', 'proxy', 'session'],
         ],
         'brightdata' => [
-            'command' => 'test:brightdata-scraper',
+            'command'     => 'test:brightdata-scraper',
             'description' => 'Test BrightData scraper service',
-            'scenarios' => ['connection', 'scraping', 'snapshots']
+            'scenarios'   => ['connection', 'scraping', 'snapshots'],
         ],
         'alerts' => [
-            'command' => 'test:alerts',
+            'command'     => 'test:alerts',
             'description' => 'Test alert system functionality',
-            'scenarios' => ['basic', 'timeout', 'scenarios']
+            'scenarios'   => ['basic', 'timeout', 'scenarios'],
         ],
         'alert-scenarios' => [
-            'command' => 'test:alert-scenarios',
+            'command'     => 'test:alert-scenarios',
             'description' => 'Test specific alert scenarios',
-            'scenarios' => ['connectivity', 'quota', 'timeout']
+            'scenarios'   => ['connectivity', 'quota', 'timeout'],
         ],
         'ajax-bypass' => [
-            'command' => 'test:ajax-bypass',
+            'command'     => 'test:ajax-bypass',
             'description' => 'Test AJAX bypass functionality',
-            'scenarios' => ['basic', 'fallback']
+            'scenarios'   => ['basic', 'fallback'],
         ],
         'enhanced-analysis' => [
-            'command' => 'test:enhanced-analysis',
+            'command'     => 'test:enhanced-analysis',
             'description' => 'Test enhanced analysis features',
-            'scenarios' => ['llm', 'scoring', 'grading']
+            'scenarios'   => ['llm', 'scoring', 'grading'],
         ],
         'scraping-deduplication' => [
-            'command' => 'test:future-scraping-deduplication',
+            'command'     => 'test:future-scraping-deduplication',
             'description' => 'Test scraping deduplication logic',
-            'scenarios' => ['basic', 'edge-cases']
+            'scenarios'   => ['basic', 'edge-cases'],
         ],
         'international-urls' => [
-            'command' => 'test:international-urls',
+            'command'     => 'test:international-urls',
             'description' => 'Test international URL handling',
-            'scenarios' => ['parsing', 'country-detection']
+            'scenarios'   => ['parsing', 'country-detection'],
         ],
         'mailtrain' => [
-            'command' => 'test:mailtrain-connection',
+            'command'     => 'test:mailtrain-connection',
             'description' => 'Test Mailtrain newsletter connection',
-            'scenarios' => ['connection', 'subscription']
+            'scenarios'   => ['connection', 'subscription'],
         ],
         'scoring-system' => [
-            'command' => 'test:new-scoring',
+            'command'     => 'test:new-scoring',
             'description' => 'Test new scoring system',
-            'scenarios' => ['ollama', 'openai', 'comparison']
+            'scenarios'   => ['ollama', 'openai', 'comparison'],
         ],
         'pagination' => [
-            'command' => 'test:pagination-implementation',
+            'command'     => 'test:pagination-implementation',
             'description' => 'Test pagination implementation',
-            'scenarios' => ['basic', 'edge-cases']
+            'scenarios'   => ['basic', 'edge-cases'],
         ],
         'timeout-alerts' => [
-            'command' => 'test:timeout-alerts',
+            'command'     => 'test:timeout-alerts',
             'description' => 'Test timeout alert functionality',
-            'scenarios' => ['short', 'long', 'recovery']
-        ]
+            'scenarios'   => ['short', 'long', 'recovery'],
+        ],
     ];
 
     public function handle(): int
@@ -94,18 +94,19 @@ class SystemTestCommand extends Command
         if (!isset($this->availableServices[$service])) {
             $this->error("Unknown service: {$service}");
             $this->info("Run 'php artisan system:test list' to see available services");
+
             return 1;
         }
 
         $serviceConfig = $this->availableServices[$service];
-        
+
         // Show service info if no scenario specified and service has multiple scenarios
         if (!$scenario && count($serviceConfig['scenarios']) > 1) {
             $this->info("Available scenarios for {$service}:");
             foreach ($serviceConfig['scenarios'] as $availableScenario) {
                 $this->line("  - {$availableScenario}");
             }
-            $this->info("Use --scenario=<name> to run a specific scenario");
+            $this->info('Use --scenario=<name> to run a specific scenario');
             $this->newLine();
         }
 
@@ -130,28 +131,28 @@ class SystemTestCommand extends Command
 
         try {
             $exitCode = Artisan::call($serviceConfig['command'], $commandArgs);
-            
+
             if ($detailed || $exitCode !== 0) {
                 $this->line(Artisan::output());
             }
-            
+
             if ($exitCode === 0) {
-                $this->info("Test completed successfully");
+                $this->info('Test completed successfully');
             } else {
                 $this->error("Test failed with exit code: {$exitCode}");
             }
-            
+
             return $exitCode;
-            
         } catch (\Exception $e) {
-            $this->error("Failed to execute test: " . $e->getMessage());
+            $this->error('Failed to execute test: '.$e->getMessage());
+
             return 1;
         }
     }
 
     private function showAvailableServices(): int
     {
-        $this->info("Available system test services:");
+        $this->info('Available system test services:');
         $this->newLine();
 
         foreach ($this->availableServices as $service => $config) {
@@ -163,14 +164,14 @@ class SystemTestCommand extends Command
             $this->newLine();
         }
 
-        $this->info("Usage:");
-        $this->line("  php artisan system:test <service> [--scenario=<name>] [--timeout=<seconds>] [--verbose]");
+        $this->info('Usage:');
+        $this->line('  php artisan system:test <service> [--scenario=<name>] [--timeout=<seconds>] [--verbose]');
         $this->newLine();
-        
-        $this->info("Examples:");
-        $this->line("  php artisan system:test amazon-scraping");
-        $this->line("  php artisan system:test brightdata --scenario=connection");
-        $this->line("  php artisan system:test alerts --detailed --timeout=60");
+
+        $this->info('Examples:');
+        $this->line('  php artisan system:test amazon-scraping');
+        $this->line('  php artisan system:test brightdata --scenario=connection');
+        $this->line('  php artisan system:test alerts --detailed --timeout=60');
 
         return 0;
     }

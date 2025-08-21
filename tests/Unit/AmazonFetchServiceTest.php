@@ -4,7 +4,6 @@ namespace Tests\Unit;
 
 use App\Models\AsinData;
 use App\Services\Amazon\AmazonFetchService;
-use App\Services\AlertService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Handler\MockHandler;
@@ -13,7 +12,6 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
-use Mockery;
 
 class AmazonFetchServiceTest extends TestCase
 {
@@ -212,10 +210,10 @@ class AmazonFetchServiceTest extends TestCase
 
         // Test data that matches the actual error from the logs
         $errorData = [
-            'success' => false,
-            'platform' => 'amazon_reviews',
-            'message' => 'No reviews found for this product after multiple attempts. The product may not have any reviews or there may be an issue with the cookie.',
-            'error_code' => 'NO_REVIEWS_FOUND'
+            'success'    => false,
+            'platform'   => 'amazon_reviews',
+            'message'    => 'No reviews found for this product after multiple attempts. The product may not have any reviews or there may be an issue with the cookie.',
+            'error_code' => 'NO_REVIEWS_FOUND',
         ];
 
         // Verify that our detection method correctly identifies this as a cookie issue
@@ -232,9 +230,9 @@ class AmazonFetchServiceTest extends TestCase
         $method->setAccessible(true);
 
         $errorData = [
-            'success' => false,
+            'success'    => false,
             'error_code' => 'AMAZON_SIGNIN_REQUIRED',
-            'message' => 'Amazon sign-in is required'
+            'message'    => 'Amazon sign-in is required',
         ];
 
         $result = $method->invoke($service, $errorData);
@@ -275,13 +273,13 @@ class AmazonFetchServiceTest extends TestCase
             ['error_code' => 'NO_REVIEWS_FOUND', 'message' => 'Product has no reviews available'],
             ['error_code' => 'PRODUCT_NOT_FOUND', 'message' => 'Product does not exist'],
             ['error_code' => 'RATE_LIMITED', 'message' => 'Too many requests'],
-            ['message' => 'Network timeout occurred'],
-            ['message' => 'Server error occurred'],
+            ['message'    => 'Network timeout occurred'],
+            ['message'    => 'Server error occurred'],
         ];
 
         foreach ($testCases as $testCase) {
             $result = $method->invoke($service, $testCase);
-            $this->assertFalse($result, "Should NOT detect cookie expiration from: " . json_encode($testCase));
+            $this->assertFalse($result, 'Should NOT detect cookie expiration from: '.json_encode($testCase));
         }
     }
 

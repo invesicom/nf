@@ -27,13 +27,13 @@ class AnalysisSession extends Model
     ];
 
     protected $casts = [
-        'id' => 'string',
-        'result' => 'array',
+        'id'                  => 'string',
+        'result'              => 'array',
         'progress_percentage' => 'float',
-        'current_step' => 'integer',
-        'total_steps' => 'integer',
-        'started_at' => 'datetime',
-        'completed_at' => 'datetime',
+        'current_step'        => 'integer',
+        'total_steps'         => 'integer',
+        'started_at'          => 'datetime',
+        'completed_at'        => 'datetime',
     ];
 
     public $incrementing = false;
@@ -42,7 +42,7 @@ class AnalysisSession extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         static::creating(function ($model) {
             if (empty($model->id)) {
                 $model->id = (string) Str::uuid();
@@ -54,26 +54,26 @@ class AnalysisSession extends Model
     {
         // Refresh model to get latest state for long-running jobs
         $this->refresh();
-        
+
         // Update attributes and save
         $this->current_step = $step;
         $this->progress_percentage = $percentage;
         $this->current_message = $message;
         $this->save();
-        
+
         // Log progress update for debugging
-        \Illuminate\Support\Facades\Log::info("Progress update committed to database", [
+        \Illuminate\Support\Facades\Log::info('Progress update committed to database', [
             'session_id' => $this->id,
-            'step' => $step,
+            'step'       => $step,
             'percentage' => $percentage,
-            'message' => $message
+            'message'    => $message,
         ]);
     }
 
     public function markAsProcessing(): void
     {
         $this->update([
-            'status' => 'processing',
+            'status'     => 'processing',
             'started_at' => now(),
         ]);
     }
@@ -81,20 +81,20 @@ class AnalysisSession extends Model
     public function markAsCompleted(array $result): void
     {
         $this->update([
-            'status' => 'completed',
-            'result' => $result,
+            'status'              => 'completed',
+            'result'              => $result,
             'progress_percentage' => 100.0,
-            'current_message' => 'Analysis complete!',
-            'completed_at' => now(),
+            'current_message'     => 'Analysis complete!',
+            'completed_at'        => now(),
         ]);
     }
 
     public function markAsFailed(string $errorMessage): void
     {
         $this->update([
-            'status' => 'failed',
+            'status'        => 'failed',
             'error_message' => $errorMessage,
-            'completed_at' => now(),
+            'completed_at'  => now(),
         ]);
     }
 
@@ -112,4 +112,4 @@ class AnalysisSession extends Model
     {
         return in_array($this->status, ['pending', 'processing']);
     }
-} 
+}

@@ -3,10 +3,8 @@
 namespace Tests\Unit;
 
 use App\Services\Amazon\ProxyManager;
-use App\Services\LoggingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
-use Mockery;
 use Tests\TestCase;
 
 class ProxyManagerTest extends TestCase
@@ -22,9 +20,9 @@ class ProxyManagerTest extends TestCase
             'OXYLABS_USERNAME', 'OXYLABS_PASSWORD', 'OXYLABS_ENDPOINT',
             'SMARTPROXY_USERNAME', 'SMARTPROXY_PASSWORD', 'SMARTPROXY_ENDPOINT',
             'PROXYMESH_USERNAME', 'PROXYMESH_PASSWORD', 'PROXYMESH_ENDPOINT',
-            'CUSTOM_PROXIES'
+            'CUSTOM_PROXIES',
         ];
-        
+
         foreach ($proxyVars as $var) {
             putenv($var);
             unset($_ENV[$var]);
@@ -35,7 +33,7 @@ class ProxyManagerTest extends TestCase
     {
         parent::setUp();
         $this->proxyManager = new ProxyManager();
-        
+
         // Clear any cached sessions
         Cache::flush();
     }
@@ -83,7 +81,7 @@ class ProxyManagerTest extends TestCase
 
     public function test_get_proxy_config_returns_brightdata_in_production()
     {
-        // In production, we have Bright Data configured, so this test verifies 
+        // In production, we have Bright Data configured, so this test verifies
         // that we get a proxy config rather than null
         $manager = new ProxyManager();
         $config = $manager->getProxyConfig();
@@ -96,7 +94,7 @@ class ProxyManagerTest extends TestCase
     public function test_session_id_generation_creates_unique_ids()
     {
         $manager = new ProxyManager();
-        
+
         $id1 = $manager->generateSessionId();
         $id2 = $manager->generateSessionId();
 
@@ -112,7 +110,7 @@ class ProxyManagerTest extends TestCase
         putenv('BRIGHTDATA_PASSWORD=test-password');
 
         $manager = new ProxyManager();
-        
+
         // Get initial config to create cached session
         $config1 = $manager->getProxyConfig();
         $sessionId1 = $config1['session_id'];
@@ -180,7 +178,7 @@ class ProxyManagerTest extends TestCase
     {
         // Clear all first, then set up multiple providers
         $this->clearAllProxyEnvironmentVariables();
-        
+
         putenv('BRIGHTDATA_USERNAME=brd-customer-test');
         putenv('BRIGHTDATA_PASSWORD=test-password');
         putenv('OXYLABS_USERNAME=oxylabs-test');
@@ -200,7 +198,7 @@ class ProxyManagerTest extends TestCase
     {
         // Clear all first, then set up specific configuration
         $this->clearAllProxyEnvironmentVariables();
-        
+
         putenv('BRIGHTDATA_USERNAME=test');
         putenv('BRIGHTDATA_PASSWORD=test');
         putenv('CUSTOM_PROXIES=192.168.1.1:8080:user:pass');
@@ -220,7 +218,7 @@ class ProxyManagerTest extends TestCase
         putenv('BRIGHTDATA_PASSWORD=test-password');
 
         $manager = new ProxyManager();
-        
+
         $config1 = $manager->getProxyConfig();
         $config2 = $manager->getProxyConfig();
 
@@ -268,4 +266,4 @@ class ProxyManagerTest extends TestCase
         Cache::flush();
         parent::tearDown();
     }
-} 
+}

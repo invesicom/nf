@@ -3,9 +3,8 @@
 namespace Tests\Unit;
 
 use App\Models\AsinData;
-use App\Services\Amazon\AmazonScrapingService;
 use App\Services\AlertManager;
-use App\Services\LoggingService;
+use App\Services\Amazon\AmazonScrapingService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -32,7 +31,7 @@ class AmazonScrapingServiceTest extends TestCase
 
         // Create service instance and inject mock client
         $this->service = new AmazonScrapingService();
-        
+
         // Set the mock HTTP client
         $this->service->setHttpClient($mockClient);
 
@@ -60,7 +59,7 @@ class AmazonScrapingServiceTest extends TestCase
         $this->assertEquals('us', $result->country);
         $this->assertEquals('Test Product Title', $result->product_description);
         $this->assertNotNull($result->reviews);
-        
+
         $reviews = json_decode($result->reviews, true);
         $this->assertIsArray($reviews);
         $this->assertGreaterThan(0, count($reviews));
@@ -73,7 +72,7 @@ class AmazonScrapingServiceTest extends TestCase
 
         // With improved error handling, this should now return AsinData object instead of exception
         $result = $this->service->fetchReviewsAndSave('B08N5WRWNW', 'us', 'https://amazon.com/dp/B08N5WRWNW');
-        
+
         $this->assertInstanceOf(\App\Models\AsinData::class, $result);
         $this->assertEquals('B08N5WRWNW', $result->asin);
         $this->assertEquals('us', $result->country);
@@ -89,7 +88,7 @@ class AmazonScrapingServiceTest extends TestCase
         $reviewsHtml = $this->createMockReviewsHtml();
         $this->mockHandler->append(new Response(404, [], 'Not Found')); // First pattern fails
         $this->mockHandler->append(new Response(200, [], $reviewsHtml)); // Second pattern works
-        
+
         // Mock the actual reviews page request
         $this->mockHandler->append(new Response(200, [], $reviewsHtml));
 
@@ -107,9 +106,9 @@ class AmazonScrapingServiceTest extends TestCase
     {
         $result = $this->service->fetchReviews('INVALID123', 'us');
         $this->assertEquals([
-            'reviews' => [],
-            'description' => '',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => '',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -120,9 +119,9 @@ class AmazonScrapingServiceTest extends TestCase
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
         $this->assertEquals([
-            'reviews' => [],
-            'description' => '',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => '',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -141,9 +140,9 @@ class AmazonScrapingServiceTest extends TestCase
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
         $this->assertEquals([
-            'reviews' => [],
-            'description' => 'Test Product',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => 'Test Product',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -158,7 +157,7 @@ class AmazonScrapingServiceTest extends TestCase
                 'SESSION_EXPIRED',
                 'Amazon scraping session may have expired - no reviews found',
                 Mockery::on(function ($context) {
-                    return $context['asin'] === 'B08N5WRWNW' 
+                    return $context['asin'] === 'B08N5WRWNW'
                         && $context['service'] === 'direct_scraping'
                         && $context['method'] === 'fetchReviews';
                 })
@@ -173,7 +172,7 @@ class AmazonScrapingServiceTest extends TestCase
         // Mock review URL pattern testing - all patterns fail (short content)
         $emptyReviewsHtml = '<html><body><div>No reviews found</div></body></html>';
         $this->mockHandler->append(new Response(404, [], 'Not Found')); // First pattern fails
-        $this->mockHandler->append(new Response(404, [], 'Not Found')); // Second pattern fails  
+        $this->mockHandler->append(new Response(404, [], 'Not Found')); // Second pattern fails
         $this->mockHandler->append(new Response(404, [], 'Not Found')); // Third pattern fails
 
         // Mock cookie expiration detection response
@@ -182,9 +181,9 @@ class AmazonScrapingServiceTest extends TestCase
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
         $this->assertEquals([
-            'reviews' => [],
-            'description' => 'Test Product', // Product page succeeds, so description is extracted
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => 'Test Product', // Product page succeeds, so description is extracted
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -197,7 +196,7 @@ class AmazonScrapingServiceTest extends TestCase
         // Mock review URL pattern testing (3 patterns, first one works)
         $reviewsHtml1 = $this->createMockReviewsHtml(['Review 1', 'Review 2']);
         $this->mockHandler->append(new Response(200, [], $reviewsHtml1)); // First pattern works
-        
+
         // Mock first reviews page
         $this->mockHandler->append(new Response(200, [], $reviewsHtml1));
 
@@ -226,9 +225,9 @@ class AmazonScrapingServiceTest extends TestCase
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
         $this->assertEquals([
-            'reviews' => [],
-            'description' => '',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => '',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -236,17 +235,17 @@ class AmazonScrapingServiceTest extends TestCase
     {
         // Create CAPTCHA HTML response
         $captchaHtml = $this->createMockCaptchaHtml();
-        
+
         // Mock product page returning CAPTCHA
         $this->mockHandler->append(new Response(200, [], $captchaHtml));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        
+
         // Should return empty result when CAPTCHA is detected
         $this->assertEquals([
-            'reviews' => [],
-            'description' => '',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => '',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -254,17 +253,17 @@ class AmazonScrapingServiceTest extends TestCase
     {
         // Create small HTML response with CAPTCHA indicator
         $smallHtml = '<html><body><div>Service temporarily unavailable due to unusual traffic</div></body></html>';
-        
+
         // Mock product page returning small content with CAPTCHA indicator
         $this->mockHandler->append(new Response(200, [], $smallHtml));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        
+
         // Should return empty result when CAPTCHA indicators are detected
         $this->assertEquals([
-            'reviews' => [],
-            'description' => '',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => '',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -279,7 +278,7 @@ class AmazonScrapingServiceTest extends TestCase
         // Should still create AsinData record even with CAPTCHA
         $this->assertInstanceOf(AsinData::class, $result);
         $this->assertEquals('B08N5WRWNW', $result->asin);
-        
+
         // Should have empty reviews due to CAPTCHA
         $reviews = json_decode($result->reviews, true);
         $this->assertEquals([], $reviews);
@@ -296,12 +295,12 @@ class AmazonScrapingServiceTest extends TestCase
         $this->mockHandler->append(new Response(503, [], $blockingHtml));
 
         $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
-        
+
         // Should return empty result due to blocking
         $this->assertEquals([
-            'reviews' => [],
-            'description' => 'Test Product',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => 'Test Product',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -314,7 +313,7 @@ class AmazonScrapingServiceTest extends TestCase
         // Mock review URL pattern testing (3 patterns, first one works)
         $reviewsHtml = $this->createMockReviewsHtml([
             'This is a great product! I love it.',
-            'Not bad, but could be better.'
+            'Not bad, but could be better.',
         ], [5, 3], ['John Doe', 'Jane Smith']);
         $this->mockHandler->append(new Response(200, [], $reviewsHtml)); // First pattern works
 
@@ -333,7 +332,7 @@ class AmazonScrapingServiceTest extends TestCase
         $this->assertStringContainsString('This is a great product! I love it.', $review1['text']); // Backward compatibility
         // Note: author and review_title removed for bandwidth optimization
         $this->assertArrayHasKey('id', $review1);
-        
+
         // Verify bandwidth optimization: only essential fields present
         $this->assertArrayNotHasKey('author', $review1);
         $this->assertArrayNotHasKey('review_title', $review1);
@@ -344,7 +343,7 @@ class AmazonScrapingServiceTest extends TestCase
         $this->assertStringContainsString('Not bad, but could be better.', $review2['text']); // Backward compatibility
         // Note: author and review_title removed for bandwidth optimization
         $this->assertArrayHasKey('id', $review2);
-        
+
         // Verify bandwidth optimization: only essential fields present
         $this->assertArrayNotHasKey('author', $review2);
         $this->assertArrayNotHasKey('review_title', $review2);
@@ -403,7 +402,7 @@ class AmazonScrapingServiceTest extends TestCase
     /**
      * Create mock HTML for Amazon reviews page.
      */
-    private function createMockReviewsHtml(array $reviewTexts = null, array $ratings = null, array $authors = null): string
+    private function createMockReviewsHtml(?array $reviewTexts = null, ?array $ratings = null, ?array $authors = null): string
     {
         $reviewTexts = $reviewTexts ?? ['Great product!', 'Good value for money'];
         $ratings = $ratings ?? [5, 4];
@@ -417,13 +416,13 @@ class AmazonScrapingServiceTest extends TestCase
         $reviewsHtml .= '</head><body>';
         $reviewsHtml .= '<div class="reviews-container">';
         $reviewsHtml .= '<h1>Customer Reviews</h1>';
-        $reviewsHtml .= '<div class="review-summary">Based on ' . count($reviewTexts) . ' reviews</div>';
-        
+        $reviewsHtml .= '<div class="review-summary">Based on '.count($reviewTexts).' reviews</div>';
+
         for ($i = 0; $i < count($reviewTexts); $i++) {
             $rating = $ratings[$i] ?? 5;
             $text = $reviewTexts[$i];
             $author = $authors[$i] ?? 'Anonymous';
-            
+
             $reviewsHtml .= "
             <div data-hook='review' class='review-item' id='review-{$i}'>
                 <div class='review-header'>
@@ -437,7 +436,7 @@ class AmazonScrapingServiceTest extends TestCase
                     </div>
                 </div>
                 <div class='review-meta'>
-                    <span class='review-date'>Reviewed on January " . (15 + $i) . ", 2024</span>
+                    <span class='review-date'>Reviewed on January ".(15 + $i).", 2024</span>
                     <span class='verified-purchase'>Verified Purchase</span>
                 </div>
                 <div data-hook='review-body' class='review-body'>
@@ -457,11 +456,11 @@ class AmazonScrapingServiceTest extends TestCase
             </div>
             ";
         }
-        
+
         // Add some padding content to ensure we exceed 2000 bytes
         $reviewsHtml .= str_repeat('<div class="padding-content">Additional content for testing</div>', 10);
         $reviewsHtml .= '</div></body></html>';
-        
+
         return $reviewsHtml;
     }
 
@@ -469,7 +468,7 @@ class AmazonScrapingServiceTest extends TestCase
     {
         // Clean up environment variables
         putenv('AMAZON_COOKIES');
-        
+
         parent::tearDown();
     }
-} 
+}

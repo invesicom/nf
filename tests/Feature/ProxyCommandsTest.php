@@ -12,7 +12,7 @@ class ProxyCommandsTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         // Set up test environment with Bright Data proxy
         putenv('BRIGHTDATA_USERNAME=brd-customer-test-zone-residential');
         putenv('BRIGHTDATA_PASSWORD=test-password');
@@ -52,11 +52,11 @@ class ProxyCommandsTest extends TestCase
         // Mock the Amazon scraping service to avoid real network calls
         $this->mock(\App\Services\Amazon\AmazonScrapingService::class, function ($mock) {
             $mock->shouldReceive('fetchReviews')->andReturn([
-                'description' => 'Test product description',
+                'description'   => 'Test product description',
                 'total_reviews' => 100,
-                'reviews' => [
-                    ['id' => 1, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John']
-                ]
+                'reviews'       => [
+                    ['id' => 1, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John'],
+                ],
             ]);
         });
 
@@ -72,8 +72,8 @@ class ProxyCommandsTest extends TestCase
             $mock->shouldReceive('fetchReviews')->andReturn([
                 'reviews' => [
                     ['id' => 1, 'rating' => 5, 'review_title' => 'Great!', 'review_text' => 'Great product', 'author' => 'John'],
-                    ['id' => 2, 'rating' => 4, 'review_title' => 'Good', 'review_text' => 'Good product', 'author' => 'Jane']
-                ]
+                    ['id' => 2, 'rating' => 4, 'review_title' => 'Good', 'review_text' => 'Good product', 'author' => 'Jane'],
+                ],
             ]);
         });
 
@@ -100,7 +100,7 @@ class ProxyCommandsTest extends TestCase
         $this->mock(\App\Services\Amazon\AmazonScrapingService::class, function ($mock) {
             $mock->shouldReceive('fetchReviews')->andReturn([
                 'description' => 'Debug test product',
-                'reviews' => []
+                'reviews'     => [],
             ]);
             // Allow any other method calls that might be needed for debugging
             $mock->shouldIgnoreMissing();
@@ -137,7 +137,7 @@ class ProxyCommandsTest extends TestCase
         putenv('BRIGHTDATA_USERNAME=');
         putenv('BRIGHTDATA_PASSWORD=');
         putenv('BRIGHTDATA_ENDPOINT=');
-        
+
         parent::tearDown();
     }
-} 
+}

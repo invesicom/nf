@@ -53,7 +53,7 @@ class ReprocessHistoricalGrading extends Command
 
         // Build query for records that need reprocessing
         $query = AsinData::query();
-        
+
         // Only process records that have OpenAI analysis
         $query->whereNotNull('openai_result')
               ->where('openai_result', '!=', '[]')
@@ -82,20 +82,21 @@ class ReprocessHistoricalGrading extends Command
             } else {
                 $this->info('✅ No records found that need grading reprocessing.');
             }
+
             return Command::SUCCESS;
         }
 
         $this->info("📊 Found {$totalRecords} records to reprocess");
         $this->info("⚙️  Batch size: {$batchSize}");
-        
+
         if ($specificAsin) {
             $this->info("🎯 Processing specific ASIN: {$specificAsin}");
         }
-        
+
         if ($force) {
             $this->warn('⚠️  Force mode: Reprocessing ALL records (including those with existing grades)');
         }
-        
+
         if ($dryRun) {
             $this->warn('🧪 DRY RUN MODE: No actual processing will occur');
         }
@@ -103,6 +104,7 @@ class ReprocessHistoricalGrading extends Command
         // Ask for confirmation unless it's a dry run
         if (!$dryRun && !$this->confirm('Do you want to continue?')) {
             $this->info('❌ Operation cancelled.');
+
             return Command::FAILURE;
         }
 
@@ -114,9 +116,9 @@ class ReprocessHistoricalGrading extends Command
 
         LoggingService::log('Starting historical grading reprocessing', [
             'total_records' => $totalRecords,
-            'batch_size' => $batchSize,
-            'force' => $force,
-            'dry_run' => $dryRun,
+            'batch_size'    => $batchSize,
+            'force'         => $force,
+            'dry_run'       => $dryRun,
             'specific_asin' => $specificAsin,
         ]);
 
@@ -125,7 +127,7 @@ class ReprocessHistoricalGrading extends Command
             foreach ($asinRecords as $asinData) {
                 try {
                     $shouldProcess = $this->shouldProcessRecord($asinData, $force);
-                    
+
                     if (!$shouldProcess['process']) {
                         $skipped++;
                         $this->line("🔄 Skipped {$asinData->asin}: {$shouldProcess['reason']}");
@@ -133,37 +135,36 @@ class ReprocessHistoricalGrading extends Command
                         if (!$dryRun) {
                             // Reprocess the grading using current logic
                             $this->line("🔄 Reprocessing {$asinData->asin}...");
-                            
+
                             $originalData = [
                                 'fake_percentage' => $asinData->fake_percentage,
-                                'grade' => $asinData->grade,
-                                'amazon_rating' => $asinData->amazon_rating,
+                                'grade'           => $asinData->grade,
+                                'amazon_rating'   => $asinData->amazon_rating,
                                 'adjusted_rating' => $asinData->adjusted_rating,
                             ];
-                            
+
                             $result = $this->analysisService->calculateFinalMetrics($asinData);
-                            
+
                             $this->line("  ✅ Updated grading for {$asinData->asin}");
                             $this->line("     📊 Fake: {$originalData['fake_percentage']}% → {$result['fake_percentage']}%");
                             $this->line("     📝 Grade: {$originalData['grade']} → {$result['grade']}");
                             $this->line("     ⭐ Amazon: {$originalData['amazon_rating']} → {$result['amazon_rating']}");
                             $this->line("     🔧 Adjusted: {$originalData['adjusted_rating']} → {$result['adjusted_rating']}");
-                            
+
                             $updated++;
                         } else {
                             $this->line("🧪 Would reprocess grading for {$asinData->asin}");
                             $updated++;
                         }
                     }
-                    
+
                     $processed++;
-                    
                 } catch (\Exception $e) {
                     $errors++;
-                    $this->error("❌ Error processing {$asinData->asin}: " . $e->getMessage());
-                    
+                    $this->error("❌ Error processing {$asinData->asin}: ".$e->getMessage());
+
                     LoggingService::log('Error in grading reprocessing', [
-                        'asin' => $asinData->asin,
+                        'asin'  => $asinData->asin,
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString(),
                     ]);
@@ -184,7 +185,7 @@ class ReprocessHistoricalGrading extends Command
             'total_processed' => $processed,
             'records_updated' => $updated,
             'records_skipped' => $skipped,
-            'errors' => $errors,
+            'errors'          => $errors,
         ]);
 
         return Command::SUCCESS;
@@ -199,7 +200,7 @@ class ReprocessHistoricalGrading extends Command
         if (!$asinData->openai_result) {
             return [
                 'process' => false,
-                'reason' => 'No OpenAI analysis data'
+                'reason'  => 'No OpenAI analysis data',
             ];
         }
 
@@ -208,25 +209,25 @@ class ReprocessHistoricalGrading extends Command
         if (empty($reviews)) {
             return [
                 'process' => false,
-                'reason' => 'No reviews available'
+                'reason'  => 'No reviews available',
             ];
         }
 
         // Check if already has complete grading (unless force mode)
-        if (!$force && 
-            $asinData->fake_percentage !== null && 
-            $asinData->grade !== null && 
-            $asinData->amazon_rating !== null && 
+        if (!$force &&
+            $asinData->fake_percentage !== null &&
+            $asinData->grade !== null &&
+            $asinData->amazon_rating !== null &&
             $asinData->adjusted_rating !== null) {
             return [
                 'process' => false,
-                'reason' => 'Already has complete grading'
+                'reason'  => 'Already has complete grading',
             ];
         }
 
         return [
             'process' => true,
-            'reason' => 'Ready for grading reprocessing'
+            'reason'  => 'Ready for grading reprocessing',
         ];
     }
 
@@ -240,13 +241,13 @@ class ReprocessHistoricalGrading extends Command
                            ->where('openai_result', '!=', '[]')
                            ->where('openai_result', '!=', '""')
                            ->count();
-        
+
         $hasCompleteGrading = AsinData::whereNotNull('fake_percentage')
                                     ->whereNotNull('grade')
                                     ->whereNotNull('amazon_rating')
                                     ->whereNotNull('adjusted_rating')
                                     ->count();
-                                    
+
         $needsReprocessing = AsinData::whereNotNull('openai_result')
                                    ->where('openai_result', '!=', '[]')
                                    ->where('openai_result', '!=', '""')
@@ -259,10 +260,10 @@ class ReprocessHistoricalGrading extends Command
                                    ->count();
 
         return [
-            'total' => $total,
-            'has_openai' => $hasOpenAI,
+            'total'                => $total,
+            'has_openai'           => $hasOpenAI,
             'has_complete_grading' => $hasCompleteGrading,
-            'needs_reprocessing' => $needsReprocessing,
+            'needs_reprocessing'   => $needsReprocessing,
         ];
     }
-} 
+}

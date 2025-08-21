@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Services\CaptchaService;
 use App\Services\NewsletterService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
@@ -27,6 +27,7 @@ class NewsletterController extends Controller
      * Subscribe to the newsletter.
      *
      * @param Request $request
+     *
      * @return JsonResponse
      */
     public function subscribe(Request $request): JsonResponse
@@ -34,12 +35,12 @@ class NewsletterController extends Controller
         try {
             // Validate input
             $validator = Validator::make($request->all(), [
-                'email' => 'required|email|max:255',
+                'email'                => 'required|email|max:255',
                 'g_recaptcha_response' => app()->environment(['local', 'testing']) ? 'nullable' : 'required',
             ], [
-                'email.required' => 'Email address is required.',
-                'email.email' => 'Please enter a valid email address.',
-                'email.max' => 'Email address is too long.',
+                'email.required'                => 'Email address is required.',
+                'email.email'                   => 'Please enter a valid email address.',
+                'email.max'                     => 'Email address is too long.',
                 'g_recaptcha_response.required' => 'Please complete the captcha verification.',
             ]);
 
@@ -47,7 +48,7 @@ class NewsletterController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $validator->errors()->first(),
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors(),
                 ], 422);
             }
 
@@ -59,7 +60,7 @@ class NewsletterController extends Controller
                 if (!$this->captchaService->verify($captchaResponse, $request->ip())) {
                     Log::warning('Newsletter subscription CAPTCHA verification failed', [
                         'email' => $email,
-                        'ip' => $request->ip()
+                        'ip'    => $request->ip(),
                     ]);
 
                     return response()->json([
@@ -74,14 +75,14 @@ class NewsletterController extends Controller
 
             if ($result['success']) {
                 Log::info('Newsletter subscription successful via controller', [
-                    'email' => $email,
-                    'ip' => $request->ip(),
-                    'user_agent' => $request->header('User-Agent')
+                    'email'      => $email,
+                    'ip'         => $request->ip(),
+                    'user_agent' => $request->header('User-Agent'),
                 ]);
 
                 return response()->json([
                     'success' => true,
-                    'message' => $result['message']
+                    'message' => $result['message'],
                 ]);
             } else {
                 // Handle specific error cases
@@ -89,26 +90,25 @@ class NewsletterController extends Controller
                     return response()->json([
                         'success' => false,
                         'message' => $result['message'],
-                        'code' => 'ALREADY_SUBSCRIBED'
+                        'code'    => 'ALREADY_SUBSCRIBED',
                     ], 409);
                 }
 
                 return response()->json([
                     'success' => false,
-                    'message' => $result['message']
+                    'message' => $result['message'],
                 ], 500);
             }
-
         } catch (\Exception $e) {
             Log::error('Newsletter subscription controller error', [
                 'email' => $request->input('email'),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An unexpected error occurred. Please try again later.'
+                'message' => 'An unexpected error occurred. Please try again later.',
             ], 500);
         }
     }
@@ -117,6 +117,7 @@ class NewsletterController extends Controller
      * Unsubscribe from the newsletter.
      *
      * @param Request $request
+     *
      * @return JsonResponse
      */
     public function unsubscribe(Request $request): JsonResponse
@@ -130,7 +131,7 @@ class NewsletterController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $validator->errors()->first(),
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors(),
                 ], 422);
             }
 
@@ -140,30 +141,29 @@ class NewsletterController extends Controller
             if ($result['success']) {
                 Log::info('Newsletter unsubscription successful via controller', [
                     'email' => $email,
-                    'ip' => $request->ip()
+                    'ip'    => $request->ip(),
                 ]);
 
                 return response()->json([
                     'success' => true,
-                    'message' => $result['message']
+                    'message' => $result['message'],
                 ]);
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => $result['message']
+                    'message' => $result['message'],
                 ], 500);
             }
-
         } catch (\Exception $e) {
             Log::error('Newsletter unsubscription controller error', [
                 'email' => $request->input('email'),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'An unexpected error occurred. Please try again later.'
+                'message' => 'An unexpected error occurred. Please try again later.',
             ], 500);
         }
     }
@@ -172,6 +172,7 @@ class NewsletterController extends Controller
      * Check subscription status.
      *
      * @param Request $request
+     *
      * @return JsonResponse
      */
     public function checkSubscription(Request $request): JsonResponse
@@ -185,7 +186,7 @@ class NewsletterController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $validator->errors()->first(),
-                    'errors' => $validator->errors()
+                    'errors'  => $validator->errors(),
                 ], 422);
             }
 
@@ -193,21 +194,20 @@ class NewsletterController extends Controller
             $result = $this->newsletterService->checkSubscription($email);
 
             return response()->json([
-                'success' => $result['success'],
+                'success'    => $result['success'],
                 'subscribed' => $result['subscribed'] ?? false,
-                'message' => $result['success'] ? 'Subscription status retrieved' : 'Failed to check subscription status'
+                'message'    => $result['success'] ? 'Subscription status retrieved' : 'Failed to check subscription status',
             ]);
-
         } catch (\Exception $e) {
             Log::error('Newsletter subscription check controller error', [
                 'email' => $request->input('email'),
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
-                'success' => false,
+                'success'    => false,
                 'subscribed' => false,
-                'message' => 'An unexpected error occurred. Please try again later.'
+                'message'    => 'An unexpected error occurred. Please try again later.',
             ], 500);
         }
     }
@@ -225,18 +225,17 @@ class NewsletterController extends Controller
             return response()->json([
                 'success' => $result['success'],
                 'message' => $result['message'],
-                'data' => $result['data'] ?? null
+                'data'    => $result['data'] ?? null,
             ], $result['success'] ? 200 : 500);
-
         } catch (\Exception $e) {
             Log::error('Newsletter connection test error', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Connection test failed: ' . $e->getMessage()
+                'message' => 'Connection test failed: '.$e->getMessage(),
             ], 500);
         }
     }
-} 
+}

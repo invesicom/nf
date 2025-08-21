@@ -21,7 +21,7 @@ class SitemapController extends Controller
         });
 
         return response($sitemap, 200, [
-            'Content-Type' => 'application/xml',
+            'Content-Type'  => 'application/xml',
             'Cache-Control' => 'public, max-age=3600',
         ]);
     }
@@ -40,7 +40,7 @@ class SitemapController extends Controller
         });
 
         return response($sitemap, 200, [
-            'Content-Type' => 'application/xml',
+            'Content-Type'  => 'application/xml',
             'Cache-Control' => 'public, max-age=1800',
         ]);
     }
@@ -58,7 +58,7 @@ class SitemapController extends Controller
         });
 
         return response($sitemapIndex, 200, [
-            'Content-Type' => 'application/xml',
+            'Content-Type'  => 'application/xml',
             'Cache-Control' => 'public, max-age=3600',
         ]);
     }
@@ -72,17 +72,17 @@ class SitemapController extends Controller
 
         // Static pages
         $urls[] = [
-            'loc' => url('/'),
-            'lastmod' => '2024-12-19',
+            'loc'        => url('/'),
+            'lastmod'    => '2024-12-19',
             'changefreq' => 'weekly',
-            'priority' => '1.0'
+            'priority'   => '1.0',
         ];
 
         $urls[] = [
-            'loc' => url('/privacy'),
-            'lastmod' => '2024-12-19',
+            'loc'        => url('/privacy'),
+            'lastmod'    => '2024-12-19',
             'changefreq' => 'monthly',
-            'priority' => '0.3'
+            'priority'   => '0.3',
         ];
 
         // Recent analyzed products (last 100 for main sitemap)
@@ -96,12 +96,12 @@ class SitemapController extends Controller
         foreach ($recentProducts as $product) {
             // Use SEO-friendly URL if available
             $seoUrl = $product->seo_url;
-            
+
             $urls[] = [
-                'loc' => url($seoUrl),
-                'lastmod' => $product->updated_at->toISOString(),
+                'loc'        => url($seoUrl),
+                'lastmod'    => $product->updated_at->toISOString(),
                 'changefreq' => 'monthly',
-                'priority' => $product->have_product_data ? '0.8' : '0.6'
+                'priority'   => $product->have_product_data ? '0.8' : '0.6',
             ];
         }
 
@@ -121,7 +121,7 @@ class SitemapController extends Controller
                 return $product->isAnalyzed();
             })
             ->sortByDesc('updated_at');
-        
+
         $products = $allAnalyzedProducts->slice($offset, $limit);
 
         if ($products->isEmpty()) {
@@ -133,15 +133,15 @@ class SitemapController extends Controller
         foreach ($products as $product) {
             // Use SEO-friendly URL
             $seoUrl = $product->seo_url;
-            
+
             // Higher priority for products with good grades and complete data
             $priority = $this->calculateProductPriority($product);
-            
+
             $urls[] = [
-                'loc' => url($seoUrl),
-                'lastmod' => $product->updated_at->toISOString(),
+                'loc'        => url($seoUrl),
+                'lastmod'    => $product->updated_at->toISOString(),
                 'changefreq' => 'monthly',
-                'priority' => $priority
+                'priority'   => $priority,
             ];
         }
 
@@ -166,23 +166,23 @@ class SitemapController extends Controller
         if ($totalPages <= 1) {
             $sitemaps = [
                 [
-                    'loc' => url('/sitemap.xml'),
-                    'lastmod' => now()->toISOString()
-                ]
+                    'loc'     => url('/sitemap.xml'),
+                    'lastmod' => now()->toISOString(),
+                ],
             ];
         } else {
             // Create index with main sitemap + product sitemaps
             $sitemaps = [
                 [
-                    'loc' => url('/sitemap.xml'),
-                    'lastmod' => now()->toISOString()
-                ]
+                    'loc'     => url('/sitemap.xml'),
+                    'lastmod' => now()->toISOString(),
+                ],
             ];
 
             for ($page = 1; $page <= $totalPages; $page++) {
                 $sitemaps[] = [
-                    'loc' => url("/sitemap-products-{$page}.xml"),
-                    'lastmod' => now()->toISOString()
+                    'loc'     => url("/sitemap-products-{$page}.xml"),
+                    'lastmod' => now()->toISOString(),
                 ];
             }
         }
@@ -231,19 +231,19 @@ class SitemapController extends Controller
      */
     private function buildXmlSitemap(array $urls): string
     {
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
-        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'.PHP_EOL;
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.PHP_EOL;
 
         foreach ($urls as $url) {
-            $xml .= '    <url>' . PHP_EOL;
-            $xml .= '        <loc>' . htmlspecialchars($url['loc']) . '</loc>' . PHP_EOL;
-            $xml .= '        <lastmod>' . $url['lastmod'] . '</lastmod>' . PHP_EOL;
-            $xml .= '        <changefreq>' . $url['changefreq'] . '</changefreq>' . PHP_EOL;
-            $xml .= '        <priority>' . $url['priority'] . '</priority>' . PHP_EOL;
-            $xml .= '    </url>' . PHP_EOL;
+            $xml .= '    <url>'.PHP_EOL;
+            $xml .= '        <loc>'.htmlspecialchars($url['loc']).'</loc>'.PHP_EOL;
+            $xml .= '        <lastmod>'.$url['lastmod'].'</lastmod>'.PHP_EOL;
+            $xml .= '        <changefreq>'.$url['changefreq'].'</changefreq>'.PHP_EOL;
+            $xml .= '        <priority>'.$url['priority'].'</priority>'.PHP_EOL;
+            $xml .= '    </url>'.PHP_EOL;
         }
 
-        $xml .= '</urlset>' . PHP_EOL;
+        $xml .= '</urlset>'.PHP_EOL;
 
         return $xml;
     }
@@ -253,17 +253,17 @@ class SitemapController extends Controller
      */
     private function buildXmlSitemapIndex(array $sitemaps): string
     {
-        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . PHP_EOL;
-        $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . PHP_EOL;
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>'.PHP_EOL;
+        $xml .= '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'.PHP_EOL;
 
         foreach ($sitemaps as $sitemap) {
-            $xml .= '    <sitemap>' . PHP_EOL;
-            $xml .= '        <loc>' . htmlspecialchars($sitemap['loc']) . '</loc>' . PHP_EOL;
-            $xml .= '        <lastmod>' . $sitemap['lastmod'] . '</lastmod>' . PHP_EOL;
-            $xml .= '    </sitemap>' . PHP_EOL;
+            $xml .= '    <sitemap>'.PHP_EOL;
+            $xml .= '        <loc>'.htmlspecialchars($sitemap['loc']).'</loc>'.PHP_EOL;
+            $xml .= '        <lastmod>'.$sitemap['lastmod'].'</lastmod>'.PHP_EOL;
+            $xml .= '    </sitemap>'.PHP_EOL;
         }
 
-        $xml .= '</sitemapindex>' . PHP_EOL;
+        $xml .= '</sitemapindex>'.PHP_EOL;
 
         return $xml;
     }
@@ -275,10 +275,10 @@ class SitemapController extends Controller
     {
         Cache::forget('sitemap_main');
         Cache::forget('sitemap_index');
-        
+
         // Clear product sitemap pages (up to 100 pages should be enough)
         for ($page = 1; $page <= 100; $page++) {
             Cache::forget("sitemap_products_page_{$page}");
         }
     }
-} 
+}

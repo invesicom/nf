@@ -219,14 +219,14 @@ class OpenAIServiceTest extends TestCase
         // Mock new bandwidth-optimized review structure (no review_title)
         $reviews = [
             [
-                'id' => 'scrape_abc123',
+                'id'     => 'scrape_abc123',
                 'rating' => 5,
-                'text' => 'This product is amazing! Highly recommend it.',
+                'text'   => 'This product is amazing! Highly recommend it.',
             ],
             [
-                'id' => 'scrape_def456',
+                'id'     => 'scrape_def456',
                 'rating' => 3,
-                'text' => 'It\'s okay, but not what I expected.',
+                'text'   => 'It\'s okay, but not what I expected.',
             ],
         ];
 
@@ -235,10 +235,10 @@ class OpenAIServiceTest extends TestCase
             'choices' => [
                 [
                     'message' => [
-                        'content' => '[{"id":"scrape_abc123","score":25}, {"id":"scrape_def456","score":60}]'
-                    ]
-                ]
-            ]
+                        'content' => '[{"id":"scrape_abc123","score":25}, {"id":"scrape_def456","score":60}]',
+                    ],
+                ],
+            ],
         ];
 
         Http::fake([
@@ -259,23 +259,23 @@ class OpenAIServiceTest extends TestCase
         // Mock old review structure (with review_title and review_text)
         $reviews = [
             [
-                'id' => 'legacy_123',
-                'rating' => 4,
+                'id'           => 'legacy_123',
+                'rating'       => 4,
                 'review_title' => 'Great Product!',
-                'review_text' => 'I really love this product. Works perfectly.',
-                'meta_data' => [
+                'review_text'  => 'I really love this product. Works perfectly.',
+                'meta_data'    => [
                     'verified_purchase' => true,
-                    'is_vine_voice' => false,
+                    'is_vine_voice'     => false,
                 ],
             ],
             [
-                'id' => 'legacy_456',
-                'rating' => 2,
+                'id'           => 'legacy_456',
+                'rating'       => 2,
                 'review_title' => 'Not as expected',
-                'review_text' => 'The quality is poor and it broke after a week.',
-                'meta_data' => [
+                'review_text'  => 'The quality is poor and it broke after a week.',
+                'meta_data'    => [
                     'verified_purchase' => false,
-                    'is_vine_voice' => true,
+                    'is_vine_voice'     => true,
                 ],
             ],
         ];
@@ -285,10 +285,10 @@ class OpenAIServiceTest extends TestCase
             'choices' => [
                 [
                     'message' => [
-                        'content' => '[{"id":"legacy_123","score":15}, {"id":"legacy_456","score":75}]'
-                    ]
-                ]
-            ]
+                        'content' => '[{"id":"legacy_123","score":15}, {"id":"legacy_456","score":75}]',
+                    ],
+                ],
+            ],
         ];
 
         Http::fake([
@@ -309,16 +309,16 @@ class OpenAIServiceTest extends TestCase
         // Test mixture of old and new review structures
         $reviews = [
             [
-                'id' => 'new_format',
+                'id'     => 'new_format',
                 'rating' => 5,
-                'text' => 'Excellent product, highly recommended!',
+                'text'   => 'Excellent product, highly recommended!',
             ],
             [
-                'id' => 'old_format',
-                'rating' => 3,
+                'id'           => 'old_format',
+                'rating'       => 3,
                 'review_title' => 'Decent product',
-                'review_text' => 'Works as expected, nothing special.',
-                'meta_data' => [
+                'review_text'  => 'Works as expected, nothing special.',
+                'meta_data'    => [
                     'verified_purchase' => true,
                 ],
             ],
@@ -329,10 +329,10 @@ class OpenAIServiceTest extends TestCase
             'choices' => [
                 [
                     'message' => [
-                        'content' => '[{"id":"new_format","score":30}, {"id":"old_format","score":45}]'
-                    ]
-                ]
-            ]
+                        'content' => '[{"id":"new_format","score":30}, {"id":"old_format","score":45}]',
+                    ],
+                ],
+            ],
         ];
 
         Http::fake([

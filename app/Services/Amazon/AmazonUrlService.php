@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Http;
 class AmazonUrlService
 {
     /**
-     * Extract ASIN from various Amazon URL formats
+     * Extract ASIN from various Amazon URL formats.
      */
     public function extractAsinFromUrl(string $url): string
     {
@@ -31,6 +31,7 @@ class AmazonUrlService
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $url, $matches)) {
                 LoggingService::log("Extracted ASIN '{$matches[1]}' using pattern: {$pattern}");
+
                 return $matches[1];
             }
         }
@@ -38,6 +39,7 @@ class AmazonUrlService
         // If it's already just an ASIN
         if (preg_match('/^[A-Z0-9]{10}$/', $url)) {
             LoggingService::log("Input is already an ASIN: {$url}");
+
             return $url;
         }
 
@@ -45,7 +47,7 @@ class AmazonUrlService
     }
 
     /**
-     * Extract country code from Amazon URL
+     * Extract country code from Amazon URL.
      */
     public function extractCountryFromUrl(string $url): string
     {
@@ -54,24 +56,24 @@ class AmazonUrlService
             'amazon.com.mx' => 'mx',
             'amazon.com.br' => 'br',
             'amazon.com.au' => 'au',
-            'amazon.com' => 'us',
-            'amazon.co.uk' => 'gb',
-            'amazon.ca' => 'ca',
-            'amazon.de' => 'de',
-            'amazon.fr' => 'fr',
-            'amazon.it' => 'it',
-            'amazon.es' => 'es',
-            'amazon.co.jp' => 'jp',
-            'amazon.in' => 'in',
-            'amazon.sg' => 'sg',
-            'amazon.nl' => 'nl',
+            'amazon.com'    => 'us',
+            'amazon.co.uk'  => 'gb',
+            'amazon.ca'     => 'ca',
+            'amazon.de'     => 'de',
+            'amazon.fr'     => 'fr',
+            'amazon.it'     => 'it',
+            'amazon.es'     => 'es',
+            'amazon.co.jp'  => 'jp',
+            'amazon.in'     => 'in',
+            'amazon.sg'     => 'sg',
+            'amazon.nl'     => 'nl',
             'amazon.com.tr' => 'tr',
-            'amazon.ae' => 'ae',
-            'amazon.sa' => 'sa',
-            'amazon.se' => 'se',
-            'amazon.pl' => 'pl',
-            'amazon.eg' => 'eg',
-            'amazon.be' => 'be',
+            'amazon.ae'     => 'ae',
+            'amazon.sa'     => 'sa',
+            'amazon.se'     => 'se',
+            'amazon.pl'     => 'pl',
+            'amazon.eg'     => 'eg',
+            'amazon.be'     => 'be',
         ];
 
         foreach ($domainMapping as $domain => $country) {
@@ -85,36 +87,36 @@ class AmazonUrlService
     }
 
     /**
-     * Check if a product exists at the given URL
+     * Check if a product exists at the given URL.
      */
     public function checkProductExists(string $productUrl): array
     {
         try {
             $response = Http::timeout(10)->get($productUrl);
-            
+
             if ($response->successful()) {
                 $content = $response->body();
-                
+
                 // Check for product not found indicators
                 if (strpos($content, 'Page Not Found') !== false ||
                     strpos($content, 'Looking for something?') !== false ||
                     strpos($content, 'Sorry, we couldn\'t find that page') !== false) {
                     return ['exists' => false, 'reason' => 'Product page not found'];
                 }
-                
+
                 return ['exists' => true];
             }
-            
+
             return ['exists' => false, 'reason' => "HTTP {$response->status()}"];
-            
         } catch (\Exception $e) {
             LoggingService::handleException($e, "Failed to check product existence for URL: {$productUrl}");
-            return ['exists' => false, 'reason' => 'Connection error: ' . $e->getMessage()];
+
+            return ['exists' => false, 'reason' => 'Connection error: '.$e->getMessage()];
         }
     }
 
     /**
-     * Build Amazon product URL from ASIN and country
+     * Build Amazon product URL from ASIN and country.
      */
     public function buildProductUrl(string $asin, string $country): string
     {
@@ -143,27 +145,29 @@ class AmazonUrlService
         ];
 
         $domain = $domainMapping[$country] ?? 'amazon.com';
+
         return "https://{$domain}/dp/{$asin}";
     }
 
     /**
-     * Follow redirect for short URLs
+     * Follow redirect for short URLs.
      */
     private function followRedirect(string $url): string
     {
         try {
             $response = Http::withOptions(['allow_redirects' => false])->get($url);
-            
+
             if ($response->redirect()) {
                 $location = $response->header('Location');
                 if ($location) {
                     return $location;
                 }
             }
-            
+
             return $url;
         } catch (\Exception $e) {
             LoggingService::handleException($e, "Failed to follow redirect for URL: {$url}");
+
             return $url;
         }
     }

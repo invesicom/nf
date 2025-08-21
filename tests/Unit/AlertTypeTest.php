@@ -3,8 +3,8 @@
 namespace Tests\Unit;
 
 use App\Enums\AlertType;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class AlertTypeTest extends TestCase
 {
@@ -46,7 +46,7 @@ class AlertTypeTest extends TestCase
         $this->assertEquals('alien', AlertType::DATABASE_ERROR->getDefaultSound());
         $this->assertEquals('pushover', AlertType::AMAZON_SESSION_EXPIRED->getDefaultSound());
         $this->assertEquals('cashregister', AlertType::OPENAI_QUOTA_EXCEEDED->getDefaultSound());
-        
+
         // Others should return null (use default sound)
         $this->assertNull(AlertType::OPENAI_API_ERROR->getDefaultSound());
         $this->assertNull(AlertType::SYSTEM_ERROR->getDefaultSound());
@@ -120,4 +120,4 @@ class AlertTypeTest extends TestCase
             $this->assertIsInt($alertType->getThrottleDuration());
         }
     }
-} 
+}

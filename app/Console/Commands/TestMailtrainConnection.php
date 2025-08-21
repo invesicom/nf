@@ -28,13 +28,14 @@ class TestMailtrainConnection extends Command
         // Test basic connection
         $this->info('1. Testing API connection...');
         $connectionTest = $newsletterService->testConnection();
-        
+
         if ($connectionTest['success']) {
             $this->info('✅ Connection successful!');
-            $this->line('   Base URL: ' . config('services.mailtrain.base_url'));
-            $this->line('   List ID: ' . config('services.mailtrain.list_id'));
+            $this->line('   Base URL: '.config('services.mailtrain.base_url'));
+            $this->line('   List ID: '.config('services.mailtrain.list_id'));
         } else {
-            $this->error('❌ Connection failed: ' . $connectionTest['message']);
+            $this->error('❌ Connection failed: '.$connectionTest['message']);
+
             return 1;
         }
 
@@ -43,29 +44,28 @@ class TestMailtrainConnection extends Command
         // Test email subscription if provided
         $testEmail = $this->option('email');
         if ($testEmail) {
-            $this->info('2. Testing subscription for: ' . $testEmail);
-            
+            $this->info('2. Testing subscription for: '.$testEmail);
+
             $subscribeResult = $newsletterService->subscribe($testEmail);
-            
+
             if ($subscribeResult['success']) {
                 $this->info('✅ Subscription successful!');
-                $this->line('   Message: ' . $subscribeResult['message']);
-                
+                $this->line('   Message: '.$subscribeResult['message']);
+
                 // Test checking subscription status
                 $this->newLine();
                 $this->info('3. Testing subscription status check...');
-                
+
                 $statusResult = $newsletterService->checkSubscription($testEmail);
                 if ($statusResult['success']) {
                     $subscribed = $statusResult['subscribed'] ? 'Yes' : 'No';
                     $this->info('✅ Status check successful!');
-                    $this->line('   Subscribed: ' . $subscribed);
+                    $this->line('   Subscribed: '.$subscribed);
                 } else {
-                    $this->warn('⚠️  Status check failed: ' . ($statusResult['error'] ?? 'Unknown error'));
+                    $this->warn('⚠️  Status check failed: '.($statusResult['error'] ?? 'Unknown error'));
                 }
-                
             } else {
-                $this->error('❌ Subscription failed: ' . $subscribeResult['message']);
+                $this->error('❌ Subscription failed: '.$subscribeResult['message']);
                 if (isset($subscribeResult['code']) && $subscribeResult['code'] === 'ALREADY_SUBSCRIBED') {
                     $this->line('   (This is normal if the email is already subscribed)');
                 }
@@ -76,7 +76,7 @@ class TestMailtrainConnection extends Command
 
         $this->newLine();
         $this->info('🎉 Mailtrain test completed!');
-        
+
         return 0;
     }
-} 
+}

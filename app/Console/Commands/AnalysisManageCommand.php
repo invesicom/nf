@@ -24,45 +24,45 @@ class AnalysisManageCommand extends Command
 
     private array $availableActions = [
         'reanalyze' => [
-            'command' => 'reanalyze:graded-products',
+            'command'     => 'reanalyze:graded-products',
             'description' => 'Re-analyze products with poor grades',
-            'options' => ['grades', 'limit', 'fast', 'provider', 'parallel', 'chunk-size', 'dry-run', 'force']
+            'options'     => ['grades', 'limit', 'fast', 'provider', 'parallel', 'chunk-size', 'dry-run', 'force'],
         ],
         'analyze-patterns' => [
-            'command' => 'analyze:fake-detection',
+            'command'     => 'analyze:fake-detection',
             'description' => 'Analyze fake detection patterns in recent data',
-            'options' => ['limit']
+            'options'     => ['limit'],
         ],
         'process-existing' => [
-            'command' => 'process:existing-asin-data',
+            'command'     => 'process:existing-asin-data',
             'description' => 'Process existing ASIN data',
-            'options' => ['limit', 'force']
+            'options'     => ['limit', 'force'],
         ],
         'reprocess-grading' => [
-            'command' => 'reprocess:historical-grading',
+            'command'     => 'reprocess:historical-grading',
             'description' => 'Reprocess historical grading data',
-            'options' => ['limit', 'dry-run', 'force']
+            'options'     => ['limit', 'dry-run', 'force'],
         ],
         'revert-generous' => [
-            'command' => 'revert:over-generous-grades',
+            'command'     => 'revert:over-generous-grades',
             'description' => 'Revert over-generous grade adjustments',
-            'options' => ['limit', 'dry-run', 'force']
+            'options'     => ['limit', 'dry-run', 'force'],
         ],
         'test-scoring' => [
-            'command' => 'test:new-scoring',
+            'command'     => 'test:new-scoring',
             'description' => 'Test new scoring system on sample data',
-            'options' => ['asin', 'provider']
+            'options'     => ['asin', 'provider'],
         ],
         'analyze-transparency' => [
-            'command' => 'analyze:transparency-features',
+            'command'     => 'analyze:transparency-features',
             'description' => 'Analyze transparency features in reviews',
-            'options' => ['limit']
+            'options'     => ['limit'],
         ],
         'analyze-rescraping' => [
-            'command' => 'analyze:rescraping-needs',
+            'command'     => 'analyze:rescraping-needs',
             'description' => 'Analyze which products need re-scraping',
-            'options' => ['limit', 'dry-run']
-        ]
+            'options'     => ['limit', 'dry-run'],
+        ],
     ];
 
     public function handle(): int
@@ -78,11 +78,12 @@ class AnalysisManageCommand extends Command
         if (!isset($this->availableActions[$action])) {
             $this->error("Unknown action: {$action}");
             $this->info("Run 'php artisan analysis:manage list' to see available actions");
+
             return 1;
         }
 
         $actionConfig = $this->availableActions[$action];
-        
+
         // Build command arguments from available options
         $commandArgs = [];
         foreach ($actionConfig['options'] as $option) {
@@ -99,51 +100,51 @@ class AnalysisManageCommand extends Command
         // Execute the underlying command
         $this->info("Executing: {$actionConfig['description']}");
         if (!empty($commandArgs)) {
-            $this->info("Options: " . json_encode($commandArgs, JSON_PRETTY_PRINT));
+            $this->info('Options: '.json_encode($commandArgs, JSON_PRETTY_PRINT));
         }
         $this->newLine();
 
         try {
             $exitCode = Artisan::call($actionConfig['command'], $commandArgs);
             $this->line(Artisan::output());
-            
+
             if ($exitCode === 0) {
-                $this->info("Analysis action completed successfully");
+                $this->info('Analysis action completed successfully');
             } else {
                 $this->error("Analysis action failed with exit code: {$exitCode}");
             }
-            
+
             return $exitCode;
-            
         } catch (\Exception $e) {
-            $this->error("Failed to execute analysis action: " . $e->getMessage());
+            $this->error('Failed to execute analysis action: '.$e->getMessage());
+
             return 1;
         }
     }
 
     private function showAvailableActions(): int
     {
-        $this->info("Available analysis management actions:");
+        $this->info('Available analysis management actions:');
         $this->newLine();
 
         foreach ($this->availableActions as $action => $config) {
             $this->line("<info>{$action}</info> - {$config['description']}");
             if (!empty($config['options'])) {
-                $options = implode(', ', array_map(fn($opt) => "--{$opt}", $config['options']));
+                $options = implode(', ', array_map(fn ($opt) => "--{$opt}", $config['options']));
                 $this->line("  Options: {$options}");
             }
             $this->newLine();
         }
 
-        $this->info("Usage:");
-        $this->line("  php artisan analysis:manage <action> [options]");
+        $this->info('Usage:');
+        $this->line('  php artisan analysis:manage <action> [options]');
         $this->newLine();
-        
-        $this->info("Examples:");
-        $this->line("  php artisan analysis:manage reanalyze --grades=F,D --limit=50 --fast");
-        $this->line("  php artisan analysis:manage analyze-patterns --limit=100");
-        $this->line("  php artisan analysis:manage process-existing --dry-run");
-        $this->line("  php artisan analysis:manage test-scoring --asin=B0ABC123 --provider=ollama");
+
+        $this->info('Examples:');
+        $this->line('  php artisan analysis:manage reanalyze --grades=F,D --limit=50 --fast');
+        $this->line('  php artisan analysis:manage analyze-patterns --limit=100');
+        $this->line('  php artisan analysis:manage process-existing --dry-run');
+        $this->line('  php artisan analysis:manage test-scoring --asin=B0ABC123 --provider=ollama');
 
         return 0;
     }

@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\AsinData;
 use App\Services\Amazon\BrightDataScraperService;
 use App\Services\LoggingService;
 use Illuminate\Bus\Queueable;
@@ -10,11 +9,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class TriggerBrightDataScraping implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public $tries = 3;
     public $timeout = 60; // 1 minute - just to trigger the job
@@ -31,13 +32,13 @@ class TriggerBrightDataScraping implements ShouldQueue
     public function handle(): void
     {
         LoggingService::log('Triggering BrightData scraping job', [
-            'asin' => $this->asin,
-            'country' => $this->country
+            'asin'    => $this->asin,
+            'country' => $this->country,
         ]);
 
         try {
             $brightDataService = $this->mockService ?? new BrightDataScraperService();
-            
+
             // Build Amazon URL using the same domain mapping as BrightDataScraperService
             $domains = [
                 'us' => 'amazon.com',
@@ -61,33 +62,33 @@ class TriggerBrightDataScraping implements ShouldQueue
                 'se' => 'amazon.se',
                 'pl' => 'amazon.pl',
                 'eg' => 'amazon.eg',
-                'be' => 'amazon.be'
+                'be' => 'amazon.be',
             ];
             $domain = $domains[$this->country] ?? $domains['us'];
             $productUrl = "https://www.{$domain}/dp/{$this->asin}/";
 
             // Trigger the scraping job
             $jobId = $this->triggerScrapingJob($brightDataService, [$productUrl]);
-            
+
             if (!$jobId) {
                 throw new \Exception('Failed to trigger BrightData scraping job');
             }
 
             LoggingService::log('BrightData job triggered successfully', [
-                'asin' => $this->asin,
-                'job_id' => $jobId
+                'asin'   => $this->asin,
+                'job_id' => $jobId,
             ]);
 
             // Chain the progress checking job with a 30-second delay
             CheckBrightDataProgress::dispatch($this->asin, $this->country, $jobId)
                 ->delay(now()->addSeconds(30))
                 ->onQueue('brightdata');
-
         } catch (\Exception $e) {
             LoggingService::log('Failed to trigger BrightData scraping', [
-                'asin' => $this->asin,
-                'error' => $e->getMessage()
+                'asin'  => $this->asin,
+                'error' => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -98,15 +99,15 @@ class TriggerBrightDataScraping implements ShouldQueue
         $reflection = new \ReflectionClass($service);
         $method = $reflection->getMethod('triggerScrapingJob');
         $method->setAccessible(true);
-        
+
         return $method->invoke($service, $urls);
     }
 
     public function failed(\Throwable $exception): void
     {
         LoggingService::log('BrightData trigger job failed permanently', [
-            'asin' => $this->asin,
-            'error' => $exception->getMessage()
+            'asin'  => $this->asin,
+            'error' => $exception->getMessage(),
         ]);
     }
 }

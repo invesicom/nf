@@ -5,10 +5,10 @@ namespace Tests\Unit;
 use App\Services\Amazon\AmazonScrapingService;
 use App\Services\Amazon\ProxyManager;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
-use GuzzleHttp\Exception\RequestException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
@@ -64,7 +64,7 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
         // Mock first attempt failure (proxy blocked)
         $this->mockHandler->append(new Response(200, [], $this->createMockProductHtml('Test Product')));
         $this->mockHandler->append(new RequestException(
-            'Connection timeout', 
+            'Connection timeout',
             new \GuzzleHttp\Psr7\Request('GET', 'test')
         ));
 
@@ -102,7 +102,7 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
     public function test_scraping_service_handles_session_rotation()
     {
         $proxyManager = new ProxyManager();
-        
+
         // Get initial session
         $config1 = $proxyManager->getProxyConfig();
         $sessionId1 = $config1['session_id'] ?? 'no_session';
@@ -113,7 +113,7 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
         // Mock failure to trigger session rotation in the service
         $this->mockHandler->append(new Response(200, [], $this->createMockProductHtml('Test Product')));
         $this->mockHandler->append(new RequestException(
-            'Connection failed', 
+            'Connection failed',
             new \GuzzleHttp\Psr7\Request('GET', 'test')
         ));
 
@@ -185,7 +185,7 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
         // Mock continuous failures
         for ($i = 0; $i < 10; $i++) {
             $this->mockHandler->append(new RequestException(
-                'Connection timeout', 
+                'Connection timeout',
                 new \GuzzleHttp\Psr7\Request('GET', 'test')
             ));
         }
@@ -194,9 +194,9 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
 
         // Should return structured array after max retries
         $this->assertEquals([
-            'reviews' => [],
-            'description' => '',
-            'total_reviews' => 0
+            'reviews'       => [],
+            'description'   => '',
+            'total_reviews' => 0,
         ], $result);
     }
 
@@ -227,13 +227,13 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
         $reviewsHtml .= '</head><body>';
         $reviewsHtml .= '<div class="reviews-container">';
         $reviewsHtml .= '<h1>Customer Reviews</h1>';
-        
+
         // Add two mock reviews
         for ($i = 0; $i < 2; $i++) {
             $rating = 5;
             $text = "Great product review {$i}";
             $author = "Customer {$i}";
-            
+
             $reviewsHtml .= "
             <div data-hook='review' class='review-item' id='review-{$i}'>
                 <div class='review-header'>
@@ -259,11 +259,11 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
             </div>
             ";
         }
-        
+
         // Add padding content to ensure we exceed 2000 bytes
         $reviewsHtml .= str_repeat('<div class="padding-content">Additional content for testing</div>', 10);
         $reviewsHtml .= '</div></body></html>';
-        
+
         return $reviewsHtml;
     }
 
@@ -278,4 +278,4 @@ class AmazonScrapingServiceWithProxyTest extends TestCase
         Cache::flush();
         parent::tearDown();
     }
-} 
+}

@@ -2,27 +2,25 @@
 
 namespace App\Services;
 
-use App\Enums\AlertType;
-use App\Services\AlertService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Context-Aware Alert Manager
- * 
+ * Context-Aware Alert Manager.
+ *
  * Implements enterprise-grade alerting strategies:
  * - Error rate thresholds instead of individual failures
- * - Business impact assessment 
+ * - Business impact assessment
  * - Service criticality awareness
  * - Pattern-based alerting
  * - Recovery-aware suppression
- * 
+ *
  * Based on strategies used by Netflix, Stripe, and GitHub.
  */
 class AlertManager
 {
     private AlertService $alertService;
-    
+
     // Error rate thresholds (failures per time window)
     private const ERROR_RATE_THRESHOLDS = [
         'CRITICAL_P0' => ['failures' => 10, 'window_minutes' => 5],   // >10 failures in 5 min = critical
@@ -30,34 +28,34 @@ class AlertManager
         'MEDIUM_P2'   => ['failures' => 3,  'window_minutes' => 15],  // >3 failures in 15 min = medium
         'LOW_P3'      => ['failures' => 1,  'window_minutes' => 60],  // Individual failures = low
     ];
-    
+
     // Service criticality mapping
     private const SERVICE_CRITICALITY = [
         'BrightData Web Scraper' => 'PRIMARY',
-        'BrightData API' => 'PRIMARY', 
-        'OpenAI Service' => 'CORE',
+        'BrightData API'         => 'PRIMARY',
+        'OpenAI Service'         => 'CORE',
         'Amazon Direct Scraping' => 'FALLBACK',
-        'Amazon AJAX Service' => 'FALLBACK',
-        'Unwrangle API' => 'FALLBACK',
+        'Amazon AJAX Service'    => 'FALLBACK',
+        'Unwrangle API'          => 'FALLBACK',
     ];
-    
+
     // Business impact classifications
     private const BUSINESS_IMPACT = [
         'PRIMARY' => [
             'revenue_affecting' => true,
-            'user_facing' => true,
-            'description' => 'Affects core product functionality and user experience'
+            'user_facing'       => true,
+            'description'       => 'Affects core product functionality and user experience',
         ],
         'CORE' => [
-            'revenue_affecting' => true, 
-            'user_facing' => true,
-            'description' => 'Essential for analysis quality but has fallbacks'
+            'revenue_affecting' => true,
+            'user_facing'       => true,
+            'description'       => 'Essential for analysis quality but has fallbacks',
         ],
         'FALLBACK' => [
             'revenue_affecting' => false,
-            'user_facing' => false, 
-            'description' => 'Backup service, minimal impact when primary services work'
-        ]
+            'user_facing'       => false,
+            'description'       => 'Backup service, minimal impact when primary services work',
+        ],
     ];
 
     public function __construct(AlertService $alertService)
@@ -67,12 +65,12 @@ class AlertManager
 
     /**
      * Record a service failure and determine if alerting is needed.
-     * 
-     * @param string $service Service name (e.g., 'BrightData Web Scraper')
-     * @param string $errorType Error classification (e.g., 'SCRAPING_FAILED')
-     * @param string $errorMessage Human-readable error message
-     * @param array $context Additional context including ASIN, job_id, etc.
-     * @param \Throwable|null $exception Original exception if available
+     *
+     * @param string          $service      Service name (e.g., 'BrightData Web Scraper')
+     * @param string          $errorType    Error classification (e.g., 'SCRAPING_FAILED')
+     * @param string          $errorMessage Human-readable error message
+     * @param array           $context      Additional context including ASIN, job_id, etc.
+     * @param \Throwable|null $exception    Original exception if available
      */
     public function recordFailure(
         string $service,
@@ -83,38 +81,39 @@ class AlertManager
     ): void {
         // Always log the failure for debugging
         Log::warning("Service failure recorded: {$service}", [
-            'service' => $service,
-            'error_type' => $errorType,
+            'service'       => $service,
+            'error_type'    => $errorType,
             'error_message' => $errorMessage,
-            'context' => $context,
-            'exception' => $exception ? [
-                'class' => get_class($exception),
+            'context'       => $context,
+            'exception'     => $exception ? [
+                'class'   => get_class($exception),
                 'message' => $exception->getMessage(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
+                'file'    => $exception->getFile(),
+                'line'    => $exception->getLine(),
             ] : null,
         ]);
 
         // Record failure in cache for rate tracking
         $this->recordFailureForRateTracking($service, $errorType);
-        
+
         // Get service criticality and business impact
         $criticality = $this->getServiceCriticality($service);
         $businessImpact = $this->getBusinessImpact($criticality);
-        
+
         // Determine alert severity based on error rates and business impact
         $alertLevel = $this->determineAlertLevel($service, $errorType, $criticality);
-        
+
         // Check if we should suppress this alert (recovery patterns, throttling)
         if ($this->shouldSuppressAlert($service, $errorType, $alertLevel)) {
             Log::info('Alert suppressed due to recovery pattern or throttling', [
-                'service' => $service,
-                'error_type' => $errorType,
+                'service'     => $service,
+                'error_type'  => $errorType,
                 'alert_level' => $alertLevel,
             ]);
+
             return;
         }
-        
+
         // Send alert if threshold is met
         if ($alertLevel !== 'SUPPRESS') {
             $this->sendContextualAlert($service, $errorType, $errorMessage, $alertLevel, $businessImpact, $context, $exception);
@@ -128,9 +127,9 @@ class AlertManager
     {
         $recoveryKey = "recovery:{$service}:{$errorType}";
         Cache::put($recoveryKey, now(), now()->addMinutes(30));
-        
+
         Log::info('Service recovery recorded', [
-            'service' => $service,
+            'service'    => $service,
             'error_type' => $errorType,
         ]);
     }
@@ -141,12 +140,12 @@ class AlertManager
     public function getErrorRate(string $service, string $errorType, int $windowMinutes = 10): array
     {
         $failures = $this->getFailuresInWindow($service, $errorType, $windowMinutes);
-        
+
         return [
-            'failures' => count($failures),
-            'window_minutes' => $windowMinutes,
+            'failures'        => count($failures),
+            'window_minutes'  => $windowMinutes,
             'rate_per_minute' => count($failures) / $windowMinutes,
-            'timestamps' => $failures,
+            'timestamps'      => $failures,
         ];
     }
 
@@ -157,14 +156,14 @@ class AlertManager
     {
         $key = "failures:{$service}:{$errorType}";
         $failures = Cache::get($key, []);
-        
+
         // Add current timestamp
         $failures[] = now()->timestamp;
-        
+
         // Keep only last 24 hours of data
         $cutoff = now()->subHours(24)->timestamp;
-        $failures = array_filter($failures, fn($timestamp) => $timestamp > $cutoff);
-        
+        $failures = array_filter($failures, fn ($timestamp) => $timestamp > $cutoff);
+
         // Store back in cache
         Cache::put($key, array_values($failures), now()->addHours(24));
     }
@@ -176,9 +175,10 @@ class AlertManager
     {
         $key = "failures:{$service}:{$errorType}";
         $failures = Cache::get($key, []);
-        
+
         $cutoff = now()->subMinutes($windowMinutes)->timestamp;
-        return array_filter($failures, fn($timestamp) => $timestamp > $cutoff);
+
+        return array_filter($failures, fn ($timestamp) => $timestamp > $cutoff);
     }
 
     /**
@@ -189,13 +189,13 @@ class AlertManager
         // Check error rates against thresholds
         foreach (self::ERROR_RATE_THRESHOLDS as $level => $threshold) {
             $failures = $this->getFailuresInWindow($service, $errorType, $threshold['window_minutes']);
-            
+
             if (count($failures) >= $threshold['failures']) {
                 // Adjust severity based on service criticality
                 return $this->adjustSeverityForCriticality($level, $criticality);
             }
         }
-        
+
         return 'SUPPRESS'; // Below all thresholds
     }
 
@@ -207,29 +207,29 @@ class AlertManager
         if ($criticality === 'PRIMARY') {
             return $baseSeverity; // Keep original severity for primary services
         }
-        
+
         if ($criticality === 'CORE') {
             // Slightly reduce severity for core services
-            return match($baseSeverity) {
+            return match ($baseSeverity) {
                 'CRITICAL_P0' => 'HIGH_P1',
-                'HIGH_P1' => 'MEDIUM_P2', 
-                'MEDIUM_P2' => 'LOW_P3',
-                'LOW_P3' => 'SUPPRESS',
-                default => $baseSeverity,
+                'HIGH_P1'     => 'MEDIUM_P2',
+                'MEDIUM_P2'   => 'LOW_P3',
+                'LOW_P3'      => 'SUPPRESS',
+                default       => $baseSeverity,
             };
         }
-        
+
         if ($criticality === 'FALLBACK') {
             // Significantly reduce severity for fallback services
-            return match($baseSeverity) {
+            return match ($baseSeverity) {
                 'CRITICAL_P0' => 'MEDIUM_P2',
-                'HIGH_P1' => 'LOW_P3',
-                'MEDIUM_P2' => 'SUPPRESS',
-                'LOW_P3' => 'SUPPRESS',
-                default => 'SUPPRESS',
+                'HIGH_P1'     => 'LOW_P3',
+                'MEDIUM_P2'   => 'SUPPRESS',
+                'LOW_P3'      => 'SUPPRESS',
+                default       => 'SUPPRESS',
             };
         }
-        
+
         return $baseSeverity;
     }
 
@@ -243,13 +243,13 @@ class AlertManager
         if (Cache::has($recoveryKey)) {
             return true;
         }
-        
+
         // Check alert throttling
         $throttleKey = "alert_throttle:{$service}:{$errorType}:{$alertLevel}";
         if (Cache::has($throttleKey)) {
             return true;
         }
-        
+
         return false;
     }
 
@@ -258,7 +258,7 @@ class AlertManager
      */
     private function sendContextualAlert(
         string $service,
-        string $errorType, 
+        string $errorType,
         string $errorMessage,
         string $alertLevel,
         array $businessImpact,
@@ -267,25 +267,25 @@ class AlertManager
     ): void {
         // Set throttle for this alert type
         $throttleKey = "alert_throttle:{$service}:{$errorType}:{$alertLevel}";
-        $throttleDuration = match($alertLevel) {
+        $throttleDuration = match ($alertLevel) {
             'CRITICAL_P0' => 5,   // 5 minutes for critical
-            'HIGH_P1' => 15,      // 15 minutes for high
-            'MEDIUM_P2' => 60,    // 1 hour for medium
-            'LOW_P3' => 240,      // 4 hours for low
-            default => 60,
+            'HIGH_P1'     => 15,      // 15 minutes for high
+            'MEDIUM_P2'   => 60,    // 1 hour for medium
+            'LOW_P3'      => 240,      // 4 hours for low
+            default       => 60,
         };
         Cache::put($throttleKey, true, now()->addMinutes($throttleDuration));
 
         // Get error rate information
         $errorRate = $this->getErrorRate($service, $errorType, 15);
-        
+
         // Build enhanced context
         $enhancedContext = array_merge($context, [
-            'alert_level' => $alertLevel,
+            'alert_level'         => $alertLevel,
             'service_criticality' => $this->getServiceCriticality($service),
-            'business_impact' => $businessImpact,
-            'error_rate' => $errorRate,
-            'recommended_action' => $this->getRecommendedAction($service, $errorType, $alertLevel),
+            'business_impact'     => $businessImpact,
+            'error_rate'          => $errorRate,
+            'recommended_action'  => $this->getRecommendedAction($service, $errorType, $alertLevel),
             'escalation_required' => in_array($alertLevel, ['CRITICAL_P0', 'HIGH_P1']),
         ]);
 
@@ -293,14 +293,14 @@ class AlertManager
         if ($exception) {
             $enhancedContext['exception_details'] = [
                 'class' => get_class($exception),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
+                'file'  => $exception->getFile(),
+                'line'  => $exception->getLine(),
             ];
         }
 
         // Build contextual message
         $contextualMessage = $this->buildContextualMessage($service, $errorType, $errorMessage, $alertLevel, $businessImpact, $errorRate);
-        
+
         // Map to AlertService method based on alert type
         $this->sendToAlertService($service, $errorType, $contextualMessage, $enhancedContext, $alertLevel);
     }
@@ -311,14 +311,14 @@ class AlertManager
     private function buildContextualMessage(
         string $service,
         string $errorType,
-        string $errorMessage, 
+        string $errorMessage,
         string $alertLevel,
         array $businessImpact,
         array $errorRate
     ): string {
         $impact = $businessImpact['revenue_affecting'] ? 'REVENUE IMPACT' : 'OPERATIONAL IMPACT';
         $facing = $businessImpact['user_facing'] ? 'USER-FACING' : 'INTERNAL';
-        
+
         return sprintf(
             '[%s] %s %s Service Issue: %s failed with %d errors in %d minutes. %s',
             $alertLevel,
@@ -337,26 +337,26 @@ class AlertManager
     private function getRecommendedAction(string $service, string $errorType, string $alertLevel): string
     {
         if (str_contains($service, 'BrightData')) {
-            return match($errorType) {
-                'JOB_TRIGGER_FAILED' => 'Check BrightData API status and authentication credentials',
+            return match ($errorType) {
+                'JOB_TRIGGER_FAILED'      => 'Check BrightData API status and authentication credentials',
                 'POLLING_PATTERN_FAILURE' => 'Monitor job completion manually, check for service degradation',
-                'SCRAPING_FAILED' => 'Verify Amazon target accessibility and BrightData dataset configuration',
-                default => 'Check BrightData service status and API connectivity',
+                'SCRAPING_FAILED'         => 'Verify Amazon target accessibility and BrightData dataset configuration',
+                default                   => 'Check BrightData service status and API connectivity',
             };
         }
-        
+
         if (str_contains($service, 'OpenAI')) {
-            return match($errorType) {
+            return match ($errorType) {
                 'QUOTA_EXCEEDED' => 'URGENT: Check OpenAI billing and increase quota limits',
-                'API_ERROR' => 'Check OpenAI status page and API key validity',
-                default => 'Monitor OpenAI service status and retry failed requests',
+                'API_ERROR'      => 'Check OpenAI status page and API key validity',
+                default          => 'Monitor OpenAI service status and retry failed requests',
             };
         }
-        
+
         if (str_contains($service, 'Amazon')) {
             return 'Expected for fallback services - verify primary BrightData is functioning';
         }
-        
+
         return 'Investigate service logs and check external dependencies';
     }
 
@@ -366,12 +366,12 @@ class AlertManager
     private function sendToAlertService(string $service, string $errorType, string $message, array $context, string $alertLevel): void
     {
         // Map severity to AlertService priority
-        $priority = match($alertLevel) {
+        $priority = match ($alertLevel) {
             'CRITICAL_P0' => 2,  // Emergency
-            'HIGH_P1' => 1,      // High
-            'MEDIUM_P2' => 0,    // Warning
-            'LOW_P3' => -1,      // Info
-            default => 0,
+            'HIGH_P1'     => 1,      // High
+            'MEDIUM_P2'   => 0,    // Warning
+            'LOW_P3'      => -1,      // Info
+            default       => 0,
         };
 
         // Use appropriate AlertService method based on error type

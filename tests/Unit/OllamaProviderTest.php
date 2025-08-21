@@ -9,17 +9,17 @@ use Tests\TestCase;
 class OllamaProviderTest extends TestCase
 {
     private OllamaProvider $provider;
-    
+
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         config([
             'services.ollama.base_url' => 'http://localhost:11434',
-            'services.ollama.model' => 'qwen2.5:7b',
-            'services.ollama.timeout' => 300,
+            'services.ollama.model'    => 'qwen2.5:7b',
+            'services.ollama.timeout'  => 300,
         ]);
-        
+
         $this->provider = new OllamaProvider();
     }
 
@@ -32,15 +32,15 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
-                'response' => '[{"id": 1, "score": 15}, {"id": 2, "score": 25}]',
-                'done' => true,
+                'model'          => 'qwen2.5:7b',
+                'response'       => '[{"id": 1, "score": 15}, {"id": 2, "score": 25}]',
+                'done'           => true,
                 'total_duration' => 5000000000,
-            ])
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('analysis_provider', $result);
@@ -57,19 +57,19 @@ class OllamaProviderTest extends TestCase
         ];
 
         Http::fake([
-            'localhost:11434/api/generate' => Http::response('', 500)
+            'localhost:11434/api/generate' => Http::response('', 500),
         ]);
 
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Ollama API request failed');
-        
+
         $this->provider->analyzeReviews($reviews);
     }
 
     public function test_returns_empty_results_for_empty_reviews()
     {
         $result = $this->provider->analyzeReviews([]);
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('results', $result);
         $this->assertEmpty($result['results']);
@@ -78,7 +78,7 @@ class OllamaProviderTest extends TestCase
     public function test_calculates_optimized_max_tokens()
     {
         $tokens = $this->provider->getOptimizedMaxTokens(25);
-        
+
         // Should be review count * 10 + buffer
         $expected = 25 * 10 + min(1000, 25 * 5); // 250 + 125 = 375
         $this->assertEquals($expected, $tokens);
@@ -87,7 +87,7 @@ class OllamaProviderTest extends TestCase
     public function test_checks_availability_with_ollama_running()
     {
         Http::fake([
-            'localhost:11434/api/tags' => Http::response(['models' => []])
+            'localhost:11434/api/tags' => Http::response(['models' => []]),
         ]);
 
         $this->assertTrue($this->provider->isAvailable());
@@ -96,7 +96,7 @@ class OllamaProviderTest extends TestCase
     public function test_checks_availability_with_ollama_not_running()
     {
         Http::fake([
-            'localhost:11434/api/tags' => Http::response('', 500)
+            'localhost:11434/api/tags' => Http::response('', 500),
         ]);
 
         $this->assertFalse($this->provider->isAvailable());
@@ -105,14 +105,14 @@ class OllamaProviderTest extends TestCase
     public function test_returns_zero_cost()
     {
         $cost = $this->provider->getEstimatedCost(100);
-        
+
         $this->assertEquals(0.0, $cost);
     }
 
     public function test_returns_correct_provider_name()
     {
         $name = $this->provider->getProviderName();
-        
+
         $this->assertStringContainsString('Ollama', $name);
         $this->assertStringContainsString('qwen2.5:7b', $name);
     }
@@ -125,15 +125,15 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => 'invalid json {',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         // With improved parsing, malformed JSON now falls back to heuristic parsing
         $result = $this->provider->analyzeReviews($reviews);
-        
+
         $this->assertIsArray($result);
         $this->assertArrayHasKey('detailed_scores', $result);
         // Heuristic parsing should provide some result even with malformed JSON
@@ -147,10 +147,10 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id": 1, "score": 50}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $this->provider->analyzeReviews($reviews);
@@ -170,19 +170,19 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id": "es1", "score": 92}, {"id": "es2", "score": 18}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($spanishReviews);
-        
+
         $this->assertArrayHasKey('detailed_scores', $result);
         // Handle both legacy integer format and new object format
         $es1Score = is_array($result['detailed_scores']['es1']) ? $result['detailed_scores']['es1']['score'] : $result['detailed_scores']['es1'];
         $es2Score = is_array($result['detailed_scores']['es2']) ? $result['detailed_scores']['es2']['score'] : $result['detailed_scores']['es2'];
-        
+
         $this->assertEquals(92, $es1Score); // Fake pattern detected
         $this->assertEquals(18, $es2Score); // Genuine criticism
         $this->assertEquals('Ollama-qwen2.5:7b', $result['analysis_provider']);
@@ -197,19 +197,19 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id": "jp1", "score": 95}, {"id": "jp2", "score": 30}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($japaneseReviews);
-        
+
         $this->assertArrayHasKey('detailed_scores', $result);
         // Handle both legacy integer format and new object format
         $jp1Score = is_array($result['detailed_scores']['jp1']) ? $result['detailed_scores']['jp1']['score'] : $result['detailed_scores']['jp1'];
         $jp2Score = is_array($result['detailed_scores']['jp2']) ? $result['detailed_scores']['jp2']['score'] : $result['detailed_scores']['jp2'];
-        
+
         $this->assertEquals(95, $jp1Score); // Suspicious praise
         $this->assertEquals(30, $jp2Score); // Balanced review
     }
@@ -223,19 +223,19 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id": "de1", "score": 88}, {"id": "de2", "score": 25}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($germanReviews);
-        
+
         $this->assertArrayHasKey('detailed_scores', $result);
         // Handle both legacy integer format and new object format
         $de1Score = is_array($result['detailed_scores']['de1']) ? $result['detailed_scores']['de1']['score'] : $result['detailed_scores']['de1'];
         $de2Score = is_array($result['detailed_scores']['de2']) ? $result['detailed_scores']['de2']['score'] : $result['detailed_scores']['de2'];
-        
+
         $this->assertEquals(88, $de1Score);
         $this->assertEquals(25, $de2Score);
     }
@@ -249,19 +249,19 @@ class OllamaProviderTest extends TestCase
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id": "mix1", "score": 90}, {"id": "mix2", "score": 22}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($mixedReviews);
-        
+
         $this->assertArrayHasKey('detailed_scores', $result);
         // Handle both legacy integer format and new object format
         $mix1Score = is_array($result['detailed_scores']['mix1']) ? $result['detailed_scores']['mix1']['score'] : $result['detailed_scores']['mix1'];
         $mix2Score = is_array($result['detailed_scores']['mix2']) ? $result['detailed_scores']['mix2']['score'] : $result['detailed_scores']['mix2'];
-        
+
         $this->assertEquals(90, $mix1Score); // Mixed language fake
         $this->assertEquals(22, $mix2Score); // Mixed language genuine
     }
@@ -269,27 +269,27 @@ class OllamaProviderTest extends TestCase
     public function test_prompt_includes_balanced_analysis_instructions()
     {
         $reviews = [
-            ['id' => 1, 'rating' => 5, 'review_text' => 'Test review content', 'meta_data' => ['verified_purchase' => true]]
+            ['id' => 1, 'rating' => 5, 'review_text' => 'Test review content', 'meta_data' => ['verified_purchase' => true]],
         ];
-        
+
         Http::fake([
             'localhost:11434/api/generate' => function ($request) {
                 $body = json_decode($request->body(), true);
                 $prompt = $body['prompt'];
-                
+
                 // Verify balanced prompt elements are present
                 $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
                 $this->assertStringContainsString('Consider: Generic language (+20), specific complaints (-20)', $prompt);
                 $this->assertStringContainsString('Scoring: ≤39=genuine, 40-59=uncertain, ≥60=fake', $prompt);
                 $this->assertStringContainsString('Review 1 (Verified, 5★)', $prompt);
                 $this->assertStringContainsString('Respond with JSON array: [{"id":"review_id","score":number,"label":"genuine|uncertain|fake"}]', $prompt);
-                
+
                 return Http::response([
-                    'model' => 'qwen2.5:7b',
+                    'model'    => 'qwen2.5:7b',
                     'response' => '[{"id": 1, "score": 15, "label": "genuine"}]',
-                    'done' => true,
+                    'done'     => true,
                 ]);
-            }
+            },
         ]);
 
         $this->provider->analyzeReviews($reviews);
@@ -299,7 +299,7 @@ class OllamaProviderTest extends TestCase
     {
         // Test that the provider uses the configured model, not hardcoded
         config(['services.ollama.model' => 'custom-model:latest']);
-        
+
         $provider = new OllamaProvider();
         $this->assertEquals('Ollama-custom-model:latest', $provider->getProviderName());
     }
@@ -308,7 +308,7 @@ class OllamaProviderTest extends TestCase
     {
         // Test fallback to llama3.2:3b when config is not set
         config(['services.ollama.model' => '']);
-        
+
         $provider = new OllamaProvider();
         $this->assertEquals('Ollama-llama3.2:3b', $provider->getProviderName());
     }
@@ -322,14 +322,14 @@ class OllamaProviderTest extends TestCase
         // Mock a response that will trigger heuristic parsing
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => 'ID: 1 - This review appears genuine with specific details',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
-        
+
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('analysis_provider', $result);
         $this->assertArrayHasKey('total_cost', $result);

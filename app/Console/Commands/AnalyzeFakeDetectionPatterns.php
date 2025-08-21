@@ -24,6 +24,7 @@ class AnalyzeFakeDetectionPatterns extends Command
 
         if ($analyses->isEmpty()) {
             $this->error('No recent analyses found with scoring data.');
+
             return 1;
         }
 
@@ -33,17 +34,17 @@ class AnalyzeFakeDetectionPatterns extends Command
         $totalHighScores = 0;
         $providerStats = [];
         $scoreDistribution = [
-            '0-20' => 0,
-            '21-40' => 0,
-            '41-60' => 0,
-            '61-80' => 0,
-            '81-100' => 0
+            '0-20'   => 0,
+            '21-40'  => 0,
+            '41-60'  => 0,
+            '61-80'  => 0,
+            '81-100' => 0,
         ];
         $suspiciousPatterns = [];
 
         foreach ($analyses as $analysis) {
             $data = json_decode($analysis->openai_result, true);
-            
+
             if (!$data || !isset($data['detailed_scores'])) {
                 continue;
             }
@@ -51,10 +52,10 @@ class AnalyzeFakeDetectionPatterns extends Command
             $provider = $data['analysis_provider'] ?? 'Unknown';
             if (!isset($providerStats[$provider])) {
                 $providerStats[$provider] = [
-                    'count' => 0,
-                    'total_reviews' => 0,
-                    'high_scores' => 0,
-                    'avg_fake_percentage' => 0
+                    'count'               => 0,
+                    'total_reviews'       => 0,
+                    'high_scores'         => 0,
+                    'avg_fake_percentage' => 0,
                 ];
             }
 
@@ -81,29 +82,35 @@ class AnalyzeFakeDetectionPatterns extends Command
                 } else {
                     continue;
                 }
-                
+
                 // Count high scores
                 if ($score >= 70) {
                     $totalHighScores++;
                     $providerStats[$provider]['high_scores']++;
-                    
+
                     // Collect suspicious patterns for high scores
                     if ($score >= 85) {
                         $suspiciousPatterns[] = [
-                            'asin' => $analysis->asin,
-                            'score' => $score,
+                            'asin'        => $analysis->asin,
+                            'score'       => $score,
                             'explanation' => substr($explanation, 0, 150),
-                            'provider' => $provider
+                            'provider'    => $provider,
                         ];
                     }
                 }
 
                 // Score distribution
-                if ($score <= 20) $scoreDistribution['0-20']++;
-                elseif ($score <= 40) $scoreDistribution['21-40']++;
-                elseif ($score <= 60) $scoreDistribution['41-60']++;
-                elseif ($score <= 80) $scoreDistribution['61-80']++;
-                else $scoreDistribution['81-100']++;
+                if ($score <= 20) {
+                    $scoreDistribution['0-20']++;
+                } elseif ($score <= 40) {
+                    $scoreDistribution['21-40']++;
+                } elseif ($score <= 60) {
+                    $scoreDistribution['41-60']++;
+                } elseif ($score <= 80) {
+                    $scoreDistribution['61-80']++;
+                } else {
+                    $scoreDistribution['81-100']++;
+                }
             }
         }
 
@@ -118,49 +125,51 @@ class AnalyzeFakeDetectionPatterns extends Command
 
     private function displayOverallStats($totalReviews, $totalHighScores, $scoreDistribution)
     {
-        $this->info("=== OVERALL STATISTICS ===");
+        $this->info('=== OVERALL STATISTICS ===');
         $this->info("Total reviews analyzed: {$totalReviews}");
-        $this->info("High scores (70+): {$totalHighScores} (" . round($totalHighScores/$totalReviews*100, 1) . "%)");
-        
+        $this->info("High scores (70+): {$totalHighScores} (".round($totalHighScores / $totalReviews * 100, 1).'%)');
+
         $this->info("\nScore Distribution:");
         foreach ($scoreDistribution as $range => $count) {
-            $percentage = round($count/$totalReviews*100, 1);
+            $percentage = round($count / $totalReviews * 100, 1);
             $this->info("  {$range}: {$count} ({$percentage}%)");
         }
-        $this->info("");
+        $this->info('');
     }
 
     private function displayProviderStats($providerStats)
     {
-        $this->info("=== PROVIDER COMPARISON ===");
+        $this->info('=== PROVIDER COMPARISON ===');
         foreach ($providerStats as $provider => $stats) {
             $avgFakePercentage = round($stats['avg_fake_percentage'] / $stats['count'], 1);
             $highScoreRate = round($stats['high_scores'] / $stats['total_reviews'] * 100, 1);
-            
+
             $this->info("Provider: {$provider}");
             $this->info("  Analyses: {$stats['count']}");
             $this->info("  Reviews: {$stats['total_reviews']}");
             $this->info("  High score rate: {$highScoreRate}%");
             $this->info("  Avg fake percentage: {$avgFakePercentage}%");
-            $this->info("");
+            $this->info('');
         }
     }
 
     private function displaySuspiciousPatterns($suspiciousPatterns)
     {
-        $this->info("=== SUSPICIOUS HIGH SCORES (85+) ===");
+        $this->info('=== SUSPICIOUS HIGH SCORES (85+) ===');
         $this->info("Showing examples that might indicate overly strict detection:\n");
-        
+
         $count = 0;
         foreach ($suspiciousPatterns as $pattern) {
-            if ($count >= 10) break; // Limit to 10 examples
-            
+            if ($count >= 10) {
+                break;
+            } // Limit to 10 examples
+
             $this->info("ASIN: {$pattern['asin']} | Score: {$pattern['score']} | Provider: {$pattern['provider']}");
             $this->info("Explanation: {$pattern['explanation']}...");
-            $this->info("");
+            $this->info('');
             $count++;
         }
-        
+
         if (count($suspiciousPatterns) > 10) {
             $remaining = count($suspiciousPatterns) - 10;
             $this->info("... and {$remaining} more high-scoring reviews");
@@ -169,13 +178,13 @@ class AnalyzeFakeDetectionPatterns extends Command
 
     private function displayRecommendations($totalReviews, $totalHighScores, $providerStats)
     {
-        $highScoreRate = round($totalHighScores/$totalReviews*100, 1);
-        
-        $this->info("=== RECOMMENDATIONS ===");
-        
+        $highScoreRate = round($totalHighScores / $totalReviews * 100, 1);
+
+        $this->info('=== RECOMMENDATIONS ===');
+
         if ($highScoreRate > 50) {
             $this->warn("⚠️  HIGH SCORE RATE: {$highScoreRate}% of reviews scored 70+ (potentially too strict)");
-            $this->info("Consider adjusting prompts to be less aggressive in fake detection.");
+            $this->info('Consider adjusting prompts to be less aggressive in fake detection.');
         } elseif ($highScoreRate > 30) {
             $this->comment("⚠️  MODERATE HIGH SCORE RATE: {$highScoreRate}% (monitor for accuracy)");
         } else {
@@ -188,16 +197,16 @@ class AnalyzeFakeDetectionPatterns extends Command
             if ($providerHighRate > 60) {
                 $this->warn("⚠️  {$provider} has very high fake detection rate: {$providerHighRate}%");
                 if (str_contains(strtolower($provider), 'ollama')) {
-                    $this->info("   → Consider softening OLLAMA prompt language");
+                    $this->info('   → Consider softening OLLAMA prompt language');
                     $this->info("   → Remove 'AGGRESSIVE' and 'EXTREMELY SUSPICIOUS' language");
-                    $this->info("   → Adjust scoring thresholds");
+                    $this->info('   → Adjust scoring thresholds');
                 }
             }
         }
 
         $this->info("\nNext steps:");
-        $this->info("1. Review sample high-scoring reviews manually");
-        $this->info("2. Adjust provider prompts if needed");
-        $this->info("3. Test with sample data before deploying changes");
+        $this->info('1. Review sample high-scoring reviews manually');
+        $this->info('2. Adjust provider prompts if needed');
+        $this->info('3. Test with sample data before deploying changes');
     }
 }

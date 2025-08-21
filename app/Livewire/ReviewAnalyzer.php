@@ -5,7 +5,6 @@ namespace App\Livewire;
 use App\Services\CaptchaService;
 use App\Services\LoggingService;
 use App\Services\ReviewAnalysisService;
-use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
@@ -82,10 +81,10 @@ class ReviewAnalyzer extends Component
     public function analyze()
     {
         LoggingService::log('=== LIVEWIRE ANALYZE METHOD STARTED (ASYNC MODE) ===');
-        
+
         // For backward compatibility, detect if we should use async mode
         $useAsyncMode = config('analysis.async_enabled', true);
-        
+
         if ($useAsyncMode) {
             $this->analyzeAsync();
         } else {
@@ -94,7 +93,7 @@ class ReviewAnalyzer extends Component
     }
 
     /**
-     * New async analysis method
+     * New async analysis method.
      */
     private function analyzeAsync()
     {
@@ -110,15 +109,14 @@ class ReviewAnalyzer extends Component
 
             // Trigger JavaScript-based async analysis
             $this->dispatch('startAsyncAnalysis', [
-                'productUrl' => $this->productUrl,
+                'productUrl'  => $this->productUrl,
                 'captchaData' => [
                     'g_recaptcha_response' => $this->g_recaptcha_response,
-                    'h_captcha_response' => $this->h_captcha_response,
-                ]
+                    'h_captcha_response'   => $this->h_captcha_response,
+                ],
             ]);
-
         } catch (ValidationException $e) {
-            LoggingService::log('Validation error in async analyze method: ' . $e->getMessage());
+            LoggingService::log('Validation error in async analyze method: '.$e->getMessage());
             $errors = $e->errors();
             $this->error = !empty($errors) ? reset($errors)[0] : $e->getMessage();
             $this->resetAnalysisState();
@@ -126,17 +124,17 @@ class ReviewAnalyzer extends Component
     }
 
     /**
-     * Original synchronous analysis method (fallback)
+     * Original synchronous analysis method (fallback).
      */
     private function analyzeSynchronous()
     {
         LoggingService::log('Using synchronous analysis mode');
-        
+
         try {
             // Set loading state for UI consistency
             $this->loading = true;
             $this->initializeProgress();
-            
+
             // Original sync logic remains unchanged for compatibility
             $this->result = null;
             $this->error = null;
@@ -156,7 +154,7 @@ class ReviewAnalyzer extends Component
             if (empty($this->productUrl)) {
                 $this->productUrl = request()->input('productUrl', $this->productUrl);
             }
-            
+
             $this->validate([
                 'productUrl' => 'required|url',
             ]);
@@ -207,22 +205,21 @@ class ReviewAnalyzer extends Component
                 if ($asinData->slug) {
                     return $this->redirect(route('amazon.product.show.slug', [
                         'country' => $asinData->country,
-                        'asin' => $asinData->asin,
-                        'slug' => $asinData->slug
+                        'asin'    => $asinData->asin,
+                        'slug'    => $asinData->slug,
                     ]));
                 } else {
                     return $this->redirect(route('amazon.product.show', [
                         'country' => $asinData->country,
-                        'asin' => $asinData->asin
+                        'asin'    => $asinData->asin,
                     ]));
                 }
             }
 
             $this->isAnalyzed = true;
             $this->loading = false; // Analysis completed successfully
-
         } catch (ValidationException $e) {
-            LoggingService::log('Validation error in sync analyze method: ' . $e->getMessage());
+            LoggingService::log('Validation error in sync analyze method: '.$e->getMessage());
             $errors = $e->errors();
             $this->error = !empty($errors) ? reset($errors)[0] : $e->getMessage();
             $this->resetAnalysisState();
@@ -230,6 +227,7 @@ class ReviewAnalyzer extends Component
             if (str_contains($e->getMessage(), 'Captcha') || str_contains($e->getMessage(), 'captcha')) {
                 $this->error = $e->getMessage();
                 $this->resetAnalysisState();
+
                 return;
             }
             LoggingService::log('Exception in sync analyze method: '.$e->getMessage());
@@ -358,11 +356,11 @@ class ReviewAnalyzer extends Component
     public function setProductUrl($url)
     {
         $this->productUrl = $url;
-        LoggingService::log('Product URL set via JavaScript: ' . $url);
+        LoggingService::log('Product URL set via JavaScript: '.$url);
     }
 
     /**
-     * Called when async analysis starts polling - keeps loading state but hands over to JS progress
+     * Called when async analysis starts polling - keeps loading state but hands over to JS progress.
      */
     public function startAsyncPolling()
     {
@@ -370,23 +368,23 @@ class ReviewAnalyzer extends Component
         $this->loading = true;
         $this->progressPercentage = 0;
         $this->currentlyProcessing = 'Starting analysis...';
-        
+
         LoggingService::log('Async polling started - UI will show progress bar');
     }
 
     /**
-     * Start simulated progress for sync mode (called by JavaScript)
+     * Start simulated progress for sync mode (called by JavaScript).
      */
     public function startSyncProgress()
     {
         LoggingService::log('Starting simulated progress for sync mode');
-        
+
         // Dispatch JavaScript event to start the progress simulation
         $this->dispatch('startSyncProgressSimulation');
     }
 
     /**
-     * Update progress from sync simulation or async polling (called by JavaScript)
+     * Update progress from sync simulation or async polling (called by JavaScript).
      */
     public function updateProgress($data)
     {
@@ -394,12 +392,12 @@ class ReviewAnalyzer extends Component
         $this->currentlyProcessing = $data['message'] ?? 'Processing...';
         $this->progressStep = $data['step'] ?? 0;
         $this->loading = true;
-        
+
         LoggingService::log("Progress update: {$this->progressPercentage}% - {$this->currentlyProcessing}");
     }
 
     /**
-     * Update progress from async polling (called by JavaScript)
+     * Update progress from async polling (called by JavaScript).
      */
     public function updateAsyncProgress($data)
     {
@@ -409,20 +407,21 @@ class ReviewAnalyzer extends Component
     }
 
     /**
-     * Handle async analysis completion (called by JavaScript)
+     * Handle async analysis completion (called by JavaScript).
      */
     public function handleAsyncCompletion($data)
     {
         LoggingService::log('Handling async analysis completion');
-        
+
         // Set final state
         $this->loading = false;
         $this->progressPercentage = 100;
         $this->currentlyProcessing = 'Analysis complete!';
-        
+
         // Handle results the same way as sync mode
         if (isset($data['redirect_url']) && !empty($data['redirect_url'])) {
-            LoggingService::log('Redirecting to: ' . $data['redirect_url']);
+            LoggingService::log('Redirecting to: '.$data['redirect_url']);
+
             // Redirect to results page (same as sync mode)
             return redirect($data['redirect_url']);
         } elseif (isset($data['result'])) {
@@ -432,23 +431,23 @@ class ReviewAnalyzer extends Component
                 $this->setResults($jobResult['analysis_result']);
                 $this->isAnalyzed = true;
             } else {
-                LoggingService::log('No analysis_result found in job result: ' . json_encode($jobResult));
+                LoggingService::log('No analysis_result found in job result: '.json_encode($jobResult));
                 $this->handleAsyncError('Invalid result data structure');
             }
         }
     }
 
     /**
-     * Handle async analysis error (called by JavaScript)
+     * Handle async analysis error (called by JavaScript).
      */
     public function handleAsyncError($errorMessage)
     {
-        LoggingService::log('Handling async analysis error: ' . $errorMessage);
-        
+        LoggingService::log('Handling async analysis error: '.$errorMessage);
+
         // Reset state first, then set error state
         $this->resetAnalysisState();
-        
-        // Set error state (same as sync mode)  
+
+        // Set error state (same as sync mode)
         $this->loading = false;
         $this->error = $errorMessage;
         $this->currentlyProcessing = 'Analysis failed';
@@ -456,17 +455,18 @@ class ReviewAnalyzer extends Component
     }
 
     /**
-     * Handle async analysis results
+     * Handle async analysis results.
      */
     public function setAsyncResults($result)
     {
         LoggingService::log('Setting async analysis results', [
-            'has_result' => !empty($result),
+            'has_result'    => !empty($result),
             'has_asin_data' => !empty($result['asin_data']),
         ]);
 
         if (empty($result) || empty($result['analysis_result'])) {
             $this->error = 'Invalid analysis result received';
+
             return;
         }
 

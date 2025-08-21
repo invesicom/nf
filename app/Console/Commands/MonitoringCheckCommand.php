@@ -18,40 +18,40 @@ class MonitoringCheckCommand extends Command
 
     private array $availableComponents = [
         'brightdata-jobs' => [
-            'command' => 'check:brightdata-job',
+            'command'     => 'check:brightdata-job',
             'description' => 'Check BrightData job status',
-            'options' => ['timeout', 'detailed']
+            'options'     => ['timeout', 'detailed'],
         ],
         'brightdata-progress' => [
-            'command' => 'check:brightdata-progress',
+            'command'     => 'check:brightdata-progress',
             'description' => 'Check BrightData job progress',
-            'options' => ['timeout', 'detailed']
+            'options'     => ['timeout', 'detailed'],
         ],
         'brightdata-snapshots' => [
-            'command' => 'check:brightdata-snapshots',
+            'command'     => 'check:brightdata-snapshots',
             'description' => 'Check BrightData snapshots',
-            'options' => ['detailed']
+            'options'     => ['detailed'],
         ],
         'brightdata-status' => [
-            'command' => 'monitor:brightdata-jobs',
+            'command'     => 'monitor:brightdata-jobs',
             'description' => 'Monitor BrightData job status',
-            'options' => ['format', 'watch']
+            'options'     => ['format', 'watch'],
         ],
         'asin-stats' => [
-            'command' => 'show:asin-stats',
+            'command'     => 'show:asin-stats',
             'description' => 'Show ASIN statistics and metrics',
-            'options' => ['format', 'verbose']
+            'options'     => ['format', 'verbose'],
         ],
         'analysis-workers' => [
-            'command' => 'start:analysis-workers',
+            'command'     => 'start:analysis-workers',
             'description' => 'Check and start analysis workers',
-            'options' => ['detailed']
+            'options'     => ['detailed'],
         ],
         'llm-efficacy' => [
-            'command' => 'llm:efficacy-comparison',
+            'command'     => 'llm:efficacy-comparison',
             'description' => 'Compare LLM provider efficacy',
-            'options' => ['detailed', 'format']
-        ]
+            'options'     => ['detailed', 'format'],
+        ],
     ];
 
     public function handle(): int
@@ -68,6 +68,7 @@ class MonitoringCheckCommand extends Command
         if (!isset($this->availableComponents[$component])) {
             $this->error("Unknown component: {$component}");
             $this->info("Run 'php artisan monitoring:check list' to see available components");
+
             return 1;
         }
 
@@ -81,7 +82,7 @@ class MonitoringCheckCommand extends Command
     private function checkComponent(string $component): int
     {
         $componentConfig = $this->availableComponents[$component];
-        
+
         // Build command arguments from available options
         $commandArgs = [];
         foreach ($componentConfig['options'] as $option) {
@@ -102,17 +103,17 @@ class MonitoringCheckCommand extends Command
         try {
             $exitCode = Artisan::call($componentConfig['command'], $commandArgs);
             $this->line(Artisan::output());
-            
+
             if ($exitCode === 0) {
-                $this->info("Monitoring check completed successfully");
+                $this->info('Monitoring check completed successfully');
             } else {
                 $this->error("Monitoring check failed with exit code: {$exitCode}");
             }
-            
+
             return $exitCode;
-            
         } catch (\Exception $e) {
-            $this->error("Failed to execute monitoring check: " . $e->getMessage());
+            $this->error('Failed to execute monitoring check: '.$e->getMessage());
+
             return 1;
         }
     }
@@ -125,21 +126,21 @@ class MonitoringCheckCommand extends Command
         while (true) {
             // Clear screen
             $this->line("\033[2J\033[H");
-            
+
             // Show timestamp
-            $this->info("Last updated: " . now()->format('Y-m-d H:i:s'));
+            $this->info('Last updated: '.now()->format('Y-m-d H:i:s'));
             $this->newLine();
-            
+
             // Run the check
             $exitCode = $this->checkComponent($component);
-            
+
             if ($exitCode !== 0) {
-                $this->error("Check failed - continuing to monitor...");
+                $this->error('Check failed - continuing to monitor...');
             }
-            
+
             $this->newLine();
-            $this->info("Refreshing in 30 seconds... (Ctrl+C to stop)");
-            
+            $this->info('Refreshing in 30 seconds... (Ctrl+C to stop)');
+
             // Wait 30 seconds
             sleep(30);
         }
@@ -147,26 +148,26 @@ class MonitoringCheckCommand extends Command
 
     private function showAvailableComponents(): int
     {
-        $this->info("Available monitoring components:");
+        $this->info('Available monitoring components:');
         $this->newLine();
 
         foreach ($this->availableComponents as $component => $config) {
             $this->line("<info>{$component}</info> - {$config['description']}");
             if (!empty($config['options'])) {
-                $options = implode(', ', array_map(fn($opt) => "--{$opt}", $config['options']));
+                $options = implode(', ', array_map(fn ($opt) => "--{$opt}", $config['options']));
                 $this->line("  Options: {$options}");
             }
             $this->newLine();
         }
 
-        $this->info("Usage:");
-        $this->line("  php artisan monitoring:check <component> [options]");
+        $this->info('Usage:');
+        $this->line('  php artisan monitoring:check <component> [options]');
         $this->newLine();
-        
-        $this->info("Examples:");
-        $this->line("  php artisan monitoring:check brightdata-jobs --detailed");
-        $this->line("  php artisan monitoring:check asin-stats --format=json");
-        $this->line("  php artisan monitoring:check brightdata-status --watch");
+
+        $this->info('Examples:');
+        $this->line('  php artisan monitoring:check brightdata-jobs --detailed');
+        $this->line('  php artisan monitoring:check asin-stats --format=json');
+        $this->line('  php artisan monitoring:check brightdata-status --watch');
 
         return 0;
     }

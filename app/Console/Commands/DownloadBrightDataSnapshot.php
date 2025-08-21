@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use GuzzleHttp\Client;
+use Illuminate\Console\Command;
 
 class DownloadBrightDataSnapshot extends Command
 {
@@ -13,15 +13,16 @@ class DownloadBrightDataSnapshot extends Command
     public function handle()
     {
         $snapshotId = $this->argument('snapshot_id');
-        
-        $this->info("📥 Downloading BrightData Snapshot");
+
+        $this->info('📥 Downloading BrightData Snapshot');
         $this->info("Snapshot ID: {$snapshotId}");
-        $this->line("=" . str_repeat("=", 50));
+        $this->line('='.str_repeat('=', 50));
 
         $apiKey = env('BRIGHTDATA_SCRAPER_API');
 
         if (empty($apiKey)) {
-            $this->error("❌ BRIGHTDATA_SCRAPER_API not configured");
+            $this->error('❌ BRIGHTDATA_SCRAPER_API not configured');
+
             return 1;
         }
 
@@ -33,76 +34,80 @@ class DownloadBrightDataSnapshot extends Command
                     'Authorization' => "Bearer {$apiKey}",
                 ],
                 'query' => [
-                    'format' => 'json'
-                ]
+                    'format' => 'json',
+                ],
             ]);
 
             $statusCode = $response->getStatusCode();
             $body = $response->getBody()->getContents();
 
             $this->info("📊 Response Status: {$statusCode}");
-            $this->info("📊 Response Size: " . strlen($body) . " bytes");
+            $this->info('📊 Response Size: '.strlen($body).' bytes');
 
             if ($statusCode !== 200) {
                 $this->error("❌ Download failed with status {$statusCode}");
-                $this->error("Response: " . substr($body, 0, 500));
+                $this->error('Response: '.substr($body, 0, 500));
+
                 return 1;
             }
 
             $data = json_decode($body, true);
 
             if (json_last_error() !== JSON_ERROR_NONE) {
-                $this->error("❌ Invalid JSON response");
-                $this->info("Raw response: " . substr($body, 0, 500));
+                $this->error('❌ Invalid JSON response');
+                $this->info('Raw response: '.substr($body, 0, 500));
+
                 return 1;
             }
 
             if (!is_array($data)) {
-                $this->error("❌ Response is not an array");
-                $this->info("Response type: " . gettype($data));
-                $this->info("Response: " . substr($body, 0, 500));
+                $this->error('❌ Response is not an array');
+                $this->info('Response type: '.gettype($data));
+                $this->info('Response: '.substr($body, 0, 500));
+
                 return 1;
             }
 
-            $this->info("✅ Successfully downloaded snapshot data");
-            $this->info("📊 Records Count: " . count($data));
-            $this->line("");
+            $this->info('✅ Successfully downloaded snapshot data');
+            $this->info('📊 Records Count: '.count($data));
+            $this->line('');
 
             if (empty($data)) {
-                $this->warn("⚠️  No data in snapshot - this explains the 0 rows!");
-                $this->info("💡 Possible reasons:");
+                $this->warn('⚠️  No data in snapshot - this explains the 0 rows!');
+                $this->info('💡 Possible reasons:');
                 $this->info("   1. ASIN doesn't exist or has no reviews");
                 $this->info("   2. BrightData couldn't access the product");
-                $this->info("   3. Anti-bot protection blocked the scraper");
-                $this->info("   4. Dataset configuration issue");
+                $this->info('   3. Anti-bot protection blocked the scraper');
+                $this->info('   4. Dataset configuration issue');
+
                 return 0;
             }
 
             // Show sample of first few records
             $sampleSize = min(3, count($data));
             $this->info("📋 Sample Records (first {$sampleSize}):");
-            $this->line("-" . str_repeat("-", 40));
+            $this->line('-'.str_repeat('-', 40));
 
             for ($i = 0; $i < $sampleSize; $i++) {
                 $record = $data[$i];
-                $this->info("🔹 Record " . ($i + 1) . ":");
-                
+                $this->info('🔹 Record '.($i + 1).':');
+
                 // Show key fields if they exist
                 $fieldsToShow = [
-                    'url', 'asin', 'product_name', 'review_id', 'review_text', 
-                    'rating', 'author_name', 'review_posted_date'
+                    'url', 'asin', 'product_name', 'review_id', 'review_text',
+                    'rating', 'author_name', 'review_posted_date',
                 ];
-                
+
                 foreach ($fieldsToShow as $field) {
                     if (isset($record[$field])) {
                         $value = $record[$field];
                         if (is_string($value) && strlen($value) > 100) {
-                            $value = substr($value, 0, 100) . '...';
+                            $value = substr($value, 0, 100).'...';
                         }
                         $this->info("   {$field}: {$value}");
                     }
                 }
-                $this->line("");
+                $this->line('');
             }
 
             if (count($data) > $sampleSize) {
@@ -110,12 +115,13 @@ class DownloadBrightDataSnapshot extends Command
                 $this->info("... and {$remaining} more records");
             }
 
-            $this->line("");
-            $this->info("🏁 Download completed successfully");
-            return 0;
+            $this->line('');
+            $this->info('🏁 Download completed successfully');
 
+            return 0;
         } catch (\Exception $e) {
-            $this->error("❌ Failed to download snapshot: " . $e->getMessage());
+            $this->error('❌ Failed to download snapshot: '.$e->getMessage());
+
             return 1;
         }
     }

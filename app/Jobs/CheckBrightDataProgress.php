@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Models\AsinData;
 use App\Services\Amazon\BrightDataScraperService;
 use App\Services\LoggingService;
 use Illuminate\Bus\Queueable;
@@ -10,11 +9,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
 
 class CheckBrightDataProgress implements ShouldQueue
 {
-    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+    use Dispatchable;
+    use InteractsWithQueue;
+    use Queueable;
+    use SerializesModels;
 
     public $tries = 10; // Maximum attempts to check progress
     public $timeout = 60;
@@ -33,32 +34,32 @@ class CheckBrightDataProgress implements ShouldQueue
     public function handle(): void
     {
         LoggingService::log('Checking BrightData progress', [
-            'asin' => $this->asin,
-            'job_id' => $this->jobId,
-            'attempt' => $this->attempt,
-            'max_attempts' => $this->tries
+            'asin'         => $this->asin,
+            'job_id'       => $this->jobId,
+            'attempt'      => $this->attempt,
+            'max_attempts' => $this->tries,
         ]);
 
         try {
             $brightDataService = $this->mockService ?? new BrightDataScraperService();
             $progressInfo = $this->getJobProgressInfo($brightDataService, $this->jobId);
-            
+
             $status = $progressInfo['status'] ?? 'unknown';
             $totalRows = $progressInfo['total_rows'] ?? 0;
 
             LoggingService::log('BrightData job progress check', [
-                'job_id' => $this->jobId,
-                'attempt' => $this->attempt,
-                'status' => $status,
-                'total_rows' => $totalRows
+                'job_id'     => $this->jobId,
+                'attempt'    => $this->attempt,
+                'status'     => $status,
+                'total_rows' => $totalRows,
             ]);
 
             if ($status === 'ready') {
                 // Job completed successfully, chain the results processing job
                 LoggingService::log('BrightData job completed, processing results', [
-                    'asin' => $this->asin,
-                    'job_id' => $this->jobId,
-                    'total_rows' => $totalRows
+                    'asin'       => $this->asin,
+                    'job_id'     => $this->jobId,
+                    'total_rows' => $totalRows,
                 ]);
 
                 ProcessBrightDataResults::dispatch($this->asin, $this->country, $this->jobId)
@@ -74,9 +75,9 @@ class CheckBrightDataProgress implements ShouldQueue
             if ($status === 'running' && $this->attempt < $this->tries) {
                 // Job still running, schedule another check
                 LoggingService::log('BrightData job still running, scheduling next check', [
-                    'asin' => $this->asin,
-                    'job_id' => $this->jobId,
-                    'next_attempt' => $this->attempt + 1
+                    'asin'         => $this->asin,
+                    'job_id'       => $this->jobId,
+                    'next_attempt' => $this->attempt + 1,
                 ]);
 
                 CheckBrightDataProgress::dispatch($this->asin, $this->country, $this->jobId, $this->attempt + 1)
@@ -88,14 +89,14 @@ class CheckBrightDataProgress implements ShouldQueue
 
             // Max attempts reached or unknown status
             throw new \Exception("BrightData job timeout or unknown status after {$this->attempt} attempts. Final status: {$status}");
-
         } catch (\Exception $e) {
             LoggingService::log('BrightData progress check failed', [
-                'asin' => $this->asin,
-                'job_id' => $this->jobId,
+                'asin'    => $this->asin,
+                'job_id'  => $this->jobId,
                 'attempt' => $this->attempt,
-                'error' => $e->getMessage()
+                'error'   => $e->getMessage(),
             ]);
+
             throw $e;
         }
     }
@@ -106,17 +107,17 @@ class CheckBrightDataProgress implements ShouldQueue
         $reflection = new \ReflectionClass($service);
         $method = $reflection->getMethod('getJobProgressInfo');
         $method->setAccessible(true);
-        
+
         return $method->invoke($service, $jobId);
     }
 
     public function failed(\Throwable $exception): void
     {
         LoggingService::log('BrightData progress check job failed permanently', [
-            'asin' => $this->asin,
-            'job_id' => $this->jobId,
+            'asin'    => $this->asin,
+            'job_id'  => $this->jobId,
             'attempt' => $this->attempt,
-            'error' => $exception->getMessage()
+            'error'   => $exception->getMessage(),
         ]);
     }
 }

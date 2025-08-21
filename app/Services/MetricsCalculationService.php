@@ -14,7 +14,7 @@ class MetricsCalculationService
     }
 
     /**
-     * Calculate final metrics for analyzed product
+     * Calculate final metrics for analyzed product.
      */
     public function calculateFinalMetrics(AsinData $asinData): array
     {
@@ -28,7 +28,7 @@ class MetricsCalculationService
 
         // Parse OpenAI results
         $detailedScores = $this->extractDetailedScores($openaiResult);
-        
+
         if (empty($detailedScores)) {
             return $policy->getDefaultMetrics();
         }
@@ -37,40 +37,46 @@ class MetricsCalculationService
         $totalReviews = count($reviews);
         $fakeCount = $this->countFakeReviews($detailedScores);
         $fakePercentage = $totalReviews > 0 ? round(($fakeCount / $totalReviews) * 100, 1) : 0;
-        
+
         // Calculate ratings
         $averageRating = $this->calculateAverageRating($reviews);
         $adjustedRating = $this->calculateAdjustedRating($reviews, $detailedScores);
-        
+
         // Generate grade and explanation
         $grade = $this->gradeService->calculateGrade($fakePercentage);
         $explanation = $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
 
-        // Update the model
-        $asinData->update([
-            'fake_percentage' => $fakePercentage,
-            'grade' => $grade,
-            'explanation' => $explanation,
-            'amazon_rating' => $averageRating,
-            'adjusted_rating' => $adjustedRating,
-            'status' => 'completed',
-            'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
-            'last_analyzed_at' => now(),
-        ]);
+        // Only update the model if it hasn't been analyzed yet or if metrics are missing
+        $needsUpdate = $asinData->status !== 'completed' ||
+                      is_null($asinData->fake_percentage) ||
+                      is_null($asinData->grade);
+
+        if ($needsUpdate) {
+            $asinData->update([
+                'fake_percentage'   => $fakePercentage,
+                'grade'             => $grade,
+                'explanation'       => $explanation,
+                'amazon_rating'     => $averageRating,
+                'adjusted_rating'   => $adjustedRating,
+                'status'            => 'completed',
+                'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
+                'last_analyzed_at'  => now(),
+            ]);
+        }
 
         return [
             'fake_percentage' => $fakePercentage,
-            'grade' => $grade,
-            'explanation' => $explanation,
-            'amazon_rating' => $averageRating,
+            'grade'           => $grade,
+            'explanation'     => $explanation,
+            'amazon_rating'   => $averageRating,
             'adjusted_rating' => $adjustedRating,
-            'total_reviews' => $totalReviews,
-            'fake_count' => $fakeCount,
+            'total_reviews'   => $totalReviews,
+            'fake_count'      => $fakeCount,
         ];
     }
 
     /**
-     * Extract detailed scores from OpenAI result
+     * Extract detailed scores from OpenAI result.
      */
     private function extractDetailedScores($openaiResult): array
     {
@@ -86,25 +92,25 @@ class MetricsCalculationService
     }
 
     /**
-     * Count fake reviews based on threshold
+     * Count fake reviews based on threshold.
      */
     private function countFakeReviews(array $detailedScores): int
     {
         $fakeThreshold = 85; // Reviews with score >= 85 are considered fake
-        
+
         return collect($detailedScores)->filter(function ($scoreData) use ($fakeThreshold) {
             // Handle new format: {score: 75, label: "fake", confidence: 90, explanation: "..."}
             if (is_array($scoreData) && isset($scoreData['score'])) {
                 return is_numeric($scoreData['score']) && $scoreData['score'] >= $fakeThreshold;
             }
-            
+
             // Handle legacy format: numeric score
             return is_numeric($scoreData) && $scoreData >= $fakeThreshold;
         })->count();
     }
 
     /**
-     * Calculate average rating from reviews
+     * Calculate average rating from reviews.
      */
     private function calculateAverageRating(array $reviews): float
     {
@@ -126,7 +132,7 @@ class MetricsCalculationService
     }
 
     /**
-     * Calculate adjusted rating excluding fake reviews
+     * Calculate adjusted rating excluding fake reviews.
      */
     private function calculateAdjustedRating(array $reviews, array $detailedScores): float
     {
@@ -142,7 +148,7 @@ class MetricsCalculationService
             // Try to get score by review ID first, then by index
             $reviewId = $review['id'] ?? $index;
             $scoreData = $detailedScores[$reviewId] ?? $detailedScores[$index] ?? 0;
-            
+
             // Extract numeric score from new or legacy format
             $score = 0;
             if (is_array($scoreData) && isset($scoreData['score'])) {
@@ -150,7 +156,7 @@ class MetricsCalculationService
             } elseif (is_numeric($scoreData)) {
                 $score = $scoreData; // Legacy format
             }
-            
+
             // Only include genuine reviews (score < threshold)
             if ($score < $fakeThreshold && isset($review['rating']) && is_numeric($review['rating'])) {
                 $genuineRatingSum += $review['rating'];
@@ -167,12 +173,12 @@ class MetricsCalculationService
     }
 
     /**
-     * Generate explanation text for the analysis
+     * Generate explanation text for the analysis.
      */
     private function generateExplanation(int $totalReviews, int $fakeCount, float $fakePercentage): string
     {
-        $explanation = "Analysis of {$totalReviews} reviews found {$fakeCount} potentially fake reviews (" . round($fakePercentage, 1) . '%). ';
-        
+        $explanation = "Analysis of {$totalReviews} reviews found {$fakeCount} potentially fake reviews (".round($fakePercentage, 1).'%). ';
+
         if ($fakePercentage <= 15) {
             $explanation .= 'This product has very low fake review activity and appears highly trustworthy.';
         } elseif ($fakePercentage <= 30) {
@@ -187,6 +193,4 @@ class MetricsCalculationService
 
         return $explanation;
     }
-
-
 }

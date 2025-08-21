@@ -27,7 +27,7 @@ class ProductAnalysisPolicyTest extends TestCase
             'reviews' => [
                 ['rating' => 5, 'text' => 'Great product'],
                 ['rating' => 4, 'text' => 'Good value'],
-            ]
+            ],
         ]);
 
         $this->assertTrue($this->policy->isAnalyzable($product));
@@ -37,7 +37,7 @@ class ProductAnalysisPolicyTest extends TestCase
     public function it_determines_product_is_not_analyzable_without_reviews()
     {
         $product = AsinData::factory()->create([
-            'reviews' => []
+            'reviews' => [],
         ]);
 
         $this->assertFalse($this->policy->isAnalyzable($product));
@@ -47,7 +47,7 @@ class ProductAnalysisPolicyTest extends TestCase
     public function it_determines_product_is_not_analyzable_with_null_reviews()
     {
         $product = AsinData::factory()->create([
-            'reviews' => null
+            'reviews' => null,
         ]);
 
         $this->assertFalse($this->policy->isAnalyzable($product));
@@ -57,14 +57,14 @@ class ProductAnalysisPolicyTest extends TestCase
     public function it_determines_product_should_display_in_listing_when_complete()
     {
         $product = AsinData::factory()->create([
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Test Product',
-            'reviews' => [
+            'product_title'     => 'Test Product',
+            'reviews'           => [
                 ['rating' => 5, 'text' => 'Great product'],
-            ]
+            ],
         ]);
 
         $this->assertTrue($this->policy->shouldDisplayInListing($product));
@@ -74,12 +74,12 @@ class ProductAnalysisPolicyTest extends TestCase
     public function it_determines_product_should_not_display_without_reviews()
     {
         $product = AsinData::factory()->create([
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Test Product',
-            'reviews' => []
+            'product_title'     => 'Test Product',
+            'reviews'           => [],
         ]);
 
         $this->assertFalse($this->policy->shouldDisplayInListing($product));
@@ -89,14 +89,14 @@ class ProductAnalysisPolicyTest extends TestCase
     public function it_determines_product_should_not_display_without_product_data()
     {
         $product = AsinData::factory()->create([
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => false,
-            'product_title' => 'Test Product',
-            'reviews' => [
+            'product_title'     => 'Test Product',
+            'reviews'           => [
                 ['rating' => 5, 'text' => 'Great product'],
-            ]
+            ],
         ]);
 
         $this->assertFalse($this->policy->shouldDisplayInListing($product));
@@ -130,11 +130,11 @@ class ProductAnalysisPolicyTest extends TestCase
     public function it_completes_analysis_for_products_without_reviews()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'reviews' => [],
-            'status' => 'pending_analysis',
+            'asin'            => 'B0TEST12345',
+            'reviews'         => [],
+            'status'          => 'pending_analysis',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $result = $this->policy->completeAnalysisWithoutReviews($product);
@@ -166,30 +166,30 @@ class ProductAnalysisPolicyTest extends TestCase
     {
         // Create products with different states
         $displayableProduct = AsinData::factory()->create([
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Displayable Product',
-            'reviews' => [['rating' => 5, 'text' => 'Great']],
+            'product_title'     => 'Displayable Product',
+            'reviews'           => [['rating' => 5, 'text' => 'Great']],
         ]);
 
         $nonDisplayableProduct1 = AsinData::factory()->create([
-            'status' => 'pending',  // Not completed
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'status'            => 'pending',  // Not completed
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'Pending Product',
-            'reviews' => [['rating' => 5, 'text' => 'Great']],
+            'product_title'     => 'Pending Product',
+            'reviews'           => [['rating' => 5, 'text' => 'Great']],
         ]);
 
         $nonDisplayableProduct2 = AsinData::factory()->create([
-            'status' => 'completed',
-            'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.0,
+            'grade'             => 'B',
             'have_product_data' => true,
-            'product_title' => 'No Reviews Product',
-            'reviews' => [], // No reviews
+            'product_title'     => 'No Reviews Product',
+            'reviews'           => [], // No reviews
         ]);
 
         $query = AsinData::query();
