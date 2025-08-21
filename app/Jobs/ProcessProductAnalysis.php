@@ -101,20 +101,27 @@ class ProcessProductAnalysis implements ShouldQueue
             // Step 7: Complete analysis with full product data available
             $session->updateProgress(7, 98, 'Generating final report...');
             
-            // Check if we extracted any reviews - if not, this is a scraping failure
-            $hasReviews = count($asinData->getReviewsArray()) > 0;
-            if (!$hasReviews) {
-                // Mark as failed - no reviews extracted means scraping didn't work
-                $session->markAsFailed('Unable to extract reviews for this product. This may be due to Amazon\'s anti-bot protections or the product having restricted access. Please try again later or with a different product.');
+            // Check if analysis completed successfully (including graceful handling of no reviews)
+            if ($asinData->status !== 'completed') {
+                // Mark as failed - analysis didn't complete successfully
+                $session->markAsFailed('Analysis could not be completed. Please try again later.');
                 
-                LoggingService::log('Analysis failed - no reviews extracted', [
+                LoggingService::log('Analysis failed - status not completed', [
                     'asin' => $asinData->asin,
                     'session_id' => $this->sessionId,
-                    'reviews_count' => count($asinData->getReviewsArray()),
                     'status' => $asinData->status,
+                    'reviews_count' => count($asinData->getReviewsArray()),
                 ]);
                 return;
             }
+            
+            LoggingService::log('Analysis completed successfully', [
+                'asin' => $asinData->asin,
+                'session_id' => $this->sessionId,
+                'status' => $asinData->status,
+                'reviews_count' => count($asinData->getReviewsArray()),
+                'grade' => $asinData->grade,
+            ]);
             
             // Prepare final result
             $redirectUrl = $this->determineRedirectUrl($asinData);
