@@ -281,6 +281,8 @@ class AsinData extends Model
      */
     public function isAnalyzed(): bool
     {
+        $policy = app(\App\Services\ProductAnalysisPolicy::class);
+        
         // A product is considered analyzed if it has:
         // 1. Status is completed AND
         // 2. Has fake_percentage and grade (key analysis results) AND
@@ -290,7 +292,7 @@ class AsinData extends Model
         return $this->status === 'completed' &&
                !is_null($this->fake_percentage) &&
                !is_null($this->grade) &&
-               count($this->getReviewsArray()) > 0;
+               $policy->isAnalyzable($this);
     }
 
     /**

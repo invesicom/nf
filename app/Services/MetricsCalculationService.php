@@ -18,18 +18,19 @@ class MetricsCalculationService
      */
     public function calculateFinalMetrics(AsinData $asinData): array
     {
+        $policy = app(ProductAnalysisPolicy::class);
         $reviews = $asinData->getReviewsArray();
         $openaiResult = $asinData->openai_result;
 
-        if (empty($reviews) || empty($openaiResult)) {
-            return $this->getDefaultMetrics();
+        if (!$policy->isAnalyzable($asinData) || empty($openaiResult)) {
+            return $policy->getDefaultMetrics();
         }
 
         // Parse OpenAI results
         $detailedScores = $this->extractDetailedScores($openaiResult);
         
         if (empty($detailedScores)) {
-            return $this->getDefaultMetrics();
+            return $policy->getDefaultMetrics();
         }
 
         // Calculate metrics
@@ -187,19 +188,5 @@ class MetricsCalculationService
         return $explanation;
     }
 
-    /**
-     * Get default metrics when analysis fails
-     */
-    private function getDefaultMetrics(): array
-    {
-        return [
-            'fake_percentage' => 0,
-            'grade' => 'N/A',
-            'explanation' => 'Unable to analyze reviews at this time.',
-            'amazon_rating' => 0.0,
-            'adjusted_rating' => 0.0,
-            'total_reviews' => 0,
-            'fake_count' => 0,
-        ];
-    }
+
 }

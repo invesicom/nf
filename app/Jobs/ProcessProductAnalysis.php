@@ -149,9 +149,11 @@ class ProcessProductAnalysis implements ShouldQueue
 
     private function determineRedirectUrl(AsinData $asinData): ?string
     {
+        $policy = app(\App\Services\ProductAnalysisPolicy::class);
+        
         // CRITICAL: Only redirect if the product has meaningful analysis results
         // Products with 0 reviews should never be shown (not useful for users)
-        $hasReviews = count($asinData->getReviewsArray()) > 0;
+        $hasReviews = $policy->isAnalyzable($asinData);
         $hasAnalysis = $asinData->status === 'completed' && 
                        !is_null($asinData->fake_percentage) && 
                        !is_null($asinData->grade);

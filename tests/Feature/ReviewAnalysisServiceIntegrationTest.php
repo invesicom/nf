@@ -163,7 +163,7 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
         // This should now handle gracefully by setting default analysis results
         $result = $analysisService->analyzeWithLLM($asinData);
 
-        // Verify the product was marked as completed with default analysis
+        // Verify the product was marked as completed with default analysis using centralized policy
         $this->assertEquals('completed', $result->status);
         $this->assertNotNull($result->openai_result);
         
@@ -172,9 +172,18 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
             $openaiResult = json_decode($openaiResult, true);
         }
         
+        // Verify default analysis structure from ProductAnalysisPolicy
         $this->assertEquals([], $openaiResult['detailed_scores']);
         $this->assertEquals('system', $openaiResult['analysis_provider']);
         $this->assertEquals(0.0, $openaiResult['total_cost']);
+        
+        // Verify default metrics were applied
+        $this->assertEquals(0, $result->fake_percentage);
+        $this->assertEquals('U', $result->grade);
+        $this->assertEquals('Unable to analyze reviews at this time.', $result->explanation);
+        $this->assertEquals(0.0, $result->amazon_rating);
+        $this->assertEquals(0.0, $result->adjusted_rating);
+        
         $this->assertNotNull($result->first_analyzed_at);
         $this->assertNotNull($result->last_analyzed_at);
     }

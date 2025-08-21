@@ -448,20 +448,10 @@ class AmazonProductController extends Controller
             'ip' => $request->ip(),
         ]);
 
-        // Get analyzed products using efficient database queries
-        // Filter out products with 0 reviews at database level for consistency with isAnalyzed()
-        // We need to be more precise about filtering empty review arrays
-        $products = AsinData::where('status', 'completed')
-            ->whereNotNull('fake_percentage')
-            ->whereNotNull('grade')
-            ->where('have_product_data', true)
-            ->whereNotNull('product_title')
-            ->whereNotNull('reviews')
-            ->where('reviews', '!=', '[]')
-            ->where('reviews', '!=', '""')
-            ->where('reviews', '!=', 'null')
-            ->where('reviews', '!=', '"[]"')  // Handle JSON string representation of empty array
-            ->whereRaw("JSON_LENGTH(CASE WHEN JSON_VALID(reviews) THEN reviews ELSE '[]' END) > 0")
+        // Get analyzed products using centralized policy for consistent filtering
+        $policy = app(\App\Services\ProductAnalysisPolicy::class);
+        $query = AsinData::query();
+        $products = $policy->applyDisplayableConstraints($query)
             ->orderBy('first_analyzed_at', 'desc')
             ->paginate(50);
 

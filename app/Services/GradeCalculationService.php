@@ -50,6 +50,7 @@ class GradeCalculationService
             'C' => 'Fair - Moderate fake review concerns',
             'D' => 'Poor - High fake review percentage',
             'F' => 'Failing - Majority of reviews appear fake',
+            'U' => 'Unanalyzable - No reviews available for analysis',
             default => 'Unknown grade'
         };
     }
