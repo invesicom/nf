@@ -21,9 +21,9 @@ class TestTimeoutAlerts extends Command
             'B0D8L7K9QR',
             120,
             [
-                'attempt' => 3,
-                'max_pages' => 10,
-                'error_details' => 'cURL error 28: Operation timed out after 120 seconds'
+                'attempt'       => 3,
+                'max_pages'     => 10,
+                'error_details' => 'cURL error 28: Operation timed out after 120 seconds',
             ]
         );
 
@@ -34,8 +34,8 @@ class TestTimeoutAlerts extends Command
             'CONNECTION_TIMEOUT_NO_DATA',
             'cURL error 28: Operation timed out with 0 bytes received',
             [
-                'asin' => 'B0D8L7K9QR',
-                'attempt' => 2
+                'asin'    => 'B0D8L7K9QR',
+                'attempt' => 2,
             ]
         );
 
@@ -44,4 +44,4 @@ class TestTimeoutAlerts extends Command
 
         return self::SUCCESS;
     }
-} 
+}

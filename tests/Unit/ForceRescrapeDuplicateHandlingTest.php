@@ -2,12 +2,12 @@
 
 namespace Tests\Unit;
 
-use PHPUnit\Framework\Attributes\Test;
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Models\AsinData;
 use App\Services\Amazon\AmazonScrapingService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class ForceRescrapeDuplicateHandlingTest extends TestCase
 {
@@ -22,19 +22,19 @@ class ForceRescrapeDuplicateHandlingTest extends TestCase
         ]);
 
         $service = app(AmazonScrapingService::class);
-        
+
         // Create initial product
         $asin = 'B0TEST123';
         $initialProduct = AsinData::create([
-            'asin' => $asin,
-            'country' => 'com',
+            'asin'                => $asin,
+            'country'             => 'com',
             'product_description' => 'Initial description',
-            'reviews' => json_encode([
+            'reviews'             => json_encode([
                 [
-                    'id' => 'review1',
+                    'id'     => 'review1',
                     'rating' => 5,
-                    'text' => 'Initial review'
-                ]
+                    'text'   => 'Initial review',
+                ],
             ]),
             'total_reviews_on_amazon' => 50,
         ]);
@@ -44,17 +44,17 @@ class ForceRescrapeDuplicateHandlingTest extends TestCase
 
         // Re-scrape the same ASIN - should NOT create a new record or throw integrity constraint error
         $updatedProduct = $service->fetchReviewsAndSave(
-            $asin, 
-            'com', 
+            $asin,
+            'com',
             "https://www.amazon.com/dp/{$asin}"
         );
 
         // Verify no duplicate records were created - this is the key test
         $this->assertEquals(1, AsinData::where('asin', $asin)->count());
-        
+
         // Verify the existing record was updated (same ID)
         $this->assertEquals($initialProduct->id, $updatedProduct->id);
-        
+
         // The test passes if we get here without an integrity constraint exception
         $this->assertTrue(true, 'No integrity constraint error occurred');
     }
@@ -68,16 +68,16 @@ class ForceRescrapeDuplicateHandlingTest extends TestCase
         ]);
 
         $service = app(AmazonScrapingService::class);
-        
+
         $asin = 'B0NEWTEST123';
-        
+
         // Verify no existing record
         $this->assertEquals(0, AsinData::where('asin', $asin)->count());
 
         // Create new product via scraping
         $newProduct = $service->fetchReviewsAndSave(
-            $asin, 
-            'com', 
+            $asin,
+            'com',
             "https://www.amazon.com/dp/{$asin}"
         );
 

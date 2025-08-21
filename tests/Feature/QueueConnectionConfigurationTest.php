@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Http\Controllers\AnalysisController;
 use App\Jobs\ProcessProductAnalysis;
 use App\Services\ReviewAnalysisService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -10,8 +9,8 @@ use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 /**
- * Test queue configuration to prevent blocking behavior
- * 
+ * Test queue configuration to prevent blocking behavior.
+ *
  * This test ensures that jobs are properly dispatched to queues and not run synchronously
  * when async analysis is enabled. It validates the fix for the blocking API issue.
  */
@@ -22,7 +21,7 @@ class QueueConnectionConfigurationTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->mock(ReviewAnalysisService::class, function ($mock) {
             $mock->shouldReceive('extractAsinFromUrl')->andReturn('B123456789');
         });
@@ -32,12 +31,12 @@ class QueueConnectionConfigurationTest extends TestCase
     {
         // Ensure async mode is enabled
         config(['analysis.async_enabled' => true]);
-        
+
         // Fake the queue to capture dispatched jobs
         Queue::fake();
-        
+
         $response = $this->postJson('/api/analysis/start', [
-            'productUrl' => 'https://amazon.com/dp/B123456789'
+            'productUrl' => 'https://amazon.com/dp/B123456789',
         ]);
 
         // Should return immediately with session ID (not block)
@@ -58,31 +57,31 @@ class QueueConnectionConfigurationTest extends TestCase
         // This test documents the problematic behavior we fixed
         config([
             'analysis.async_enabled' => true,
-            'queue.default' => 'sync' // This causes blocking behavior
+            'queue.default'          => 'sync', // This causes blocking behavior
         ]);
-        
+
         // Don't fake the queue - let it run with sync connection
         $this->mock(ReviewAnalysisService::class, function ($mock) {
             $mock->shouldReceive('extractAsinFromUrl')->andReturn('B123456789');
             $mock->shouldReceive('analyzeProduct')->andReturn([
                 'fake_percentage' => 15.0,
-                'grade' => 'B',
-                'redirect_url' => '/amazon/product/B123456789'
+                'grade'           => 'B',
+                'redirect_url'    => '/amazon/product/B123456789',
             ]);
         });
 
         $startTime = microtime(true);
-        
+
         $response = $this->postJson('/api/analysis/start', [
-            'productUrl' => 'https://amazon.com/dp/B123456789'
+            'productUrl' => 'https://amazon.com/dp/B123456789',
         ]);
-        
+
         $duration = microtime(true) - $startTime;
 
         // With sync connection, the API call will block until job completes
         // This test documents the problem we fixed
         $response->assertStatus(200);
-        
+
         // The test passes but shows the issue: sync connection blocks the API
         $this->assertGreaterThan(0, $duration, 'Sync connection causes blocking behavior');
     }
@@ -91,25 +90,25 @@ class QueueConnectionConfigurationTest extends TestCase
     {
         config([
             'analysis.async_enabled' => true,
-            'queue.default' => 'database' // Correct configuration
+            'queue.default'          => 'database', // Correct configuration
         ]);
-        
+
         Queue::fake();
-        
+
         $startTime = microtime(true);
-        
+
         $response = $this->postJson('/api/analysis/start', [
-            'productUrl' => 'https://amazon.com/dp/B123456789'
+            'productUrl' => 'https://amazon.com/dp/B123456789',
         ]);
-        
+
         $duration = microtime(true) - $startTime;
 
         // With database connection, API should return immediately
         $response->assertStatus(200);
-        
+
         // Should be very fast (< 1 second) because job is queued, not executed
         $this->assertLessThan(1.0, $duration, 'Database connection should allow immediate API response');
-        
+
         Queue::assertPushed(ProcessProductAnalysis::class);
     }
 
@@ -117,25 +116,25 @@ class QueueConnectionConfigurationTest extends TestCase
     {
         // This test validates that jobs can be processed by queue workers
         // The main fix ensures jobs dispatch to the correct connection where workers listen
-        
+
         config([
             'analysis.async_enabled' => true,
-            'queue.default' => 'database'
+            'queue.default'          => 'database',
         ]);
 
         // Create an analysis session for testing
         $session = \App\Models\AnalysisSession::create([
             'user_session' => 'test-session-123',
-            'asin' => 'B123456789',
-            'product_url' => 'https://amazon.com/dp/B123456789',
-            'status' => 'pending',
-            'total_steps' => 8,
+            'asin'         => 'B123456789',
+            'product_url'  => 'https://amazon.com/dp/B123456789',
+            'status'       => 'pending',
+            'total_steps'  => 8,
         ]);
 
         // Verify the session exists and is pending
         $this->assertDatabaseHas('analysis_sessions', [
-            'id' => $session->id,
-            'status' => 'pending'
+            'id'     => $session->id,
+            'status' => 'pending',
         ]);
 
         // The main point: jobs should be dispatchable to the correct connection

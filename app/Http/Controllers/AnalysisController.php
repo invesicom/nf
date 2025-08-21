@@ -9,7 +9,6 @@ use App\Services\ReviewAnalysisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 
 class AnalysisController extends Controller
 {
@@ -19,29 +18,29 @@ class AnalysisController extends Controller
     public function startAnalysis(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'productUrl' => 'required|url',
+            'productUrl'           => 'required|url',
             'g_recaptcha_response' => 'nullable|string',
-            'h_captcha_response' => 'nullable|string',
+            'h_captcha_response'   => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'error' => $validator->errors()->first(),
+                'error'   => $validator->errors()->first(),
             ], 422);
         }
 
         try {
             $productUrl = $request->input('productUrl');
             $userSession = $request->session()->getId();
-            
+
             // Validate captcha immediately before processing (tokens expire quickly)
             $this->validateCaptchaIfRequired($request);
-            
+
             // Extract ASIN from URL
             $analysisService = app(ReviewAnalysisService::class);
             $asin = $analysisService->extractAsinFromUrl($productUrl);
-            
+
             // Check if there's already a recent analysis for this user/ASIN
             $existingSession = AnalysisSession::where('user_session', $userSession)
                 ->where('asin', $asin)
@@ -51,20 +50,20 @@ class AnalysisController extends Controller
 
             if ($existingSession) {
                 return response()->json([
-                    'success' => true,
+                    'success'    => true,
                     'session_id' => $existingSession->id,
-                    'status' => 'existing',
-                    'message' => 'Analysis already in progress',
+                    'status'     => 'existing',
+                    'message'    => 'Analysis already in progress',
                 ]);
             }
 
             // Create new analysis session
             $session = AnalysisSession::create([
-                'user_session' => $userSession,
-                'asin' => $asin,
-                'product_url' => $productUrl,
-                'status' => 'pending',
-                'total_steps' => 8,
+                'user_session'    => $userSession,
+                'asin'            => $asin,
+                'product_url'     => $productUrl,
+                'status'          => 'pending',
+                'total_steps'     => 8,
                 'current_message' => 'Queued for analysis...',
             ]);
 
@@ -73,16 +72,15 @@ class AnalysisController extends Controller
                 ->onConnection('database');
 
             return response()->json([
-                'success' => true,
+                'success'    => true,
                 'session_id' => $session->id,
-                'status' => 'started',
-                'message' => 'Analysis started successfully',
+                'status'     => 'started',
+                'message'    => 'Analysis started successfully',
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to start analysis: ' . $e->getMessage(),
+                'error'   => 'Failed to start analysis: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -97,7 +95,7 @@ class AnalysisController extends Controller
         if (!$session) {
             return response()->json([
                 'success' => false,
-                'error' => 'Analysis session not found',
+                'error'   => 'Analysis session not found',
             ], 404);
         }
 
@@ -105,18 +103,18 @@ class AnalysisController extends Controller
         if (!app()->environment(['local', 'testing']) && $session->user_session !== $request->session()->getId()) {
             return response()->json([
                 'success' => false,
-                'error' => 'Unauthorized access to analysis session',
+                'error'   => 'Unauthorized access to analysis session',
             ], 403);
         }
 
         $response = [
-            'success' => true,
-            'status' => $session->status,
-            'current_step' => $session->current_step,
-            'total_steps' => $session->total_steps,
+            'success'             => true,
+            'status'              => $session->status,
+            'current_step'        => $session->current_step,
+            'total_steps'         => $session->total_steps,
             'progress_percentage' => $session->progress_percentage,
-            'current_message' => $session->current_message,
-            'asin' => $session->asin,
+            'current_message'     => $session->current_message,
+            'asin'                => $session->asin,
         ];
 
         if ($session->isCompleted()) {
@@ -139,7 +137,7 @@ class AnalysisController extends Controller
         if (!$session) {
             return response()->json([
                 'success' => false,
-                'error' => 'Analysis session not found',
+                'error'   => 'Analysis session not found',
             ], 404);
         }
 
@@ -147,14 +145,14 @@ class AnalysisController extends Controller
         if (!app()->environment(['local', 'testing']) && $session->user_session !== $request->session()->getId()) {
             return response()->json([
                 'success' => false,
-                'error' => 'Unauthorized access to analysis session',
+                'error'   => 'Unauthorized access to analysis session',
             ], 403);
         }
 
         if ($session->isCompleted() || $session->isFailed()) {
             return response()->json([
                 'success' => false,
-                'error' => 'Cannot cancel completed analysis',
+                'error'   => 'Cannot cancel completed analysis',
             ], 422);
         }
 
@@ -174,7 +172,7 @@ class AnalysisController extends Controller
         $deleted = AnalysisSession::where('created_at', '<', now()->subDays(1))->delete();
 
         return response()->json([
-            'success' => true,
+            'success'          => true,
             'deleted_sessions' => $deleted,
         ]);
     }
@@ -202,4 +200,4 @@ class AnalysisController extends Controller
             throw new \Exception('Captcha verification failed');
         }
     }
-} 
+}

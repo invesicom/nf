@@ -9,17 +9,17 @@ use Tests\TestCase;
 class OllamaProviderResearchBasedTest extends TestCase
 {
     private OllamaProvider $provider;
-    
+
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         config([
             'services.ollama.base_url' => 'http://localhost:11434',
-            'services.ollama.model' => 'qwen2.5:7b',
-            'services.ollama.timeout' => 300,
+            'services.ollama.model'    => 'qwen2.5:7b',
+            'services.ollama.timeout'  => 300,
         ]);
-        
+
         $this->provider = new OllamaProvider();
     }
 
@@ -28,19 +28,19 @@ class OllamaProviderResearchBasedTest extends TestCase
     {
         $reviews = [
             [
-                'id' => 'TEST001',
-                'rating' => 5,
+                'id'          => 'TEST001',
+                'rating'      => 5,
                 'review_text' => 'Amazing product! Perfect! Incredible quality!',
-                'meta_data' => ['verified_purchase' => false]
-            ]
+                'meta_data'   => ['verified_purchase' => false],
+            ],
         ];
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"TEST001","score":85,"label":"fake","confidence":0.9}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
@@ -49,19 +49,19 @@ class OllamaProviderResearchBasedTest extends TestCase
         Http::assertSent(function ($request) {
             $body = $request->data();
             $prompt = $body['prompt'];
-            
+
             // Check for key balanced prompt elements
             $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
             $this->assertStringContainsString('Consider: Generic language (+20), specific complaints (-20)', $prompt);
             $this->assertStringContainsString('Scoring: ≤39=genuine, 40-59=uncertain, ≥60=fake', $prompt);
-            
+
             // Verify temperature is set for consistency
             $this->assertEquals(0.1, $body['options']['temperature']);
-            
+
             // Verify increased context and output settings
             $this->assertEquals(2048, $body['options']['num_ctx']);
             $this->assertEquals(512, $body['options']['num_predict']);
-            
+
             return true;
         });
     }
@@ -71,26 +71,26 @@ class OllamaProviderResearchBasedTest extends TestCase
     {
         $reviews = [
             [
-                'id' => 'TEST001',
-                'rating' => 4,
+                'id'          => 'TEST001',
+                'rating'      => 4,
                 'review_text' => 'Good product, works as expected after 3 months of use.',
-                'meta_data' => ['verified_purchase' => true]
-            ]
+                'meta_data'   => ['verified_purchase' => true],
+            ],
         ];
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"TEST001","score":35,"label":"genuine","confidence":0.8}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
 
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('TEST001', $result['detailed_scores']);
-        
+
         $scoreData = $result['detailed_scores']['TEST001'];
         $this->assertIsArray($scoreData);
         $this->assertEquals(35, $scoreData['score']);
@@ -104,27 +104,27 @@ class OllamaProviderResearchBasedTest extends TestCase
     {
         $reviews = [
             [
-                'id' => 'TEST001',
-                'rating' => 5,
+                'id'          => 'TEST001',
+                'rating'      => 5,
                 'review_text' => 'Test review',
-                'meta_data' => ['verified_purchase' => false]
-            ]
+                'meta_data'   => ['verified_purchase' => false],
+            ],
         ];
 
         // Mock old-style numeric response
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"TEST001","score":75}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
 
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('TEST001', $result['detailed_scores']);
-        
+
         $scoreData = $result['detailed_scores']['TEST001'];
         $this->assertIsArray($scoreData);
         $this->assertEquals(75, $scoreData['score']);
@@ -159,10 +159,10 @@ class OllamaProviderResearchBasedTest extends TestCase
         // High confidence for extreme scores
         $this->assertEquals(0.8, $method->invoke($this->provider, 15)); // Very genuine
         $this->assertEquals(0.8, $method->invoke($this->provider, 85)); // Very fake
-        
+
         // Lower confidence for uncertain range
         $this->assertEquals(0.4, $method->invoke($this->provider, 50)); // Uncertain
-        
+
         // Moderate confidence for borderline cases
         $this->assertEquals(0.6, $method->invoke($this->provider, 65)); // Borderline fake
         $this->assertEquals(0.6, $method->invoke($this->provider, 35)); // Borderline genuine
@@ -193,24 +193,24 @@ class OllamaProviderResearchBasedTest extends TestCase
     {
         $reviews = [
             [
-                'id' => 'TEST001',
-                'rating' => 5,
+                'id'          => 'TEST001',
+                'rating'      => 5,
                 'review_text' => 'Test review',
-                'meta_data' => ['verified_purchase' => false]
-            ]
+                'meta_data'   => ['verified_purchase' => false],
+            ],
         ];
 
         // Mock response with out-of-range scores
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"TEST001","score":150}]', // Over 100
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
-        
+
         $scoreData = $result['detailed_scores']['TEST001'];
         $this->assertEquals(100, $scoreData['score']); // Should be clamped to 100
     }
@@ -220,31 +220,32 @@ class OllamaProviderResearchBasedTest extends TestCase
     {
         $reviews = [
             [
-                'id' => 'TEST001',
-                'rating' => 5,
-                'review_text' => 'Test review without meta_data'
+                'id'          => 'TEST001',
+                'rating'      => 5,
+                'review_text' => 'Test review without meta_data',
                 // No meta_data key
-            ]
+            ],
         ];
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"TEST001","score":60}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         // Should not throw an exception
         $result = $this->provider->analyzeReviews($reviews);
-        
+
         $this->assertArrayHasKey('detailed_scores', $result);
         $this->assertArrayHasKey('TEST001', $result['detailed_scores']);
-        
+
         // Verify the request was made with balanced format
         Http::assertSent(function ($request) {
             $body = $request->data();
             $this->assertStringContainsString('Review TEST001 (Unverified, 5★): Test review without meta_data', $body['prompt']);
+
             return true;
         });
     }
@@ -254,30 +255,30 @@ class OllamaProviderResearchBasedTest extends TestCase
     {
         $reviews = [
             [
-                'id' => 'TEST001',
-                'rating' => 2,
+                'id'          => 'TEST001',
+                'rating'      => 2,
                 'review_text' => 'Product broke after one week. Poor quality control.',
-                'meta_data' => ['verified_purchase' => true]
-            ]
+                'meta_data'   => ['verified_purchase' => true],
+            ],
         ];
 
         Http::fake([
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"TEST001","score":25,"label":"genuine","confidence":0.8}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $this->provider->analyzeReviews($reviews);
 
         Http::assertSent(function ($request) {
             $prompt = $request->data()['prompt'];
-            
+
             // Verify balanced prompt format
             $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
             $this->assertStringContainsString('Review TEST001 (Verified, 2★): Product broke after one week', $prompt);
-            
+
             return true;
         });
     }

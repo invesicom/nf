@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class() extends Migration {
     /**
      * Run the migrations.
      */
@@ -30,12 +29,12 @@ return new class extends Migration
         Schema::table('asin_data', function (Blueprint $table) {
             $table->dropColumn([
                 'fake_percentage',
-                'amazon_rating', 
+                'amazon_rating',
                 'adjusted_rating',
                 'grade',
                 'explanation',
                 'status',
-                'analysis_notes'
+                'analysis_notes',
             ]);
         });
     }

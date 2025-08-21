@@ -6,7 +6,7 @@ use App\Models\AsinData;
 
 /**
  * Interface for Amazon review fetching services.
- * 
+ *
  * This interface ensures compatibility between different Amazon review
  * fetching implementations (Unwrangle API, direct scraping, etc.)
  */
@@ -34,4 +34,4 @@ interface AmazonReviewServiceInterface
      * @return array<string, mixed> Array containing reviews, description, and total count
      */
     public function fetchReviews(string $asin, string $country = 'us'): array;
-} 
+}

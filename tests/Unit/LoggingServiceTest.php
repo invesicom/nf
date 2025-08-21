@@ -200,8 +200,10 @@ class LoggingServiceTest extends TestCase
             $this->assertArrayHasKey('patterns', $type);
             $this->assertArrayHasKey('message', $type);
             $this->assertIsArray($type['patterns']);
-            $this->assertTrue(is_string($type['message']) || is_null($type['message']), 
-                'Message should be string or null for validation/captcha errors');
+            $this->assertTrue(
+                is_string($type['message']) || is_null($type['message']),
+                'Message should be string or null for validation/captcha errors'
+            );
         }
     }
 
@@ -219,7 +221,7 @@ class LoggingServiceTest extends TestCase
     {
         $exception = new \Exception('cURL error 28: timed out after 30000 milliseconds');
         $result = LoggingService::handleException($exception);
-        
+
         $this->assertStringContainsString('took too long to respond', $result);
     }
 
@@ -227,7 +229,7 @@ class LoggingServiceTest extends TestCase
     {
         $exception = new \Exception('cURL error 56: Received HTTP code 407 from proxy after CONNECT (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://www.amazon.com/dp/B00076SPZO');
         $result = LoggingService::handleException($exception);
-        
+
         $this->assertEquals('The review service is temporarily unavailable due to network configuration issues. Please try again in a few minutes.', $result);
     }
 

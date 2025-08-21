@@ -22,13 +22,14 @@ class CleanupAnalysisSessions extends Command
         $this->info('==========================');
 
         $cutoff = now()->subHours($hours);
-        
+
         $query = AnalysisSession::where('created_at', '<', $cutoff);
-        
+
         $totalSessions = $query->count();
-        
+
         if ($totalSessions === 0) {
-            $this->info('✅ No sessions found older than ' . $hours . ' hours');
+            $this->info('✅ No sessions found older than '.$hours.' hours');
+
             return 0;
         }
 
@@ -45,18 +46,20 @@ class CleanupAnalysisSessions extends Command
 
         if ($dryRun) {
             $this->warn('🧪 DRY RUN MODE: No sessions will be deleted');
+
             return 0;
         }
 
         if (!$this->confirm('Do you want to delete these sessions?')) {
             $this->info('❌ Cleanup cancelled');
+
             return 0;
         }
 
         $deleted = $query->delete();
 
         $this->info("✅ Deleted {$deleted} analysis sessions");
-        
+
         return 0;
     }
-} 
+}

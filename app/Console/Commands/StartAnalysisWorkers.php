@@ -32,12 +32,14 @@ class StartAnalysisWorkers extends Command
             case 'restart':
                 $this->stopWorkers();
                 sleep(2);
+
                 return $this->startWorkers($workers, $timeout, $memory, $daemon);
             case 'status':
                 return $this->showStatus();
             default:
                 $this->error("Unknown action: {$action}");
                 $this->info('Available actions: start, stop, restart, status');
+
                 return 1;
         }
     }
@@ -74,15 +76,15 @@ class StartAnalysisWorkers extends Command
             }
 
             $this->info("🔄 Starting worker {$i}/{$workers}...");
-            
+
             if ($daemon) {
                 // Start as background process
                 $process = Process::start($command);
-                $this->info("✅ Worker {$i} started with PID: " . $process->id());
+                $this->info("✅ Worker {$i} started with PID: ".$process->id());
             } else {
                 // Show command for manual execution
                 $commandStr = implode(' ', $command);
-                $this->info("🔧 Run this command in a separate terminal:");
+                $this->info('🔧 Run this command in a separate terminal:');
                 $this->line("   {$commandStr}");
             }
         }
@@ -101,8 +103,8 @@ class StartAnalysisWorkers extends Command
         $this->info("• Workers: {$workers}");
         $this->info("• Timeout: {$timeout}s");
         $this->info("• Memory: {$memory}MB");
-        $this->info("• Queue: analysis");
-        $this->info("• Mode: " . ($daemon ? 'daemon' : 'manual'));
+        $this->info('• Queue: analysis');
+        $this->info('• Mode: '.($daemon ? 'daemon' : 'manual'));
 
         return 0;
     }
@@ -114,14 +116,15 @@ class StartAnalysisWorkers extends Command
 
         // Find and stop queue worker processes
         $processes = Process::run('pgrep -f "queue:work analysis"')->output();
-        
+
         if (empty(trim($processes))) {
             $this->info('ℹ️  No analysis workers found running');
+
             return 0;
         }
 
         $pids = array_filter(explode("\n", trim($processes)));
-        
+
         foreach ($pids as $pid) {
             $this->info("🔄 Stopping worker with PID: {$pid}");
             Process::run("kill -TERM {$pid}");
@@ -148,7 +151,7 @@ class StartAnalysisWorkers extends Command
             $this->info('✅ Running workers:');
             foreach ($pids as $pid) {
                 $processInfo = Process::run("ps -p {$pid} -o pid,cmd --no-headers")->output();
-                $this->info("  • PID {$pid}: " . trim($processInfo));
+                $this->info("  • PID {$pid}: ".trim($processInfo));
             }
         }
 
@@ -156,9 +159,9 @@ class StartAnalysisWorkers extends Command
 
         // Check queue configuration
         $this->info('⚙️  Queue Configuration:');
-        $this->info('• Default connection: ' . config('queue.default'));
-        $this->info('• Analysis connection: ' . config('queue.connections.analysis.driver', 'not configured'));
-        $this->info('• Async enabled: ' . (config('analysis.async_enabled') ? 'yes' : 'no'));
+        $this->info('• Default connection: '.config('queue.default'));
+        $this->info('• Analysis connection: '.config('queue.connections.analysis.driver', 'not configured'));
+        $this->info('• Async enabled: '.(config('analysis.async_enabled') ? 'yes' : 'no'));
 
         $this->newLine();
 
@@ -169,12 +172,12 @@ class StartAnalysisWorkers extends Command
                 ->where('available_at', '<=', now()->timestamp)
                 ->count();
 
-            $this->info("📋 Queue Status:");
+            $this->info('📋 Queue Status:');
             $this->info("• Pending jobs: {$pendingJobs}");
         } catch (\Exception $e) {
-            $this->warn('⚠️  Could not check queue status: ' . $e->getMessage());
+            $this->warn('⚠️  Could not check queue status: '.$e->getMessage());
         }
 
         return 0;
     }
-} 
+}

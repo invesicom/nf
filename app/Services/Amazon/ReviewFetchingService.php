@@ -17,7 +17,7 @@ class ReviewFetchingService
     }
 
     /**
-     * Fetch reviews for a product and save to database
+     * Fetch reviews for a product and save to database.
      */
     public function fetchReviews(string $asin, string $country, string $productUrl): AsinData
     {
@@ -26,17 +26,17 @@ class ReviewFetchingService
         try {
             // Use the factory-created service to fetch reviews
             $asinData = $this->fetchService->fetchReviewsAndSave($asin, $country, $productUrl);
-            
+
             if (!$asinData) {
                 throw new \Exception("Failed to fetch reviews for ASIN: {$asin}");
             }
 
             LoggingService::log("Successfully fetched reviews for ASIN: {$asin}");
-            return $asinData;
 
+            return $asinData;
         } catch (\Exception $e) {
             LoggingService::handleException($e, "Review fetching failed for ASIN: {$asin}");
-            
+
             // Don't create empty records - let the exception propagate
             // This ensures that failed fetches don't create useless database entries
             throw $e;
@@ -44,19 +44,19 @@ class ReviewFetchingService
     }
 
     /**
-     * Get available review services
+     * Get available review services.
      */
     public function getAvailableServices(): array
     {
         return [
             'brightdata' => 'BrightData Web Scraper (Production)',
-            'scraping' => 'Direct Amazon Scraping (Development)',
-            'ajax' => 'Amazon AJAX Service (Legacy)',
+            'scraping'   => 'Direct Amazon Scraping (Development)',
+            'ajax'       => 'Amazon AJAX Service (Legacy)',
         ];
     }
 
     /**
-     * Check if reviews need to be fetched
+     * Check if reviews need to be fetched.
      */
     public function needsReviewFetch(AsinData $asinData): bool
     {
@@ -80,16 +80,16 @@ class ReviewFetchingService
     }
 
     /**
-     * Get review statistics
+     * Get review statistics.
      */
     public function getReviewStatistics(AsinData $asinData): array
     {
         $reviews = $asinData->getReviewsArray();
-        
+
         if (empty($reviews)) {
             return [
-                'total_reviews' => 0,
-                'average_rating' => 0,
+                'total_reviews'       => 0,
+                'average_rating'      => 0,
                 'rating_distribution' => [],
                 'verified_percentage' => 0,
             ];
@@ -104,7 +104,7 @@ class ReviewFetchingService
             if (isset($review['rating']) && is_numeric($review['rating'])) {
                 $rating = (int) $review['rating'];
                 $ratingSum += $rating;
-                
+
                 if (isset($ratingDistribution[$rating])) {
                     $ratingDistribution[$rating]++;
                 }
@@ -116,8 +116,8 @@ class ReviewFetchingService
         }
 
         return [
-            'total_reviews' => $totalReviews,
-            'average_rating' => $totalReviews > 0 ? round($ratingSum / $totalReviews, 2) : 0,
+            'total_reviews'       => $totalReviews,
+            'average_rating'      => $totalReviews > 0 ? round($ratingSum / $totalReviews, 2) : 0,
             'rating_distribution' => $ratingDistribution,
             'verified_percentage' => $totalReviews > 0 ? round(($verifiedCount / $totalReviews) * 100, 1) : 0,
         ];

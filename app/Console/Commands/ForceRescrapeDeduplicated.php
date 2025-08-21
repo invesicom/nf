@@ -2,11 +2,11 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\AsinData;
 use App\Services\Amazon\AmazonScrapingService;
-use App\Services\ReviewAnalysisService;
 use App\Services\LoggingService;
+use App\Services\ReviewAnalysisService;
+use Illuminate\Console\Command;
 
 class ForceRescrapeDeduplicated extends Command
 {
@@ -16,7 +16,7 @@ class ForceRescrapeDeduplicated extends Command
                             {--dry-run : Show what would be re-scraped without doing it}
                             {--with-analysis : Re-run LLM analysis after scraping}
                             {--asin= : Force re-scrape specific ASIN only}';
-    
+
     protected $description = 'Force re-scraping of recently deduplicated/fixed products to get fresh data';
 
     private AmazonScrapingService $scrapingService;
@@ -36,7 +36,7 @@ class ForceRescrapeDeduplicated extends Command
         $isDryRun = $this->option('dry-run');
         $withAnalysis = $this->option('with-analysis');
         $specificAsin = $this->option('asin');
-        
+
         $this->info('🔄 FORCE RE-SCRAPING DEDUPLICATED PRODUCTS');
         $this->info('===========================================');
         $this->newLine();
@@ -71,53 +71,56 @@ class ForceRescrapeDeduplicated extends Command
         foreach ($candidates as $product) {
             $reviews = $product->getReviewsArray();
             $currentCount = count($reviews);
-            
+
             if ($currentCount < $minReviews || $specificAsin) {
                 $targets[] = [
-                    'product' => $product,
+                    'product'         => $product,
                     'current_reviews' => $currentCount,
-                    'amazon_total' => $product->total_reviews_on_amazon,
-                    'potential_gain' => $product->total_reviews_on_amazon - $currentCount
+                    'amazon_total'    => $product->total_reviews_on_amazon,
+                    'potential_gain'  => $product->total_reviews_on_amazon - $currentCount,
                 ];
             }
         }
 
         if (empty($targets)) {
-            $this->info("✅ No products found that need re-scraping");
+            $this->info('✅ No products found that need re-scraping');
             $this->info("   (All have >= {$minReviews} reviews or no significant potential gain)");
+
             return Command::SUCCESS;
         }
 
         // Sort by potential gain (highest first)
-        usort($targets, function($a, $b) {
+        usort($targets, function ($a, $b) {
             return $b['potential_gain'] - $a['potential_gain'];
         });
 
-        $this->info("🎯 PRODUCTS TO RE-SCRAPE:");
-        $this->info("========================");
-        
+        $this->info('🎯 PRODUCTS TO RE-SCRAPE:');
+        $this->info('========================');
+
         $tableData = [];
         foreach ($targets as $target) {
             $tableData[] = [
                 $target['product']->asin,
                 $target['current_reviews'],
                 $target['amazon_total'],
-                '+' . $target['potential_gain'],
-                $target['product']->updated_at->format('M j, H:i')
+                '+'.$target['potential_gain'],
+                $target['product']->updated_at->format('M j, H:i'),
             ];
         }
-        
+
         $this->table(['ASIN', 'Current', 'Amazon Total', 'Potential Gain', 'Last Updated'], $tableData);
         $this->newLine();
 
         if ($isDryRun) {
             $this->info('💡 Run without --dry-run to perform actual re-scraping');
+
             return Command::SUCCESS;
         }
 
         // Confirm before proceeding
-        if (!$specificAsin && !$this->confirm("🚀 Proceed with re-scraping " . count($targets) . " products?")) {
-            $this->info("❌ Operation cancelled");
+        if (!$specificAsin && !$this->confirm('🚀 Proceed with re-scraping '.count($targets).' products?')) {
+            $this->info('❌ Operation cancelled');
+
             return Command::SUCCESS;
         }
 
@@ -133,34 +136,34 @@ class ForceRescrapeDeduplicated extends Command
         foreach ($targets as $target) {
             $product = $target['product'];
             $originalCount = $target['current_reviews'];
-            
+
             try {
                 // Generate product URL
                 $productUrl = "https://www.amazon.com/dp/{$product->asin}";
-                
+
                 // Backup original data
                 $originalReviews = $product->reviews;
-                
+
                 // Perform fresh scraping
                 $freshProduct = $this->scrapingService->fetchReviewsAndSave(
-                    $product->asin, 
-                    $product->country ?? 'com', 
+                    $product->asin,
+                    $product->country ?? 'com',
                     $productUrl
                 );
-                
+
                 if ($freshProduct) {
                     $newReviews = $freshProduct->getReviewsArray();
                     $newCount = count($newReviews);
                     $gain = $newCount - $originalCount;
-                    
+
                     $results[] = [
-                        'asin' => $product->asin,
+                        'asin'     => $product->asin,
                         'original' => $originalCount,
-                        'new' => $newCount,
-                        'gain' => $gain,
-                        'status' => '✅ SUCCESS'
+                        'new'      => $newCount,
+                        'gain'     => $gain,
+                        'status'   => '✅ SUCCESS',
                     ];
-                    
+
                     // Re-run analysis if requested
                     if ($withAnalysis && $newCount > 0) {
                         try {
@@ -176,48 +179,47 @@ class ForceRescrapeDeduplicated extends Command
                             }
                         } catch (\Exception $e) {
                             // Analysis failed but scraping succeeded
-                            LoggingService::log("Re-analysis failed after re-scraping", [
-                                'asin' => $product->asin,
-                                'error' => $e->getMessage()
+                            LoggingService::log('Re-analysis failed after re-scraping', [
+                                'asin'  => $product->asin,
+                                'error' => $e->getMessage(),
                             ]);
                         }
                     }
-                    
+
                     // Log the successful re-scraping
-                    LoggingService::log("Forced re-scraping completed", [
-                        'asin' => $product->asin,
+                    LoggingService::log('Forced re-scraping completed', [
+                        'asin'             => $product->asin,
                         'original_reviews' => $originalCount,
-                        'new_reviews' => $newCount,
-                        'reviews_gained' => $gain,
+                        'new_reviews'      => $newCount,
+                        'reviews_gained'   => $gain,
                         'analysis_updated' => $withAnalysis,
-                        'reason' => 'Force re-scrape after deduplication'
+                        'reason'           => 'Force re-scrape after deduplication',
                     ]);
-                    
+
                     $successful++;
                 } else {
-                    throw new \Exception("Scraping returned null result");
+                    throw new \Exception('Scraping returned null result');
                 }
-                
             } catch (\Exception $e) {
                 $results[] = [
-                    'asin' => $product->asin,
+                    'asin'     => $product->asin,
                     'original' => $originalCount,
-                    'new' => $originalCount,
-                    'gain' => 0,
-                    'status' => '❌ FAILED: ' . substr($e->getMessage(), 0, 30)
+                    'new'      => $originalCount,
+                    'gain'     => 0,
+                    'status'   => '❌ FAILED: '.substr($e->getMessage(), 0, 30),
                 ];
-                
+
                 $failed++;
-                
-                LoggingService::log("Forced re-scraping failed", [
-                    'asin' => $product->asin,
-                    'error' => $e->getMessage(),
-                    'original_reviews' => $originalCount
+
+                LoggingService::log('Forced re-scraping failed', [
+                    'asin'             => $product->asin,
+                    'error'            => $e->getMessage(),
+                    'original_reviews' => $originalCount,
                 ]);
             }
-            
+
             $progressBar->advance();
-            
+
             // Rate limiting - pause between requests
             if (!$specificAsin) {
                 sleep(2);
@@ -230,30 +232,32 @@ class ForceRescrapeDeduplicated extends Command
         // Display results
         $this->info('📊 RE-SCRAPING RESULTS:');
         $this->info('======================');
-        
+
         $resultTableData = [];
         foreach ($results as $result) {
             $resultTableData[] = [
                 $result['asin'],
                 $result['original'],
                 $result['new'],
-                $result['gain'] > 0 ? '+' . $result['gain'] : $result['gain'],
-                $result['status']
+                $result['gain'] > 0 ? '+'.$result['gain'] : $result['gain'],
+                $result['status'],
             ];
         }
-        
+
         $this->table(['ASIN', 'Original', 'New', 'Gain', 'Status'], $resultTableData);
         $this->newLine();
 
         // Summary
         $totalGain = array_sum(array_column($results, 'gain'));
-        $this->info("🎯 SUMMARY:");
-        $this->info("==========");
+        $this->info('🎯 SUMMARY:');
+        $this->info('==========');
         $this->info("✅ Successful: {$successful}");
-        if ($failed > 0) $this->warn("❌ Failed: {$failed}");
+        if ($failed > 0) {
+            $this->warn("❌ Failed: {$failed}");
+        }
         $this->info("📈 Total reviews gained: {$totalGain}");
         if ($withAnalysis) {
-            $this->info("🤖 Analysis updated for successful re-scrapes");
+            $this->info('🤖 Analysis updated for successful re-scrapes');
         }
 
         return Command::SUCCESS;

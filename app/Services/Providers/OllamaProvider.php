@@ -11,14 +11,14 @@ class OllamaProvider implements LLMProviderInterface
     private string $baseUrl;
     private string $model;
     private int $timeout;
-    
+
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
         $this->model = config('services.ollama.model') ?: 'llama3.2:3b';
         $this->timeout = config('services.ollama.timeout', 120);
     }
-    
+
     public function analyzeReviews(array $reviews): array
     {
         if (empty($reviews)) {
@@ -31,39 +31,39 @@ class OllamaProvider implements LLMProviderInterface
         LoggingService::log('Sending '.count($reviews).' reviews to Ollama for analysis');
 
         $prompt = $this->buildOptimizedPrompt($reviews);
-        
+
         try {
             $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
-                'model' => $this->model,
-                'prompt' => $prompt,
-                'stream' => false,
+                'model'   => $this->model,
+                'prompt'  => $prompt,
+                'stream'  => false,
                 'options' => [
                     'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
-                    'num_ctx' => 2048, // Increased context for better understanding (was 512)
-                    'top_p' => 0.9, // Slightly more focused responses
-                    'num_predict' => 512 // Increased output for detailed analysis (was 128)
-                ]
+                    'num_ctx'     => 2048, // Increased context for better understanding (was 512)
+                    'top_p'       => 0.9, // Slightly more focused responses
+                    'num_predict' => 512, // Increased output for detailed analysis (was 128)
+                ],
             ]);
 
             if ($response->successful()) {
                 $result = $response->json();
+
                 return $this->parseAnalysisResponse($result['response']);
             }
 
-            throw new \Exception('Ollama API request failed: ' . $response->body());
-
+            throw new \Exception('Ollama API request failed: '.$response->body());
         } catch (\Exception $e) {
-            LoggingService::log('Ollama analysis failed: ' . $e->getMessage());
+            LoggingService::log('Ollama analysis failed: '.$e->getMessage());
+
             throw $e;
         }
     }
-
-
 
     public function isAvailable(): bool
     {
         try {
             $response = Http::timeout(5)->get("{$this->baseUrl}/api/tags");
+
             return $response->successful();
         } catch (\Exception $e) {
             return false;
@@ -85,7 +85,7 @@ class OllamaProvider implements LLMProviderInterface
         // Ollama models are efficient, similar to or better than DeepSeek
         $baseTokens = $reviewCount * 10; // Slightly more conservative than DeepSeek
         $buffer = min(1000, $reviewCount * 5);
-        
+
         return $baseTokens + $buffer;
     }
 
@@ -99,7 +99,7 @@ class OllamaProvider implements LLMProviderInterface
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'Verified' : 'Unverified';
             $rating = $review['rating'] ?? 'N/A';
-            
+
             $text = '';
             if (isset($review['review_text'])) {
                 $text = substr($review['review_text'], 0, 300); // Increased from 100 to 300 for better context
@@ -111,13 +111,14 @@ class OllamaProvider implements LLMProviderInterface
         }
 
         $prompt .= "Respond with JSON array: [{\"id\":\"review_id\",\"score\":number,\"label\":\"genuine|uncertain|fake\"}]\n";
+
         return $prompt;
     }
 
     private function parseAnalysisResponse(string $response): array
     {
-        LoggingService::log('Parsing Ollama response: ' . substr($response, 0, 200) . '...');
-        
+        LoggingService::log('Parsing Ollama response: '.substr($response, 0, 200).'...');
+
         // Try multiple JSON extraction patterns
         $patterns = [
             '/\[.*?\]/s',           // Standard array
@@ -125,21 +126,23 @@ class OllamaProvider implements LLMProviderInterface
             '/(?:```)?json\s*(\[.*?\])(?:```)?/s',  // Various json tags
             '/(\[[\s\S]*?\])/s',    // Any array-like structure
         ];
-        
+
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $response, $matches)) {
                 $jsonString = $matches[1] ?? $matches[0];
                 $decoded = json_decode($jsonString, true);
-                
+
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    LoggingService::log('Successfully parsed JSON with pattern: ' . $pattern);
+                    LoggingService::log('Successfully parsed JSON with pattern: '.$pattern);
+
                     return $this->formatAnalysisResults($decoded);
                 }
             }
         }
-        
+
         // If no JSON found, try heuristic parsing for structured text
         LoggingService::log('No JSON found, attempting heuristic parsing');
+
         return $this->parseStructuredTextResponse($response);
     }
 
@@ -148,24 +151,25 @@ class OllamaProvider implements LLMProviderInterface
         $results = [];
         foreach ($decoded as $item) {
             if (isset($item['id']) && isset($item['score'])) {
-                $score = max(0, min(100, (int)$item['score'])); // Clamp to 0-100
-                
+                $score = max(0, min(100, (int) $item['score'])); // Clamp to 0-100
+
                 // Support new research-based format with additional metadata
                 $label = $item['label'] ?? $this->generateLabel($score);
-                $confidence = isset($item['confidence']) ? (float)$item['confidence'] : $this->calculateConfidenceFromScore($score);
-                
+                $confidence = isset($item['confidence']) ? (float) $item['confidence'] : $this->calculateConfidenceFromScore($score);
+
                 $results[$item['id']] = [
-                    'score' => $score,
-                    'label' => $label,
-                    'confidence' => $confidence,
-                    'explanation' => $this->generateExplanationFromLabel($label, $score)
+                    'score'       => $score,
+                    'label'       => $label,
+                    'confidence'  => $confidence,
+                    'explanation' => $this->generateExplanationFromLabel($label, $score),
                 ];
             }
         }
+
         return [
-            'detailed_scores' => $results,
+            'detailed_scores'   => $results,
             'analysis_provider' => $this->getProviderName(),
-            'total_cost' => 0.0
+            'total_cost'        => 0.0,
         ];
     }
 
@@ -173,31 +177,32 @@ class OllamaProvider implements LLMProviderInterface
     {
         // Fallback: Extract review IDs and generate heuristic scores
         LoggingService::log('Using heuristic parsing fallback');
-        
+
         $results = [];
         $lines = explode("\n", $response);
-        
+
         foreach ($lines as $line) {
             // Look for patterns like "ID: demo1" or "Review demo1:"
             if (preg_match('/(?:ID|Review)\s*:?\s*(demo\d+|[\w\d]+)/i', $line, $matches)) {
                 $id = $matches[1];
-                
+
                 // Heuristic scoring based on keywords in the line
                 $score = $this->heuristicScore($line);
-                
+
                 $results[$id] = $score;
             }
         }
-        
+
         if (empty($results)) {
             LoggingService::log('Heuristic parsing failed, using default scores');
+
             throw new \Exception('Failed to parse Ollama response');
         }
-        
+
         return [
-            'detailed_scores' => $results,
+            'detailed_scores'   => $results,
             'analysis_provider' => $this->getProviderName(),
-            'total_cost' => 0.0
+            'total_cost'        => 0.0,
         ];
     }
 
@@ -205,7 +210,7 @@ class OllamaProvider implements LLMProviderInterface
     {
         $text = strtolower($text);
         $score = 50; // Base score
-        
+
         // Increase score for fake indicators
         $fakeIndicators = ['fake', 'suspicious', 'generic', 'promotional', 'template'];
         foreach ($fakeIndicators as $indicator) {
@@ -213,15 +218,15 @@ class OllamaProvider implements LLMProviderInterface
                 $score += 15;
             }
         }
-        
-        // Decrease score for genuine indicators  
+
+        // Decrease score for genuine indicators
         $genuineIndicators = ['genuine', 'authentic', 'natural', 'specific', 'detailed'];
         foreach ($genuineIndicators as $indicator) {
             if (strpos($text, $indicator) !== false) {
                 $score -= 15;
             }
         }
-        
+
         return max(0, min(100, $score));
     }
 
@@ -229,45 +234,45 @@ class OllamaProvider implements LLMProviderInterface
     {
         $flags = [];
         $text = strtolower($text);
-        
+
         $flagMap = [
-            'generic' => 'Generic language',
+            'generic'     => 'Generic language',
             'promotional' => 'Promotional tone',
-            'template' => 'Template-like structure',
-            'repetitive' => 'Repetitive phrases',
-            'suspicious' => 'Suspicious patterns'
+            'template'    => 'Template-like structure',
+            'repetitive'  => 'Repetitive phrases',
+            'suspicious'  => 'Suspicious patterns',
         ];
-        
+
         foreach ($flagMap as $keyword => $flag) {
             if (strpos($text, $keyword) !== false) {
                 $flags[] = $flag;
             }
         }
-        
+
         return $flags;
     }
 
     private function generateExplanation(float $score): string
     {
         if ($score >= 70) {
-            return "High fake risk: Multiple suspicious indicators detected";
+            return 'High fake risk: Multiple suspicious indicators detected';
         } elseif ($score >= 40) {
-            return "Medium fake risk: Some concerning patterns found";
+            return 'Medium fake risk: Some concerning patterns found';
         } elseif ($score >= 20) {
-            return "Low fake risk: Minor inconsistencies noted";
+            return 'Low fake risk: Minor inconsistencies noted';
         } else {
-            return "Appears genuine: Natural language and specific details";
+            return 'Appears genuine: Natural language and specific details';
         }
     }
 
     private function calculateConfidence(float $score): string
     {
         if ($score >= 80 || $score <= 20) {
-            return "high";
+            return 'high';
         } elseif ($score >= 60 || $score <= 40) {
-            return "medium";
+            return 'medium';
         } else {
-            return "low";
+            return 'low';
         }
     }
 
@@ -313,7 +318,7 @@ class OllamaProvider implements LLMProviderInterface
     private function extractRedFlagsFromScore(float $score): array
     {
         $flags = [];
-        
+
         if ($score >= 70) {
             $flags[] = 'High fake probability';
         }
@@ -323,9 +328,7 @@ class OllamaProvider implements LLMProviderInterface
         if ($score >= 90) {
             $flags[] = 'Extremely high fake risk';
         }
-        
+
         return $flags;
     }
-
-
 }

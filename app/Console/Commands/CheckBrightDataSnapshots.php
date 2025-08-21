@@ -2,8 +2,8 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use GuzzleHttp\Client;
+use Illuminate\Console\Command;
 
 class CheckBrightDataSnapshots extends Command
 {
@@ -14,28 +14,29 @@ class CheckBrightDataSnapshots extends Command
     {
         $status = $this->option('status');
         $limit = (int) $this->option('limit');
-        
-        $this->info("🔍 Checking BrightData Snapshots");
-        $this->info("Status Filter: " . ($status === 'all' ? 'All' : $status));
+
+        $this->info('🔍 Checking BrightData Snapshots');
+        $this->info('Status Filter: '.($status === 'all' ? 'All' : $status));
         $this->info("Limit: {$limit}");
-        $this->line("=" . str_repeat("=", 50));
+        $this->line('='.str_repeat('=', 50));
 
         $apiKey = env('BRIGHTDATA_SCRAPER_API');
         $datasetId = env('BRIGHTDATA_DATASET_ID', 'gd_le8e811kzy4ggddlq');
 
         if (empty($apiKey)) {
-            $this->error("❌ BRIGHTDATA_SCRAPER_API not configured");
+            $this->error('❌ BRIGHTDATA_SCRAPER_API not configured');
+
             return 1;
         }
 
         try {
             $client = new Client(['timeout' => 30]);
-            
+
             // Build query parameters
             $queryParams = [
-                'dataset_id' => $datasetId
+                'dataset_id' => $datasetId,
             ];
-            
+
             if ($status !== 'all') {
                 $queryParams['status'] = $status;
             }
@@ -44,7 +45,7 @@ class CheckBrightDataSnapshots extends Command
                 'headers' => [
                     'Authorization' => "Bearer {$apiKey}",
                 ],
-                'query' => $queryParams
+                'query' => $queryParams,
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -52,24 +53,27 @@ class CheckBrightDataSnapshots extends Command
 
             if ($statusCode !== 200) {
                 $this->error("❌ API request failed with status {$statusCode}");
-                $this->error("Response: " . substr($body, 0, 500));
+                $this->error('Response: '.substr($body, 0, 500));
+
                 return 1;
             }
 
             $data = json_decode($body, true);
 
             if (!is_array($data)) {
-                $this->error("❌ Invalid response format");
+                $this->error('❌ Invalid response format');
+
                 return 1;
             }
 
             if (empty($data)) {
-                $this->info("✅ No snapshots found");
+                $this->info('✅ No snapshots found');
+
                 return 0;
             }
 
-            $this->info("📊 Found " . count($data) . " snapshots");
-            $this->line("");
+            $this->info('📊 Found '.count($data).' snapshots');
+            $this->line('');
 
             $displayed = 0;
             foreach ($data as $snapshot) {
@@ -86,12 +90,13 @@ class CheckBrightDataSnapshots extends Command
                 $this->info("... and {$remaining} more snapshots");
             }
 
-            $this->line("");
-            $this->info("🏁 Snapshots check completed");
-            return 0;
+            $this->line('');
+            $this->info('🏁 Snapshots check completed');
 
+            return 0;
         } catch (\Exception $e) {
-            $this->error("❌ Failed to check snapshots: " . $e->getMessage());
+            $this->error('❌ Failed to check snapshots: '.$e->getMessage());
+
             return 1;
         }
     }
@@ -105,11 +110,11 @@ class CheckBrightDataSnapshots extends Command
         $downloadUrl = $snapshot['download_url'] ?? null;
 
         // Format status with color
-        $statusDisplay = match($status) {
-            'ready' => "✅ {$status}",
+        $statusDisplay = match ($status) {
+            'ready'   => "✅ {$status}",
             'running' => "🔄 {$status}",
-            'failed' => "❌ {$status}",
-            default => "❓ {$status}"
+            'failed'  => "❌ {$status}",
+            default   => "❓ {$status}"
         };
 
         $this->info("📋 Snapshot #{$number}:");
@@ -117,9 +122,9 @@ class CheckBrightDataSnapshots extends Command
         $this->info("   Status: {$statusDisplay}");
         $this->info("   Created: {$created}");
         $this->info("   Total Rows: {$totalRows}");
-        
+
         if ($downloadUrl) {
-            $this->info("   Download: Available");
+            $this->info('   Download: Available');
         }
 
         // If running, try to get more details
@@ -127,7 +132,7 @@ class CheckBrightDataSnapshots extends Command
             $this->checkSnapshotProgress($id);
         }
 
-        $this->line("");
+        $this->line('');
     }
 
     private function checkSnapshotProgress(string $snapshotId): void
@@ -139,7 +144,7 @@ class CheckBrightDataSnapshots extends Command
             $response = $client->get("https://api.brightdata.com/datasets/v3/snapshot/{$snapshotId}", [
                 'headers' => [
                     'Authorization' => "Bearer {$apiKey}",
-                ]
+                ],
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -154,9 +159,8 @@ class CheckBrightDataSnapshots extends Command
                 $status = $data['status'] ?? 'unknown';
                 $this->info("   Progress: Status changed to {$status}");
             }
-
         } catch (\Exception $e) {
-            $this->info("   Progress: Unable to check (" . $e->getMessage() . ")");
+            $this->info('   Progress: Unable to check ('.$e->getMessage().')');
         }
     }
 }

@@ -5,7 +5,6 @@ namespace Tests\Unit;
 use App\Jobs\TriggerBrightDataScraping;
 use App\Models\AsinData;
 use App\Services\Amazon\BrightDataScraperService;
-use App\Services\LoggingService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
@@ -54,18 +53,18 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Mock successful job trigger response
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test123456789'
+            'snapshot_id' => 's_test123456789',
         ])));
 
         // Mock job status polling (running -> ready)
         $this->mockHandler->append(new Response(202, [], json_encode([
-            'status' => 'running',
-            'message' => 'Snapshot is not ready yet, try again in 30s'
+            'status'  => 'running',
+            'message' => 'Snapshot is not ready yet, try again in 30s',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'total_rows' => 25
+            'status'     => 'ready',
+            'total_rows' => 25,
         ])));
 
         // Mock data fetch response
@@ -87,7 +86,7 @@ class BrightDataScraperServiceTest extends TestCase
     public function it_handles_missing_api_key()
     {
         putenv('BRIGHTDATA_SCRAPER_API=');
-        
+
         $service = $this->app->make(BrightDataScraperService::class);
         $result = $service->fetchReviews('B0TEST12345');
 
@@ -101,7 +100,7 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Mock failed job trigger
         $this->mockHandler->append(new Response(400, [], json_encode([
-            'error' => 'Invalid dataset ID'
+            'error' => 'Invalid dataset ID',
         ])));
 
         $result = $this->service->fetchReviews('B0TEST12345');
@@ -116,14 +115,14 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Mock successful job trigger
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_timeout'
+            'snapshot_id' => 's_test_timeout',
         ])));
 
         // Mock job never completing (always running)
         for ($i = 0; $i < 25; $i++) {
             $this->mockHandler->append(new Response(202, [], json_encode([
-                'status' => 'running',
-                'message' => 'Still processing...'
+                'status'  => 'running',
+                'message' => 'Still processing...',
             ])));
         }
 
@@ -138,13 +137,13 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Mock successful job trigger
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_failed'
+            'snapshot_id' => 's_test_failed',
         ])));
 
         // Mock job failure
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'failed',
-            'total_rows' => 0
+            'status'     => 'failed',
+            'total_rows' => 0,
         ])));
 
         $result = $this->service->fetchReviews('B0TEST12345');
@@ -158,7 +157,7 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Enable async mode for this test
         putenv('ANALYSIS_ASYNC_ENABLED=true');
-        
+
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
         // Should create AsinData record in processing state
@@ -177,7 +176,7 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Enable async mode for this test
         putenv('ANALYSIS_ASYNC_ENABLED=true');
-        
+
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
         // Should create AsinData record in processing state (async mode)
@@ -196,12 +195,12 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Mock successful scraping flow
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_product'
+            'snapshot_id' => 's_test_product',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'total_rows' => 15
+            'status'     => 'ready',
+            'total_rows' => 15,
         ])));
 
         $mockReviewData = $this->createMockBrightDataResponse();
@@ -223,39 +222,39 @@ class BrightDataScraperServiceTest extends TestCase
     {
         // Mock successful scraping flow with rich review data
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_transform'
+            'snapshot_id' => 's_test_transform',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'total_rows' => 1
+            'status'     => 'ready',
+            'total_rows' => 1,
         ])));
 
         $mockReviewData = [[
-            'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-            'product_name' => 'Test Product',
-            'product_rating' => 4.5,
+            'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+            'product_name'         => 'Test Product',
+            'product_rating'       => 4.5,
             'product_rating_count' => 1000,
-            'rating' => 5,
-            'author_name' => 'Test Author',
-            'asin' => 'B0TEST12345',
-            'review_header' => 'Great product!',
-            'review_id' => 'R123TEST',
-            'review_text' => 'This is a fantastic product that exceeded my expectations.',
-            'author_id' => 'ATEST123',
-            'author_link' => 'https://amazon.com/profile/ATEST123',
-            'badge' => 'Verified Purchase',
-            'brand' => 'TestBrand',
-            'review_posted_date' => 'July 15, 2025',
-            'review_country' => 'United States',
-            'review_images' => ['https://example.com/image1.jpg'],
-            'helpful_count' => 15,
-            'is_amazon_vine' => false,
-            'is_verified' => true,
-            'variant_asin' => 'B0TEST12345',
-            'variant_name' => 'Color: Black',
-            'videos' => ['https://example.com/video1.mp4'],
-            'timestamp' => '2025-08-12T21:34:21.811Z'
+            'rating'               => 5,
+            'author_name'          => 'Test Author',
+            'asin'                 => 'B0TEST12345',
+            'review_header'        => 'Great product!',
+            'review_id'            => 'R123TEST',
+            'review_text'          => 'This is a fantastic product that exceeded my expectations.',
+            'author_id'            => 'ATEST123',
+            'author_link'          => 'https://amazon.com/profile/ATEST123',
+            'badge'                => 'Verified Purchase',
+            'brand'                => 'TestBrand',
+            'review_posted_date'   => 'July 15, 2025',
+            'review_country'       => 'United States',
+            'review_images'        => ['https://example.com/image1.jpg'],
+            'helpful_count'        => 15,
+            'is_amazon_vine'       => false,
+            'is_verified'          => true,
+            'variant_asin'         => 'B0TEST12345',
+            'variant_name'         => 'Color: Black',
+            'videos'               => ['https://example.com/video1.mp4'],
+            'timestamp'            => '2025-08-12T21:34:21.811Z',
         ]];
 
         $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
@@ -294,27 +293,27 @@ class BrightDataScraperServiceTest extends TestCase
             ['de', 'amazon.de'],
             ['fr', 'amazon.fr'],
             ['jp', 'amazon.co.jp'],
-            ['au', 'amazon.com.au']
+            ['au', 'amazon.com.au'],
         ];
 
         foreach ($testCases as [$country, $expectedDomain]) {
             // Mock successful responses for each country
             $this->mockHandler->append(new Response(200, [], json_encode([
-                'snapshot_id' => "s_test_{$country}"
+                'snapshot_id' => "s_test_{$country}",
             ])));
 
             $this->mockHandler->append(new Response(200, [], json_encode([
-                'status' => 'ready',
-                'total_rows' => 1
+                'status'     => 'ready',
+                'total_rows' => 1,
             ])));
 
             $this->mockHandler->append(new Response(200, [], json_encode([
                 [
-                    'url' => "https://www.{$expectedDomain}/dp/B0TEST/",
-                    'review_id' => 'R123',
-                    'review_text' => 'Test review',
-                    'product_name' => 'Test'
-                ]
+                    'url'          => "https://www.{$expectedDomain}/dp/B0TEST/",
+                    'review_id'    => 'R123',
+                    'review_text'  => 'Test review',
+                    'product_name' => 'Test',
+                ],
             ])));
 
             $result = $this->service->fetchReviews('B0TEST', $country);
@@ -329,14 +328,14 @@ class BrightDataScraperServiceTest extends TestCase
         $progressData = [
             [
                 'snapshot_id' => 's_progress1',
-                'status' => 'running',
-                'created_at' => '2025-08-12T21:00:00Z'
+                'status'      => 'running',
+                'created_at'  => '2025-08-12T21:00:00Z',
             ],
             [
-                'snapshot_id' => 's_progress2', 
-                'status' => 'ready',
-                'total_rows' => 25
-            ]
+                'snapshot_id' => 's_progress2',
+                'status'      => 'ready',
+                'total_rows'  => 25,
+            ],
         ];
 
         $this->mockHandler->append(new Response(200, [], json_encode($progressData)));
@@ -369,62 +368,62 @@ class BrightDataScraperServiceTest extends TestCase
     {
         return [
             [
-                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-                'product_name' => 'Test Product Name',
-                'product_rating' => 4.6,
+                'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name'         => 'Test Product Name',
+                'product_rating'       => 4.6,
                 'product_rating_count' => 166807,
-                'rating' => 5,
-                'author_name' => 'Test Author 1',
-                'asin' => 'B0TEST12345',
-                'review_header' => 'Excellent product!',
-                'review_id' => 'R1TEST123',
-                'review_text' => 'This is an amazing product that works exactly as described.',
-                'author_id' => 'ATEST123',
-                'badge' => 'Verified Purchase',
-                'review_posted_date' => 'July 15, 2025',
-                'review_country' => 'United States',
-                'helpful_count' => 25,
-                'is_amazon_vine' => false,
-                'is_verified' => true
+                'rating'               => 5,
+                'author_name'          => 'Test Author 1',
+                'asin'                 => 'B0TEST12345',
+                'review_header'        => 'Excellent product!',
+                'review_id'            => 'R1TEST123',
+                'review_text'          => 'This is an amazing product that works exactly as described.',
+                'author_id'            => 'ATEST123',
+                'badge'                => 'Verified Purchase',
+                'review_posted_date'   => 'July 15, 2025',
+                'review_country'       => 'United States',
+                'helpful_count'        => 25,
+                'is_amazon_vine'       => false,
+                'is_verified'          => true,
             ],
             [
-                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-                'product_name' => 'Test Product Name',
-                'product_rating' => 4.6,
+                'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name'         => 'Test Product Name',
+                'product_rating'       => 4.6,
                 'product_rating_count' => 166807,
-                'rating' => 4,
-                'author_name' => 'Test Author 2',
-                'asin' => 'B0TEST12345',
-                'review_header' => 'Good value',
-                'review_id' => 'R2TEST456',
-                'review_text' => 'Solid product for the price point.',
-                'author_id' => 'ATEST456',
-                'badge' => 'Verified Purchase',
-                'review_posted_date' => 'July 10, 2025',
-                'review_country' => 'United States',
-                'helpful_count' => 12,
-                'is_amazon_vine' => false,
-                'is_verified' => true
+                'rating'               => 4,
+                'author_name'          => 'Test Author 2',
+                'asin'                 => 'B0TEST12345',
+                'review_header'        => 'Good value',
+                'review_id'            => 'R2TEST456',
+                'review_text'          => 'Solid product for the price point.',
+                'author_id'            => 'ATEST456',
+                'badge'                => 'Verified Purchase',
+                'review_posted_date'   => 'July 10, 2025',
+                'review_country'       => 'United States',
+                'helpful_count'        => 12,
+                'is_amazon_vine'       => false,
+                'is_verified'          => true,
             ],
             [
-                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-                'product_name' => 'Test Product Name',
-                'product_rating' => 4.6,
+                'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name'         => 'Test Product Name',
+                'product_rating'       => 4.6,
                 'product_rating_count' => 166807,
-                'rating' => 3,
-                'author_name' => 'Test Author 3',
-                'asin' => 'B0TEST12345',
-                'review_header' => 'Average product',
-                'review_id' => 'R3TEST789',
-                'review_text' => 'It works but could be better.',
-                'author_id' => 'ATEST789',
-                'badge' => 'Verified Purchase',
-                'review_posted_date' => 'July 5, 2025',
-                'review_country' => 'United States',
-                'helpful_count' => 5,
-                'is_amazon_vine' => true,
-                'is_verified' => true
-            ]
+                'rating'               => 3,
+                'author_name'          => 'Test Author 3',
+                'asin'                 => 'B0TEST12345',
+                'review_header'        => 'Average product',
+                'review_id'            => 'R3TEST789',
+                'review_text'          => 'It works but could be better.',
+                'author_id'            => 'ATEST789',
+                'badge'                => 'Verified Purchase',
+                'review_posted_date'   => 'July 5, 2025',
+                'review_country'       => 'United States',
+                'helpful_count'        => 5,
+                'is_amazon_vine'       => true,
+                'is_verified'          => true,
+            ],
         ];
     }
 
@@ -432,25 +431,25 @@ class BrightDataScraperServiceTest extends TestCase
     {
         return [
             [
-                'url' => 'https://www.amazon.com/dp/B0TEST12345/',
-                'product_name' => 'Test Product With Image',
-                'product_rating' => 4.7,
+                'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
+                'product_name'         => 'Test Product With Image',
+                'product_rating'       => 4.7,
                 'product_rating_count' => 250000,
-                'product_image_url' => 'https://m.media-amazon.com/images/I/test-image.jpg',
-                'rating' => 5,
-                'author_name' => 'Test Author 1',
-                'asin' => 'B0TEST12345',
-                'review_header' => 'Excellent product with image!',
-                'review_id' => 'R1TEST123',
-                'review_text' => 'This is an amazing product that works exactly as described.',
-                'author_id' => 'ATEST123',
-                'badge' => 'Verified Purchase',
-                'review_posted_date' => 'July 15, 2025',
-                'review_country' => 'United States',
-                'helpful_count' => 25,
-                'is_amazon_vine' => false,
-                'is_verified' => true
-            ]
+                'product_image_url'    => 'https://m.media-amazon.com/images/I/test-image.jpg',
+                'rating'               => 5,
+                'author_name'          => 'Test Author 1',
+                'asin'                 => 'B0TEST12345',
+                'review_header'        => 'Excellent product with image!',
+                'review_id'            => 'R1TEST123',
+                'review_text'          => 'This is an amazing product that works exactly as described.',
+                'author_id'            => 'ATEST123',
+                'badge'                => 'Verified Purchase',
+                'review_posted_date'   => 'July 15, 2025',
+                'review_country'       => 'United States',
+                'helpful_count'        => 25,
+                'is_amazon_vine'       => false,
+                'is_verified'          => true,
+            ],
         ];
     }
 }

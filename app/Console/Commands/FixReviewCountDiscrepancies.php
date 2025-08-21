@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
 use App\Models\AsinData;
 use App\Services\LoggingService;
+use Illuminate\Console\Command;
 
 class FixReviewCountDiscrepancies extends Command
 {
@@ -12,7 +12,7 @@ class FixReviewCountDiscrepancies extends Command
                             {--dry-run : Show what would be fixed without making changes}
                             {--limit=100 : Limit number of products to process}
                             {--asin= : Fix specific ASIN only}';
-    
+
     protected $description = 'Fix products where reviews analyzed > total reviews on Amazon by adjusting calculated metrics';
 
     public function handle()
@@ -20,7 +20,7 @@ class FixReviewCountDiscrepancies extends Command
         $isDryRun = $this->option('dry-run');
         $limit = (int) $this->option('limit');
         $specificAsin = $this->option('asin');
-        
+
         $this->info('🔧 FIXING REVIEW COUNT DISCREPANCIES');
         $this->info('===================================');
         $this->newLine();
@@ -58,20 +58,21 @@ class FixReviewCountDiscrepancies extends Command
             // Check if we have a discrepancy (analyzed > total on Amazon)
             if ($actualReviewCount > $reportedTotal) {
                 $problematicProducts[] = [
-                    'product' => $product,
-                    'analyzed' => $actualReviewCount,
+                    'product'      => $product,
+                    'analyzed'     => $actualReviewCount,
                     'total_amazon' => $reportedTotal,
-                    'difference' => $actualReviewCount - $reportedTotal
+                    'difference'   => $actualReviewCount - $reportedTotal,
                 ];
             }
         }
 
         if (empty($problematicProducts)) {
             $this->info('✅ No review count discrepancies found!');
+
             return Command::SUCCESS;
         }
 
-        $this->warn("🚨 Found " . count($problematicProducts) . " products with discrepancies:");
+        $this->warn('🚨 Found '.count($problematicProducts).' products with discrepancies:');
         $this->newLine();
 
         // Display table of problematic products
@@ -81,8 +82,8 @@ class FixReviewCountDiscrepancies extends Command
                 $item['product']->asin,
                 $item['total_amazon'],
                 $item['analyzed'],
-                '+' . $item['difference'],
-                $item['product']->fake_percentage . '%'
+                '+'.$item['difference'],
+                $item['product']->fake_percentage.'%',
             ];
         }
 
@@ -91,6 +92,7 @@ class FixReviewCountDiscrepancies extends Command
 
         if ($isDryRun) {
             $this->info('💡 Run without --dry-run to apply fixes');
+
             return Command::SUCCESS;
         }
 
@@ -120,12 +122,12 @@ class FixReviewCountDiscrepancies extends Command
 
             // Update the product
             $product->reviews = json_encode($uniqueReviews);
-            
+
             if ($newMetrics) {
                 $product->fake_percentage = $newMetrics['fake_percentage'];
                 $product->grade = $newMetrics['grade'];
                 $product->adjusted_rating = $newMetrics['adjusted_rating'];
-                
+
                 // Update detailed analysis if it exists
                 if ($product->detailed_analysis) {
                     $detailedAnalysis = $product->detailed_analysis;
@@ -139,15 +141,15 @@ class FixReviewCountDiscrepancies extends Command
             $product->save();
 
             // Log the fix
-            LoggingService::log("Review count discrepancy fixed", [
-                'asin' => $product->asin,
+            LoggingService::log('Review count discrepancy fixed', [
+                'asin'                    => $product->asin,
                 'original_analyzed_count' => $item['analyzed'],
-                'amazon_total' => $reportedTotal,
-                'final_count' => $uniqueCount,
-                'duplicates_removed' => $item['analyzed'] - $uniqueCount,
-                'old_fake_percentage' => $item['product']->fake_percentage,
-                'new_fake_percentage' => $newMetrics['fake_percentage'] ?? null,
-                'github_issue' => 'Review count normalization'
+                'amazon_total'            => $reportedTotal,
+                'final_count'             => $uniqueCount,
+                'duplicates_removed'      => $item['analyzed'] - $uniqueCount,
+                'old_fake_percentage'     => $item['product']->fake_percentage,
+                'new_fake_percentage'     => $newMetrics['fake_percentage'] ?? null,
+                'github_issue'            => 'Review count normalization',
             ]);
 
             $fixedCount++;
@@ -158,7 +160,7 @@ class FixReviewCountDiscrepancies extends Command
         $this->newLine(2);
 
         $this->info("✅ Fixed {$fixedCount} products with review count discrepancies");
-        $this->info("📊 All products now have: Reviews Analyzed ≤ Total Reviews on Amazon");
+        $this->info('📊 All products now have: Reviews Analyzed ≤ Total Reviews on Amazon');
 
         return Command::SUCCESS;
     }
@@ -170,14 +172,14 @@ class FixReviewCountDiscrepancies extends Command
 
         foreach ($reviews as $review) {
             $text = $review['review_text'] ?? '';
-            
+
             if (empty($text)) {
                 $uniqueReviews[] = $review;
                 continue;
             }
 
             $normalizedText = $this->normalizeReviewText($text);
-            
+
             if (!isset($seenTexts[$normalizedText])) {
                 $uniqueReviews[] = $review;
                 $seenTexts[$normalizedText] = true;
@@ -193,7 +195,7 @@ class FixReviewCountDiscrepancies extends Command
         $normalized = preg_replace('/\s+/', ' ', $normalized);
         $normalized = strtolower($normalized);
         $normalized = preg_replace('/[^\w\s]/', '', $normalized);
-        
+
         return $normalized;
     }
 
@@ -243,10 +245,10 @@ class FixReviewCountDiscrepancies extends Command
 
         return [
             'fake_percentage' => $fakePercentage,
-            'grade' => $grade,
+            'grade'           => $grade,
             'adjusted_rating' => $adjustedRating,
-            'fake_count' => $fakeCount,
-            'genuine_count' => $genuineCount
+            'fake_count'      => $fakeCount,
+            'genuine_count'   => $genuineCount,
         ];
     }
 }

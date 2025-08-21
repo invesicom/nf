@@ -2,12 +2,11 @@
 
 namespace Tests\Unit;
 
+use App\Enums\AlertType;
 use App\Notifications\Channels\PushoverChannel;
 use App\Notifications\SystemAlert;
-use App\Enums\AlertType;
-use Illuminate\Support\Facades\Http;
-use Tests\TestCase;
 use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
 
 class PushoverChannelTest extends TestCase
 {
@@ -17,11 +16,11 @@ class PushoverChannelTest extends TestCase
     {
         parent::setUp();
         $this->channel = new PushoverChannel();
-        
+
         // Set up test configuration
         config([
             'services.pushover.token' => 'test-token',
-            'services.pushover.user' => 'test-user',
+            'services.pushover.user'  => 'test-user',
         ]);
     }
 
@@ -53,7 +52,7 @@ class PushoverChannelTest extends TestCase
     {
         // Override configuration to simulate missing config
         config(['services.pushover.token' => null, 'services.pushover.user' => null]);
-        
+
         $notification = new SystemAlert(
             AlertType::AMAZON_SESSION_EXPIRED,
             'Test message',
@@ -61,14 +60,14 @@ class PushoverChannelTest extends TestCase
         );
 
         $notifiable = new \stdClass();
-        
+
         // Test that notification returns message with null credentials
         $message = $notification->toPushover($notifiable);
-        
+
         // When pushover config is missing, token and user should be null
         $this->assertNull($message['token']);
         $this->assertNull($message['user']);
-        
+
         // And the channel should return null when trying to send
         $result = $this->channel->send($notifiable, $notification);
         $this->assertNull($result);
@@ -141,4 +140,4 @@ class PushoverChannelTest extends TestCase
         $this->assertTrue($result->successful());
         $this->assertEquals('test-fake', $result->json()['request']);
     }
-} 
+}

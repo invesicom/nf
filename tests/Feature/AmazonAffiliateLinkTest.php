@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use Tests\TestCase;
 use App\Models\AsinData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class AmazonAffiliateLinkTest extends TestCase
 {
@@ -18,10 +18,10 @@ class AmazonAffiliateLinkTest extends TestCase
 
         // Create test ASIN data
         $asinData = AsinData::factory()->create([
-            'asin' => 'B08N5WRWNW',
-            'country' => 'us',
+            'asin'              => 'B08N5WRWNW',
+            'country'           => 'us',
             'have_product_data' => true,
-            'product_title' => 'Test Product',
+            'product_title'     => 'Test Product',
         ]);
 
         // Visit product page with country
@@ -39,10 +39,10 @@ class AmazonAffiliateLinkTest extends TestCase
 
         // Create test ASIN data
         $asinData = AsinData::factory()->create([
-            'asin' => 'B08N5WRWNW',
-            'country' => 'us',
+            'asin'              => 'B08N5WRWNW',
+            'country'           => 'us',
             'have_product_data' => true,
-            'product_title' => 'Test Product',
+            'product_title'     => 'Test Product',
         ]);
 
         // Visit product page with country

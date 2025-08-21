@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\AsinData;
-use App\Services\Providers\OllamaProvider;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -17,20 +16,20 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     {
         // Create test data with analysis results
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST001',
-            'country' => 'us',
+            'asin'            => 'B0TEST001',
+            'country'         => 'us',
             'fake_percentage' => 75.5,
-            'openai_result' => json_encode([
+            'openai_result'   => json_encode([
                 'detailed_scores' => [
                     'R001' => 85,
                     'R002' => 90,
                     'R003' => 25,
                     'R004' => 80,
-                    'R005' => 15
+                    'R005' => 15,
                 ],
                 'analysis_provider' => 'Ollama-qwen2.5:7b',
-                'total_cost' => 0.0
-            ])
+                'total_cost'        => 0.0,
+            ]),
         ]);
 
         $this->artisan('analyze:fake-detection', ['--limit' => 10])
@@ -44,27 +43,27 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     {
         // Create test data with new research-based score format
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST002',
-            'country' => 'us',
+            'asin'            => 'B0TEST002',
+            'country'         => 'us',
             'fake_percentage' => 45.0,
-            'openai_result' => json_encode([
+            'openai_result'   => json_encode([
                 'detailed_scores' => [
                     'R001' => [
-                        'score' => 35,
-                        'label' => 'genuine',
-                        'confidence' => 0.8,
-                        'explanation' => 'Appears authentic with specific details'
+                        'score'       => 35,
+                        'label'       => 'genuine',
+                        'confidence'  => 0.8,
+                        'explanation' => 'Appears authentic with specific details',
                     ],
                     'R002' => [
-                        'score' => 75,
-                        'label' => 'fake',
-                        'confidence' => 0.9,
-                        'explanation' => 'High fake risk detected'
-                    ]
+                        'score'       => 75,
+                        'label'       => 'fake',
+                        'confidence'  => 0.9,
+                        'explanation' => 'High fake risk detected',
+                    ],
                 ],
                 'analysis_provider' => 'Ollama-qwen2.5:7b',
-                'total_cost' => 0.0
-            ])
+                'total_cost'        => 0.0,
+            ]),
         ]);
 
         $this->artisan('analyze:fake-detection', ['--limit' => 5])
@@ -75,12 +74,12 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     public function test_new_scoring_command_works_with_sample_data()
     {
         Http::fake([
-            'localhost:11434/api/tags' => Http::response(['models' => []], 200),
+            'localhost:11434/api/tags'     => Http::response(['models' => []], 200),
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"TEST001","score":85,"label":"fake","confidence":0.9},{"id":"TEST002","score":35,"label":"genuine","confidence":0.8}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $this->artisan('test:new-scoring')
@@ -94,7 +93,7 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     public function test_new_scoring_command_handles_ollama_unavailable()
     {
         Http::fake([
-            'localhost:11434/api/tags' => Http::response('', 500)
+            'localhost:11434/api/tags' => Http::response('', 500),
         ]);
 
         $this->artisan('test:new-scoring')
@@ -107,31 +106,31 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     {
         // Create test ASIN data
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TESTREAL',
+            'asin'    => 'B0TESTREAL',
             'country' => 'us',
             'reviews' => json_encode([
                 [
-                    'id' => 'R001',
-                    'rating' => 5,
+                    'id'          => 'R001',
+                    'rating'      => 5,
                     'review_text' => 'Amazing product! Perfect! Incredible quality!',
-                    'meta_data' => ['verified_purchase' => false]
+                    'meta_data'   => ['verified_purchase' => false],
                 ],
                 [
-                    'id' => 'R002',
-                    'rating' => 4,
+                    'id'          => 'R002',
+                    'rating'      => 4,
                     'review_text' => 'Good product, works well after 3 months of use. Some minor issues but overall satisfied.',
-                    'meta_data' => ['verified_purchase' => true]
-                ]
-            ])
+                    'meta_data'   => ['verified_purchase' => true],
+                ],
+            ]),
         ]);
 
         Http::fake([
-            'localhost:11434/api/tags' => Http::response(['models' => []], 200),
+            'localhost:11434/api/tags'     => Http::response(['models' => []], 200),
             'localhost:11434/api/generate' => Http::response([
-                'model' => 'qwen2.5:7b',
+                'model'    => 'qwen2.5:7b',
                 'response' => '[{"id":"R001","score":85,"label":"fake","confidence":0.9},{"id":"R002","score":35,"label":"genuine","confidence":0.8}]',
-                'done' => true,
-            ])
+                'done'     => true,
+            ]),
         ]);
 
         $this->artisan('test:new-scoring', ['--asin' => 'B0TESTREAL'])
@@ -152,19 +151,19 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     {
         // Create products with poor grades
         AsinData::factory()->create([
-            'asin' => 'B0GRADE001',
-            'grade' => 'F',
+            'asin'            => 'B0GRADE001',
+            'grade'           => 'F',
             'fake_percentage' => 85.0,
-            'reviews' => json_encode([['id' => 'R001', 'text' => 'Test review']]),
-            'openai_result' => json_encode(['detailed_scores' => ['R001' => 85]])
+            'reviews'         => json_encode([['id' => 'R001', 'text' => 'Test review']]),
+            'openai_result'   => json_encode(['detailed_scores' => ['R001' => 85]]),
         ]);
 
         AsinData::factory()->create([
-            'asin' => 'B0GRADE002',
-            'grade' => 'D',
+            'asin'            => 'B0GRADE002',
+            'grade'           => 'D',
             'fake_percentage' => 75.0,
-            'reviews' => json_encode([['id' => 'R002', 'text' => 'Another review']]),
-            'openai_result' => json_encode(['detailed_scores' => ['R002' => 75]])
+            'reviews'         => json_encode([['id' => 'R002', 'text' => 'Another review']]),
+            'openai_result'   => json_encode(['detailed_scores' => ['R002' => 75]]),
         ]);
 
         $this->artisan('reanalyze:graded-products', ['--dry-run' => true, '--limit' => 10])
@@ -180,19 +179,19 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     {
         // Create products with different grades
         AsinData::factory()->create([
-            'asin' => 'B0GRADEA',
-            'grade' => 'A',
+            'asin'            => 'B0GRADEA',
+            'grade'           => 'A',
             'fake_percentage' => 15.0,
-            'reviews' => json_encode([['id' => 'R001']]),
-            'openai_result' => json_encode(['detailed_scores' => ['R001' => 15]])
+            'reviews'         => json_encode([['id' => 'R001']]),
+            'openai_result'   => json_encode(['detailed_scores' => ['R001' => 15]]),
         ]);
 
         AsinData::factory()->create([
-            'asin' => 'B0GRADEF',
-            'grade' => 'F',
+            'asin'            => 'B0GRADEF',
+            'grade'           => 'F',
             'fake_percentage' => 90.0,
-            'reviews' => json_encode([['id' => 'R002']]),
-            'openai_result' => json_encode(['detailed_scores' => ['R002' => 90]])
+            'reviews'         => json_encode([['id' => 'R002']]),
+            'openai_result'   => json_encode(['detailed_scores' => ['R002' => 90]]),
         ]);
 
         // Test filtering only F grades
@@ -206,9 +205,9 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     {
         // Create product with good grade
         AsinData::factory()->create([
-            'asin' => 'B0GOODGRADE',
-            'grade' => 'A',
-            'fake_percentage' => 10.0
+            'asin'            => 'B0GOODGRADE',
+            'grade'           => 'A',
+            'fake_percentage' => 10.0,
         ]);
 
         $this->artisan('reanalyze:graded-products', ['--grades' => 'F', '--dry-run' => true])
@@ -222,11 +221,11 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
         // Create multiple F-grade products
         for ($i = 1; $i <= 5; $i++) {
             AsinData::factory()->create([
-                'asin' => "B0LIMIT{$i}",
-                'grade' => 'F',
+                'asin'            => "B0LIMIT{$i}",
+                'grade'           => 'F',
                 'fake_percentage' => 80.0 + $i,
-                'reviews' => json_encode([['id' => "R{$i}"]]),
-                'openai_result' => json_encode(['detailed_scores' => ["R{$i}" => 80 + $i]])
+                'reviews'         => json_encode([['id' => "R{$i}"]]),
+                'openai_result'   => json_encode(['detailed_scores' => ["R{$i}" => 80 + $i]]),
             ]);
         }
 
@@ -241,18 +240,18 @@ class FakeDetectionAnalysisCommandsTest extends TestCase
     {
         // Create data with very high fake percentages to trigger warnings
         AsinData::factory()->create([
-            'asin' => 'B0HIGHFAKE',
+            'asin'            => 'B0HIGHFAKE',
             'fake_percentage' => 85.0,
-            'openai_result' => json_encode([
+            'openai_result'   => json_encode([
                 'detailed_scores' => [
                     'R001' => 95,
                     'R002' => 90,
                     'R003' => 85,
-                    'R004' => 80
+                    'R004' => 80,
                 ],
                 'analysis_provider' => 'Ollama-qwen2.5:7b',
-                'total_cost' => 0.0
-            ])
+                'total_cost'        => 0.0,
+            ]),
         ]);
 
         $this->artisan('analyze:fake-detection', ['--limit' => 5])

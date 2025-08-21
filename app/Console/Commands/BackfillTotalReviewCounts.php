@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\AsinData;
-use App\Services\Amazon\AmazonScrapingService;
 use App\Services\LoggingService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Http;
@@ -50,7 +49,7 @@ class BackfillTotalReviewCounts extends Command
 
         // Build query based on conditions
         $query = AsinData::where('status', 'completed');
-        
+
         if (!$force) {
             $query->whereNull('total_reviews_on_amazon');
         }
@@ -61,10 +60,11 @@ class BackfillTotalReviewCounts extends Command
 
         if ($products->isEmpty()) {
             $this->info('✅ No products found that need total review count backfill.');
+
             return self::SUCCESS;
         }
 
-        $this->info("📊 Found {$products->count()} products to process" . ($force ? ' (including those with existing data)' : ''));
+        $this->info("📊 Found {$products->count()} products to process".($force ? ' (including those with existing data)' : ''));
         $this->newLine();
 
         // Show summary
@@ -83,11 +83,13 @@ class BackfillTotalReviewCounts extends Command
 
         if ($dryRun) {
             $this->info('🧪 Dry run complete. Use without --dry-run to process these products.');
+
             return self::SUCCESS;
         }
 
         if (!$dryRun && !$this->option('no-interaction') && !$this->confirm('Do you want to proceed with processing these products?')) {
             $this->info('❌ Operation cancelled by user.');
+
             return self::SUCCESS;
         }
 
@@ -105,11 +107,11 @@ class BackfillTotalReviewCounts extends Command
 
         foreach ($products as $product) {
             $processed++;
-            
+
             try {
                 // Extract total review count from Amazon product page
                 $totalReviews = $this->extractTotalReviewCount($product->asin);
-                
+
                 if ($totalReviews !== null) {
                     $product->update(['total_reviews_on_amazon' => $totalReviews]);
                     $success++;
@@ -118,11 +120,10 @@ class BackfillTotalReviewCounts extends Command
                     $skipped++;
                     LoggingService::log("Could not extract total review count for ASIN {$product->asin}");
                 }
-
             } catch (\Exception $e) {
                 $failed++;
-                LoggingService::log("Failed to process ASIN {$product->asin}: " . $e->getMessage());
-                $this->warn("\n⚠️  Failed to process {$product->asin}: " . $e->getMessage());
+                LoggingService::log("Failed to process ASIN {$product->asin}: ".$e->getMessage());
+                $this->warn("\n⚠️  Failed to process {$product->asin}: ".$e->getMessage());
             }
 
             $progressBar->advance();
@@ -139,7 +140,7 @@ class BackfillTotalReviewCounts extends Command
         // Show results
         $this->info('📈 Backfill process completed!');
         $this->newLine();
-        
+
         $this->table(
             ['Result', 'Count'],
             [
@@ -152,7 +153,7 @@ class BackfillTotalReviewCounts extends Command
 
         if ($success > 0) {
             $this->info("🎉 Successfully backfilled total review counts for {$success} products!");
-            $this->info("You can now view these products with enhanced review statistics.");
+            $this->info('You can now view these products with enhanced review statistics.');
         }
 
         if ($failed > 0) {
@@ -164,27 +165,27 @@ class BackfillTotalReviewCounts extends Command
 
     /**
      * Extract total review count from Amazon product page using minimal resources
-     * Uses direct HTTP without proxies for lightweight backfill operations
+     * Uses direct HTTP without proxies for lightweight backfill operations.
      */
     private function extractTotalReviewCount(string $asin): ?int
     {
         try {
             $url = "https://www.amazon.com/dp/{$asin}";
-            
+
             // Use minimal resource configuration - no proxies, optimized headers
             $response = Http::timeout(15) // Reduced timeout for faster failure detection
                           ->withOptions([
-                              'verify' => false, // Skip SSL verification for speed
+                              'verify'          => false, // Skip SSL verification for speed
                               'connect_timeout' => 10, // Quick connection timeout
-                              'stream' => false, // Don't stream large responses
+                              'stream'          => false, // Don't stream large responses
                           ])
                           ->withHeaders([
-                              'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                              'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                              'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                              'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                               'Accept-Language' => 'en-US,en;q=0.5',
                               'Accept-Encoding' => 'gzip, deflate', // Enable compression to save bandwidth
-                              'Connection' => 'close', // Don't keep connection alive
-                              'Cache-Control' => 'no-cache',
+                              'Connection'      => 'close', // Don't keep connection alive
+                              'Cache-Control'   => 'no-cache',
                           ])
                           ->get($url);
 
@@ -193,12 +194,12 @@ class BackfillTotalReviewCounts extends Command
             }
 
             $html = $response->body();
-            
+
             // Early exit if page is too large (likely not a standard product page)
             if (strlen($html) > 2 * 1024 * 1024) { // 2MB limit
-                throw new \Exception("Response too large, likely not a product page");
+                throw new \Exception('Response too large, likely not a product page');
             }
-            
+
             $crawler = new Crawler($html);
 
             // Try multiple selectors to find total review count (ordered by likelihood)
@@ -212,13 +213,13 @@ class BackfillTotalReviewCounts extends Command
                 '.a-row.a-spacing-medium .a-size-base',
                 '.a-text-normal',
             ];
-            
+
             foreach ($reviewCountSelectors as $selector) {
                 try {
                     $countNode = $crawler->filter($selector);
                     if ($countNode->count() > 0) {
                         $countText = trim($countNode->text());
-                        
+
                         // Extract number from various text patterns
                         $patterns = [
                             '/([0-9,]+)\s*(?:global\s+)?(?:ratings?|reviews?)/i',
@@ -226,14 +227,15 @@ class BackfillTotalReviewCounts extends Command
                             '/([0-9,]+)\s*(?:ratings?|reviews?)/i',
                             '/([0-9,]+)\s*(?:total|all)\s*(?:ratings?|reviews?)/i',
                         ];
-                        
+
                         foreach ($patterns as $pattern) {
                             if (preg_match($pattern, $countText, $matches)) {
                                 $totalReviews = (int) str_replace(',', '', $matches[1]);
-                                
+
                                 // Sanity check: must be a reasonable number
                                 if ($totalReviews > 0 && $totalReviews < 1000000) {
                                     $this->line("✅ Found {$totalReviews} total reviews for {$asin}");
+
                                     return $totalReviews;
                                 }
                             }
@@ -250,11 +252,12 @@ class BackfillTotalReviewCounts extends Command
             try {
                 $reviewSection = $crawler->filter('#reviewsMedley, #reviews, .cr-pivot-review')->first();
                 $searchText = $reviewSection->count() > 0 ? $reviewSection->text() : $crawler->text();
-                
+
                 if (preg_match('/(\d{1,3}(?:,\d{3})*)\s*(?:global\s+)?(?:ratings?|reviews?)/i', $searchText, $matches)) {
                     $totalReviews = (int) str_replace(',', '', $matches[1]);
                     if ($totalReviews > 0 && $totalReviews < 1000000) {
                         $this->line("✅ Found {$totalReviews} total reviews for {$asin} (text search)");
+
                         return $totalReviews;
                     }
                 }
@@ -265,16 +268,18 @@ class BackfillTotalReviewCounts extends Command
                     $totalReviews = (int) str_replace(',', '', $matches[1]);
                     if ($totalReviews > 0 && $totalReviews < 1000000) {
                         $this->line("✅ Found {$totalReviews} total reviews for {$asin} (fallback search)");
+
                         return $totalReviews;
                     }
                 }
             }
 
             $this->line("⚠️  Could not extract total review count for {$asin}");
-            return null;
 
+            return null;
         } catch (\Exception $e) {
-            $this->line("❌ Error processing {$asin}: " . $e->getMessage());
+            $this->line("❌ Error processing {$asin}: ".$e->getMessage());
+
             throw $e;
         }
     }
