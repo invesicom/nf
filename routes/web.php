@@ -56,12 +56,24 @@ Route::get('/robots.txt', function () {
     return response($robotsTxt, 200, ['Content-Type' => 'text/plain']);
 })->name('robots');
 
-// Amazon product shareable routes
-Route::get('/amazon/{asin}', [AmazonProductController::class, 'show'])
+// Amazon product shareable routes with country
+Route::get('/amazon/{country}/{asin}', [AmazonProductController::class, 'show'])
     ->name('amazon.product.show')
+    ->where('country', '[a-z]{2}')
     ->where('asin', '[A-Z0-9]{10}');
 
-Route::get('/amazon/{asin}/{slug}', [AmazonProductController::class, 'showWithSlug'])
+Route::get('/amazon/{country}/{asin}/{slug}', [AmazonProductController::class, 'showWithSlug'])
     ->name('amazon.product.show.slug')
+    ->where('country', '[a-z]{2}')
+    ->where('asin', '[A-Z0-9]{10}')
+    ->where('slug', '[a-z0-9-]+');
+
+// Legacy routes (backward compatibility) - redirect to country-specific URLs
+Route::get('/amazon/{asin}', [AmazonProductController::class, 'showLegacy'])
+    ->name('amazon.product.show.legacy')
+    ->where('asin', '[A-Z0-9]{10}');
+
+Route::get('/amazon/{asin}/{slug}', [AmazonProductController::class, 'showWithSlugLegacy'])
+    ->name('amazon.product.show.slug.legacy')
     ->where('asin', '[A-Z0-9]{10}')
     ->where('slug', '[a-z0-9-]+');

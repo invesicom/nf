@@ -11,6 +11,8 @@ class ReviewFetchingService
 
     public function __construct()
     {
+        // Use the configured review service (respects AMAZON_REVIEW_SERVICE env var)
+        // This allows switching between BrightData, direct scraping, etc. as needed
         $this->fetchService = AmazonReviewServiceFactory::create();
     }
 

@@ -36,7 +36,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
           @foreach($products as $product)
             <div class="bg-gray-50 rounded-lg p-4 hover:shadow-md transition-shadow">
-              <a href="{{ route('amazon.product.show.slug', ['asin' => $product->asin, 'slug' => $product->slug ?? 'product']) }}" class="block">
+              <a href="{{ route('amazon.product.show.slug', ['country' => $product->country, 'asin' => $product->asin, 'slug' => $product->slug ?? 'product']) }}" class="block">
                 <!-- Product Image -->
                 @if($product->product_image_url)
                   <div class="h-48 mb-3 bg-white rounded overflow-hidden flex items-center justify-center">

@@ -11,27 +11,29 @@ class AmazonProductController extends Controller
     /**
      * Display the Amazon product page (without slug).
      */
-    public function show(string $asin, Request $request)
+    public function show(string $country, string $asin, Request $request)
     {
         LoggingService::log('Displaying Amazon product page', [
+            'country' => $country,
             'asin' => $asin,
             'user_agent' => $request->userAgent(),
             'ip' => $request->ip(),
         ]);
 
-        // Find the product data in the database
+        // Find the product data in the database for the specific country
         $asinData = AsinData::where('asin', $asin)
-            ->where('country', 'us')
+            ->where('country', $country)
             ->first();
 
         if (!$asinData) {
             LoggingService::log('Product not found in database', [
+                'country' => $country,
                 'asin' => $asin,
             ]);
             
             return view('amazon.product-not-found', [
                 'asin' => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
+                'amazon_url' => $this->buildAmazonUrl($asin, $country),
             ]);
         }
 
@@ -53,11 +55,13 @@ class AmazonProductController extends Controller
         // If product has a title/slug, redirect to SEO-friendly URL
         if ($asinData->have_product_data && $asinData->slug) {
             LoggingService::log('Redirecting to SEO-friendly URL', [
+                'country' => $country,
                 'asin' => $asin,
                 'slug' => $asinData->slug,
             ]);
             
             return redirect()->route('amazon.product.show.slug', [
+                'country' => $country,
                 'asin' => $asin,
                 'slug' => $asinData->slug
             ], 301);
@@ -69,29 +73,31 @@ class AmazonProductController extends Controller
     /**
      * Display the Amazon product page with slug (SEO-friendly URL).
      */
-    public function showWithSlug(string $asin, string $slug, Request $request)
+    public function showWithSlug(string $country, string $asin, string $slug, Request $request)
     {
         LoggingService::log('Displaying Amazon product page with slug', [
+            'country' => $country,
             'asin' => $asin,
             'slug' => $slug,
             'user_agent' => $request->userAgent(),
             'ip' => $request->ip(),
         ]);
 
-        // Find the product data in the database
+        // Find the product data in the database for the specific country
         $asinData = AsinData::where('asin', $asin)
-            ->where('country', 'us')
+            ->where('country', $country)
             ->first();
 
         if (!$asinData) {
             LoggingService::log('Product not found in database', [
+                'country' => $country,
                 'asin' => $asin,
                 'slug' => $slug,
             ]);
             
             return view('amazon.product-not-found', [
                 'asin' => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
+                'amazon_url' => $this->buildAmazonUrl($asin, $country),
             ]);
         }
 
@@ -156,6 +162,64 @@ class AmazonProductController extends Controller
             ])
             ->header('Cache-Control', 'public, max-age=900') // 15 minutes cache
             ->header('Vary', 'Accept-Encoding'); // Handle compression variations
+    }
+
+    /**
+     * Legacy method: Display Amazon product page without country (redirect to country-specific URL).
+     */
+    public function showLegacy(string $asin, Request $request)
+    {
+        LoggingService::log('Legacy URL accessed - redirecting to country-specific URL', [
+            'asin' => $asin,
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        // Find the product in database to determine country
+        $asinData = AsinData::where('asin', $asin)->first();
+        
+        if (!$asinData) {
+            // Product not found - show not found page with US as default
+            return view('amazon.product-not-found', [
+                'asin' => $asin,
+                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
+            ]);
+        }
+
+        // Redirect to country-specific URL
+        return redirect()->route('amazon.product.show', [
+            'country' => $asinData->country,
+            'asin' => $asin
+        ], 301);
+    }
+
+    /**
+     * Legacy method: Display Amazon product page with slug but without country.
+     */
+    public function showWithSlugLegacy(string $asin, string $slug, Request $request)
+    {
+        LoggingService::log('Legacy slug URL accessed - redirecting to country-specific URL', [
+            'asin' => $asin,
+            'slug' => $slug,
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        // Find the product in database to determine country
+        $asinData = AsinData::where('asin', $asin)->first();
+        
+        if (!$asinData) {
+            // Product not found - show not found page
+            return view('amazon.product-not-found', [
+                'asin' => $asin,
+                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
+            ]);
+        }
+
+        // Redirect to country-specific URL with slug
+        return redirect()->route('amazon.product.show.slug', [
+            'country' => $asinData->country,
+            'asin' => $asin,
+            'slug' => $slug
+        ], 301);
     }
 
     /**

@@ -91,11 +91,15 @@ class CompleteBrightDataAnalysis extends Command
             $redirectUrl = null;
             if ($asinData->slug) {
                 $redirectUrl = route('amazon.product.show.slug', [
+                    'country' => $asinData->country,
                     'asin' => $asinData->asin,
                     'slug' => $asinData->slug
                 ]);
             } else {
-                $redirectUrl = route('amazon.product.show', ['asin' => $asinData->asin]);
+                $redirectUrl = route('amazon.product.show', [
+                    'country' => $asinData->country,
+                    'asin' => $asinData->asin
+                ]);
             }
             
             $finalResult = [

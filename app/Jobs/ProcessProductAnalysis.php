@@ -173,12 +173,16 @@ class ProcessProductAnalysis implements ShouldQueue
         // (The product page can handle missing images/descriptions gracefully)
         if ($asinData->slug) {
             return route('amazon.product.show.slug', [
+                'country' => $asinData->country,
                 'asin' => $asinData->asin,
                 'slug' => $asinData->slug
             ]);
         }
 
-        return route('amazon.product.show', ['asin' => $asinData->asin]);
+        return route('amazon.product.show', [
+            'country' => $asinData->country,
+            'asin' => $asinData->asin
+        ]);
     }
 
     private function handleFailure(AnalysisSession $session, \Exception $e): void

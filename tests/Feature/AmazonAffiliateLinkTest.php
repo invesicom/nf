@@ -24,8 +24,8 @@ class AmazonAffiliateLinkTest extends TestCase
             'product_title' => 'Test Product',
         ]);
 
-        // Visit product page
-        $response = $this->get("/amazon/{$asinData->asin}/{$asinData->slug}");
+        // Visit product page with country
+        $response = $this->get("/amazon/{$asinData->country}/{$asinData->asin}/{$asinData->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('https://www.amazon.com/dp/B08N5WRWNW?tag=nullfake-20');
@@ -45,8 +45,8 @@ class AmazonAffiliateLinkTest extends TestCase
             'product_title' => 'Test Product',
         ]);
 
-        // Visit product page
-        $response = $this->get("/amazon/{$asinData->asin}/{$asinData->slug}");
+        // Visit product page with country
+        $response = $this->get("/amazon/{$asinData->country}/{$asinData->asin}/{$asinData->slug}");
 
         $response->assertStatus(200);
         $response->assertSee('https://www.amazon.com/dp/B08N5WRWNW');

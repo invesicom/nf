@@ -54,7 +54,7 @@ class ProcessProductAnalysisRedirectTest extends TestCase
 
         // Should redirect even without product data because analysis is complete with reviews
         $this->assertNotNull($redirectUrl);
-        $this->assertStringContainsString('/amazon/B08B39N5CC', $redirectUrl);
+        $this->assertStringContainsString('/amazon/us/B08B39N5CC', $redirectUrl);
     }
 
     #[Test]
@@ -170,7 +170,7 @@ class ProcessProductAnalysisRedirectTest extends TestCase
 
         // Should redirect to slug URL
         $this->assertNotNull($redirectUrl);
-        $this->assertStringContainsString('/amazon/B08WITHSLUG/amazing-test-product-title', $redirectUrl);
+        $this->assertStringContainsString('/amazon/us/B08WITHSLUG/amazing-test-product-title', $redirectUrl);
     }
 
     #[Test]
@@ -212,7 +212,7 @@ class ProcessProductAnalysisRedirectTest extends TestCase
 
         // Should redirect to basic URL
         $this->assertNotNull($redirectUrl);
-        $this->assertStringContainsString('/amazon/B08NOSLUG', $redirectUrl);
-        $this->assertStringNotContainsString('/amazon/B08NOSLUG/', $redirectUrl); // No trailing slash for slug
+        $this->assertStringContainsString('/amazon/us/B08NOSLUG', $redirectUrl);
+        $this->assertStringNotContainsString('/amazon/us/B08NOSLUG/', $redirectUrl); // No trailing slash for slug
     }
 }
