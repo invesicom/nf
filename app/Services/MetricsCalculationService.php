@@ -46,17 +46,23 @@ class MetricsCalculationService
         $grade = $this->gradeService->calculateGrade($fakePercentage);
         $explanation = $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
 
-        // Update the model
-        $asinData->update([
-            'fake_percentage' => $fakePercentage,
-            'grade' => $grade,
-            'explanation' => $explanation,
-            'amazon_rating' => $averageRating,
-            'adjusted_rating' => $adjustedRating,
-            'status' => 'completed',
-            'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
-            'last_analyzed_at' => now(),
-        ]);
+        // Only update the model if it hasn't been analyzed yet or if metrics are missing
+        $needsUpdate = $asinData->status !== 'completed' || 
+                      is_null($asinData->fake_percentage) || 
+                      is_null($asinData->grade);
+        
+        if ($needsUpdate) {
+            $asinData->update([
+                'fake_percentage' => $fakePercentage,
+                'grade' => $grade,
+                'explanation' => $explanation,
+                'amazon_rating' => $averageRating,
+                'adjusted_rating' => $adjustedRating,
+                'status' => 'completed',
+                'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
+                'last_analyzed_at' => now(),
+            ]);
+        }
 
         return [
             'fake_percentage' => $fakePercentage,

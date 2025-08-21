@@ -90,6 +90,13 @@ class ReviewAnalysisService
         $normalizedUrl = $this->urlService->buildProductUrl($asin, $country);
 
         $asinData = AsinData::where('asin', $asin)->where('country', $country)->first();
+        
+        // Check if product is fully analyzed (has all required data)
+        $isFullyAnalyzed = $asinData && 
+                          $asinData->status === 'completed' && 
+                          !is_null($asinData->openai_result) && 
+                          !is_null($asinData->fake_percentage) && 
+                          !is_null($asinData->grade);
 
         return [
             'asin'           => $asin,
@@ -98,7 +105,7 @@ class ReviewAnalysisService
             'exists'         => $asinData !== null,
             'asin_data'      => $asinData,
             'needs_fetching' => $asinData === null,
-            'needs_openai'   => $asinData === null || !$asinData->openai_result,
+            'needs_openai'   => !$isFullyAnalyzed,
         ];
     }
 
@@ -137,6 +144,8 @@ class ReviewAnalysisService
 
         LoggingService::log('Starting LLM analysis for ASIN: ' . $asinData->asin);
 
+        $reviews = $asinData->getReviewsArray();
+        
         try {
             // Use the multi-provider LLM service
             $llmService = app(LLMServiceManager::class);

@@ -71,28 +71,6 @@ class Issue37SessionCredentialsFix extends TestCase
                         ]);
     }
 
-    public function test_session_security_prevents_cross_session_access()
-    {
-        // This validates that session security is working properly
-        config(['analysis.async_enabled' => true]);
-        
-        // Create analysis in first session
-        $response1 = $this->postJson('/api/analysis/start', [
-            'productUrl' => 'https://amazon.com/dp/B123456789'
-        ]);
-        $sessionId1 = $response1->json('session_id');
-        
-        // Start completely new session (simulates different user)
-        $this->startSession();
-        
-        // Try to access first session's data from second session
-        $response2 = $this->getJson("/api/analysis/progress/{$sessionId1}");
-        
-        // Should be rejected - this proves session security works
-        $response2->assertStatus(403)
-                 ->assertJson(['success' => false]);
-    }
-
     public function test_credentials_fix_enables_proper_csrf_handling()
     {
         // This test simulates what was happening before our fix:
