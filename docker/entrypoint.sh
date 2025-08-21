@@ -66,3 +66,4 @@ echo "🎉 NullFake initialization complete!"
 
 # Execute the main command (usually php-fpm)
 exec "$@"
+

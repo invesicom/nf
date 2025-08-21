@@ -384,6 +384,9 @@ class AmazonProductDataService
             
             // Extract product description (optional, since it's already in the database)
             $productData['description'] = $this->extractProductDescription($crawler);
+            
+            // NOTE: Total review count is handled by the review service (BrightData/etc)
+            // Product scraping only handles title, image, and description
 
             LoggingService::log('Parsed product data from HTML', [
                 'asin' => $asin,
@@ -701,4 +704,6 @@ class AmazonProductDataService
 
         return $cleaned;
     }
+
+
 } 

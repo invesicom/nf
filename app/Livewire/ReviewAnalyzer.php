@@ -206,11 +206,15 @@ class ReviewAnalyzer extends Component
             if ($asinData->have_product_data) {
                 if ($asinData->slug) {
                     return $this->redirect(route('amazon.product.show.slug', [
+                        'country' => $asinData->country,
                         'asin' => $asinData->asin,
                         'slug' => $asinData->slug
                     ]));
                 } else {
-                    return $this->redirect(route('amazon.product.show', ['asin' => $asinData->asin]));
+                    return $this->redirect(route('amazon.product.show', [
+                        'country' => $asinData->country,
+                        'asin' => $asinData->asin
+                    ]));
                 }
             }
 
