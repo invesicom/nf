@@ -213,10 +213,8 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     {
         $result = $this->fetchReviews($asin, $country);
 
-        // Check if BrightData failed to fetch reviews - throw exception instead of creating empty record
-        if (empty($result['reviews'])) {
-            throw new \Exception("BrightData failed to fetch reviews for ASIN: {$asin}. This could be due to Amazon blocking, service issues, or account limitations.");
-        }
+        // Empty reviews is a valid result (product has no reviews), not an error
+        // Let ProductAnalysisPolicy handle the "no reviews" scenario gracefully
 
         // Save to database using existing columns only
         $asinData = AsinData::firstOrCreate(

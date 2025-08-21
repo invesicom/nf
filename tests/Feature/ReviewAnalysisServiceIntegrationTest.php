@@ -58,14 +58,14 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
     }
 
     #[Test]
-    public function it_throws_exception_when_brightdata_fails_through_full_service_chain()
+    public function it_handles_empty_brightdata_results_gracefully_through_full_service_chain()
     {
         // Simulate being in a queue worker (forces sync mode)
         $_SERVER['argv'] = ['artisan', 'queue:work', '--queue=analysis'];
 
-        // Mock BrightData failure scenario
+        // Mock BrightData returning empty results (valid scenario)
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_integration_failure',
+            'snapshot_id' => 's_test_integration_empty',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
@@ -77,11 +77,15 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
 
         $analysisService = app(ReviewAnalysisService::class);
 
-        // This should throw an exception through the full chain
-        $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('BrightData failed to fetch reviews for ASIN: B0TEST12345');
+        // This should now handle gracefully by creating AsinData with empty reviews
+        $result = $analysisService->fetchReviews('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
-        $analysisService->fetchReviews('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
+        // Verify AsinData was created with empty reviews (valid scenario)
+        $this->assertInstanceOf(AsinData::class, $result);
+        $this->assertEquals('B0TEST12345', $result->asin);
+        $this->assertEquals('us', $result->country);
+        $this->assertEquals('pending_analysis', $result->status);
+        $this->assertEquals([], $result->getReviewsArray());
     }
 
     #[Test]
@@ -189,14 +193,14 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
     }
 
     #[Test]
-    public function it_prevents_empty_asin_data_creation_in_review_fetching_service()
+    public function it_creates_asin_data_even_with_empty_reviews_from_brightdata()
     {
         // Simulate being in a queue worker (forces sync mode)
         $_SERVER['argv'] = ['artisan', 'queue:work', '--queue=analysis'];
 
-        // Mock BrightData failure
+        // Mock BrightData returning empty results (valid scenario)
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_no_creation',
+            'snapshot_id' => 's_test_empty_creation',
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
@@ -208,16 +212,19 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
 
         $analysisService = app(ReviewAnalysisService::class);
 
-        try {
-            $analysisService->fetchReviews('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
-            $this->fail('Expected exception was not thrown');
-        } catch (\Exception $e) {
-            // Verify no AsinData record was created by the ReviewFetchingService
-            $this->assertDatabaseMissing('asin_data', [
-                'asin'    => 'B0TEST12345',
-                'country' => 'us',
-            ]);
-        }
+        // This should now create AsinData even with empty reviews
+        $result = $analysisService->fetchReviews('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
+
+        // Verify AsinData record was created by the ReviewFetchingService
+        $this->assertDatabaseHas('asin_data', [
+            'asin'    => 'B0TEST12345',
+            'country' => 'us',
+            'status'  => 'pending_analysis',
+        ]);
+
+        // Verify the returned object
+        $this->assertInstanceOf(AsinData::class, $result);
+        $this->assertEquals([], $result->getReviewsArray());
     }
 
     #[Test]

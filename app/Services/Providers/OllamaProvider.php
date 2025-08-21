@@ -39,9 +39,9 @@ class OllamaProvider implements LLMProviderInterface
                 'stream'  => false,
                 'options' => [
                     'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
-                    'num_ctx'     => 2048, // Increased context for better understanding (was 512)
+                    'num_ctx'     => 2048, // Full context for complete review processing
                     'top_p'       => 0.9, // Slightly more focused responses
-                    'num_predict' => 512, // Increased output for detailed analysis (was 128)
+                    'num_predict' => 512, // Full output for complete JSON responses
                 ],
             ]);
 
