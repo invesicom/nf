@@ -37,20 +37,8 @@ class ReviewFetchingService
         } catch (\Exception $e) {
             LoggingService::handleException($e, "Review fetching failed for ASIN: {$asin}");
             
-            // Try to find existing data or create minimal record
-            $asinData = AsinData::where('asin', $asin)
-                                ->where('country', $country)
-                                ->first();
-            
-            if (!$asinData) {
-                $asinData = AsinData::create([
-                    'asin' => $asin,
-                    'country' => $country,
-                    'status' => 'failed',
-                    'reviews' => [],
-                ]);
-            }
-
+            // Don't create empty records - let the exception propagate
+            // This ensures that failed fetches don't create useless database entries
             throw $e;
         }
     }
