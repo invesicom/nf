@@ -154,6 +154,11 @@ class BatchJobTimestampPreservationTest extends TestCase
     #[Test]
     public function batch_operation_updates_data_but_preserves_display_order()
     {
+        // Capture expected timestamps to avoid timing issues
+        $baseTime = now();
+        $olderExpectedTimestamp = $baseTime->copy()->subDays(10);
+        $newerExpectedTimestamp = $baseTime->copy()->subDays(5);
+        
         // Create two products with different original analysis dates
         $olderProduct = AsinData::factory()->create([
             'asin' => 'B0TESTORDER1',
@@ -164,8 +169,8 @@ class BatchJobTimestampPreservationTest extends TestCase
             'product_title' => 'Test Product 1',
             'reviews' => [['rating' => 5, 'text' => 'Test', 'meta_data' => ['verified_purchase' => true]]],
             'openai_result' => ['detailed_scores' => [0 => 90]],
-            'first_analyzed_at' => now()->subDays(10),
-            'last_analyzed_at' => now()->subDays(10),
+            'first_analyzed_at' => $olderExpectedTimestamp,
+            'last_analyzed_at' => $olderExpectedTimestamp,
         ]);
 
         sleep(1);
@@ -179,8 +184,8 @@ class BatchJobTimestampPreservationTest extends TestCase
             'product_title' => 'Test Product 2',
             'reviews' => [['rating' => 5, 'text' => 'Test', 'meta_data' => ['verified_purchase' => true]]],
             'openai_result' => ['detailed_scores' => [0 => 85]],
-            'first_analyzed_at' => now()->subDays(5),
-            'last_analyzed_at' => now()->subDays(5),
+            'first_analyzed_at' => $newerExpectedTimestamp,
+            'last_analyzed_at' => $newerExpectedTimestamp,
         ]);
 
         // Run batch reanalysis on both
@@ -211,8 +216,8 @@ class BatchJobTimestampPreservationTest extends TestCase
         $olderProduct->refresh();
         $newerProduct->refresh();
         
-        $this->assertEquals(now()->subDays(10)->format('Y-m-d H:i'), $olderProduct->first_analyzed_at->format('Y-m-d H:i'));
-        $this->assertEquals(now()->subDays(5)->format('Y-m-d H:i'), $newerProduct->first_analyzed_at->format('Y-m-d H:i'));
+        $this->assertEquals($olderExpectedTimestamp->format('Y-m-d H:i'), $olderProduct->first_analyzed_at->format('Y-m-d H:i'));
+        $this->assertEquals($newerExpectedTimestamp->format('Y-m-d H:i'), $newerProduct->first_analyzed_at->format('Y-m-d H:i'));
         $this->assertTrue($olderProduct->updated_at->greaterThan(now()->subMinutes(1)));
         $this->assertTrue($newerProduct->updated_at->greaterThan(now()->subMinutes(1)));
     }
