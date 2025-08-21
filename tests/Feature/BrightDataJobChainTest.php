@@ -57,13 +57,17 @@ class BrightDataJobChainTest extends TestCase
         
         // Enable async mode
         putenv('ANALYSIS_ASYNC_ENABLED=true');
+        config(['analysis.async_enabled' => true]);
         
-        $service = new BrightDataScraperService(
-            apiKey: 'test_api_key_12345',
-            datasetId: 'gd_test_dataset'
-        );
+        // Ensure we're not detected as running in queue worker
+        unset($_SERVER['argv']);
+        
+        // Mock successful BrightData trigger response
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            'snapshot_id' => 's_test_job_12345'
+        ])));
 
-        $result = $service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
+        $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
         // Should create AsinData record
         $this->assertInstanceOf(AsinData::class, $result);

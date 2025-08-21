@@ -637,20 +637,22 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     'id' => $item['review_id'],
                     'rating' => $item['rating'] ?? 0,
                     'title' => $item['review_header'] ?? '',
-                    'review_text' => $item['review_text'],
+                    'text' => $item['review_text'], // Use 'text' field for consistency with other services
                     'author' => $item['author_name'] ?? 'Anonymous',
                     'date' => $item['review_posted_date'] ?? '',
-                    'verified_purchase' => $item['is_verified'] ?? false,
-                    'helpful_count' => $item['helpful_count'] ?? 0,
-                    'vine_review' => $item['is_amazon_vine'] ?? false,
-                    'country' => $item['review_country'] ?? '',
-                    'badge' => $item['badge'] ?? '',
-                    'author_id' => $item['author_id'] ?? '',
-                    'author_link' => $item['author_link'] ?? '',
-                    'variant_asin' => $item['variant_asin'] ?? null,
-                    'variant_name' => $item['variant_name'] ?? null,
-                    'brand' => $item['brand'] ?? '',
-                    'timestamp' => $item['timestamp'] ?? '',
+                    'meta_data' => [
+                        'verified_purchase' => $item['is_verified'] ?? false,
+                        'helpful_count' => $item['helpful_count'] ?? 0,
+                        'vine_review' => $item['is_amazon_vine'] ?? false,
+                        'country' => $item['review_country'] ?? '',
+                        'badge' => $item['badge'] ?? '',
+                        'author_id' => $item['author_id'] ?? '',
+                        'author_link' => $item['author_link'] ?? '',
+                        'variant_asin' => $item['variant_asin'] ?? null,
+                        'variant_name' => $item['variant_name'] ?? null,
+                        'brand' => $item['brand'] ?? '',
+                        'timestamp' => $item['timestamp'] ?? '',
+                    ]
                 ];
 
                 // Add image URLs if available

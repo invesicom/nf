@@ -27,7 +27,10 @@ class AmazonReviewServiceFactory
             case 'bd':
             default:
                 LoggingService::log('Using BrightData scraper service');
-                return new BrightDataScraperService();
+                // Use container resolution if available (for testing), otherwise create new instance
+                return app()->bound(BrightDataScraperService::class) 
+                    ? app(BrightDataScraperService::class)
+                    : new BrightDataScraperService();
                 
             case 'scraping':
             case 'direct':

@@ -95,32 +95,38 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
             'snapshot_id' => 's_test_integration_success'
         ])));
 
+        // Add multiple progress responses in case of polling
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            'status' => 'running',
+            'records' => 0
+        ])));
         $this->mockHandler->append(new Response(200, [], json_encode([
             'status' => 'ready',
             'records' => 25
         ])));
 
-        // Mock successful data fetch with actual reviews
+        // Mock successful data fetch with actual reviews in raw BrightData format
         $mockReviewData = [
             [
                 'review_id' => 'R123',
                 'rating' => 5,
                 'review_text' => 'Great product! Highly recommend.',
-                'verified_purchase' => true,
+                'is_verified' => true,
                 'product_name' => 'Test Product',
+                'product_rating_count' => 100,
                 'product_image_url' => 'https://example.com/image.jpg'
             ],
             [
                 'review_id' => 'R124',
                 'rating' => 4,
                 'review_text' => 'Good quality, fast shipping.',
-                'verified_purchase' => true
+                'is_verified' => true
             ],
             [
                 'review_id' => 'R125',
                 'rating' => 1,
                 'review_text' => 'Terrible fake product, avoid!',
-                'verified_purchase' => false
+                'is_verified' => false
             ]
         ];
         $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
