@@ -182,30 +182,7 @@ class AnalysisController extends Controller
      */
     private function validateCaptchaIfRequired(Request $request): void
     {
-        $captchaService = app(CaptchaService::class);
-        
-        if (!$captchaService->shouldEnforceCaptcha()) {
-            return;
-        }
-
-        $requiresCaptcha = $captchaService->isRevalidationRequired();
-        
-        if ($requiresCaptcha) {
-            $provider = $captchaService->getProvider();
-            $response = null;
-            
-            if ($provider === 'recaptcha' && $request->filled('g_recaptcha_response')) {
-                $response = $request->input('g_recaptcha_response');
-            } elseif ($provider === 'hcaptcha' && $request->filled('h_captcha_response')) {
-                $response = $request->input('h_captcha_response');
-            }
-
-            if (!$response || !$captchaService->verify($response, $request->ip())) {
-                throw new \Exception('Captcha verification failed');
-            }
-            
-            // Reset submission counter after successful verification
-            $captchaService->resetSubmissionCounter();
-        }
+        // Captcha validation is handled by the Livewire component
+        // This method is kept for API compatibility but does nothing
     }
 }

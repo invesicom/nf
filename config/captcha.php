@@ -35,18 +35,5 @@ return [
         'verify_url' => 'https://hcaptcha.com/siteverify',
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Session-based Re-validation
-    |--------------------------------------------------------------------------
-    |
-    | Configuration for requiring captcha re-validation after multiple submissions
-    |
-    */
-    'revalidation' => [
-        'enabled' => env('CAPTCHA_REVALIDATION_ENABLED', true),
-        'submission_threshold' => env('CAPTCHA_SUBMISSION_THRESHOLD', 4),
-        'session_key' => 'captcha_submissions',
-        'reset_on_failure' => true, // Reset counter on captcha failure for security
-    ],
+
 ];

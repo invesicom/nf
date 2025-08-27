@@ -146,8 +146,7 @@ class ProcessProductAnalysis implements ShouldQueue
             // Step 8: Mark as completed (100%)
             $session->markAsCompleted($finalResult);
 
-            // Record successful submission for captcha re-validation tracking
-            app(\App\Services\CaptchaService::class)->recordSuccessfulSubmission();
+
 
             LoggingService::log('Async product analysis completed successfully', [
                 'session_id' => $this->sessionId,

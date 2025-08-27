@@ -16,23 +16,7 @@
         @if(!app()->environment(['local', 'testing']))
             <div id="captcha-container">
                 @if($captcha->getProvider() === 'recaptcha')
-                    @if($this->shouldShowCaptcha())
-                        @if($captcha->isRevalidationRequired())
-                            <div class="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                                <div class="flex items-center">
-                                    <div class="flex-shrink-0">
-                                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                        </svg>
-                                    </div>
-                                    <div class="ml-3">
-                                        <p class="text-sm text-yellow-700">
-                                            Please verify you're human again. You've analyzed {{ $this->getSubmissionCount() }} products recently.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
+                    @if(!$captcha_passed)
                         <div id="recaptcha-container" class="g-recaptcha" data-sitekey="{{ $captcha->getSiteKey() }}" data-callback="onRecaptchaSuccess"></div>
                         <input type="hidden" wire:model="g_recaptcha_response">
                         @error('g_recaptcha_response')
@@ -67,23 +51,7 @@
                         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
                     @endif
                 @elseif($captcha->getProvider() === 'hcaptcha')
-                    @if($this->shouldShowCaptcha())
-                        @if($captcha->isRevalidationRequired())
-                            <div class="mb-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                                <div class="flex items-center">
-                                    <div class="flex-shrink-0">
-                                        <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
-                                        </svg>
-                                    </div>
-                                    <div class="ml-3">
-                                        <p class="text-sm text-yellow-700">
-                                            Please verify you're human again. You've analyzed {{ $this->getSubmissionCount() }} products recently.
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-                        @endif
+                    @if(!$captcha_passed)
                         <div
                             wire:key="hcaptcha-{{ $hcaptchaKey }}"
                             id="hcaptcha-container-{{ $hcaptchaKey }}"
