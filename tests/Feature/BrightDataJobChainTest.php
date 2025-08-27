@@ -84,6 +84,9 @@ class BrightDataJobChainTest extends TestCase
     {
         Queue::fake();
 
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
+
         // Mock successful job trigger response
         $this->mockHandler->append(new Response(200, [], json_encode([
             'snapshot_id' => 's_test_trigger',

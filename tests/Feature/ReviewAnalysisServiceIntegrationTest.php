@@ -94,6 +94,9 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
         // Simulate being in a queue worker (forces sync mode)
         $_SERVER['argv'] = ['artisan', 'queue:work', '--queue=analysis'];
 
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
+
         // Mock successful BrightData responses
         $this->mockHandler->append(new Response(200, [], json_encode([
             'snapshot_id' => 's_test_integration_success',

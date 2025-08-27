@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Session;
 
 /**
  * Captcha Service for handling multiple CAPTCHA providers.
@@ -58,5 +59,73 @@ class CaptchaService
 
         // Both APIs return 'success' boolean
         return $data['success'] ?? false;
+    }
+
+    /**
+     * Check if captcha re-validation is required based on session submission count.
+     *
+     * @return bool True if captcha is required, false otherwise
+     */
+    public function isRevalidationRequired(): bool
+    {
+        if (!config('captcha.revalidation.enabled', true)) {
+            return false;
+        }
+
+        if (app()->environment(['local', 'testing'])) {
+            return false;
+        }
+
+        $sessionKey = config('captcha.revalidation.session_key', 'captcha_submissions');
+        $threshold = config('captcha.revalidation.submission_threshold', 4);
+        
+        $submissionCount = Session::get($sessionKey, 0);
+        
+        return $submissionCount >= $threshold;
+    }
+
+    /**
+     * Record a successful product submission in the session.
+     */
+    public function recordSuccessfulSubmission(): void
+    {
+        if (!config('captcha.revalidation.enabled', true)) {
+            return;
+        }
+
+        $sessionKey = config('captcha.revalidation.session_key', 'captcha_submissions');
+        $currentCount = Session::get($sessionKey, 0);
+        
+        Session::put($sessionKey, $currentCount + 1);
+    }
+
+    /**
+     * Reset the submission counter (called after successful captcha verification).
+     */
+    public function resetSubmissionCounter(): void
+    {
+        $sessionKey = config('captcha.revalidation.session_key', 'captcha_submissions');
+        Session::forget($sessionKey);
+    }
+
+    /**
+     * Get the current submission count for debugging/display purposes.
+     *
+     * @return int Current submission count
+     */
+    public function getSubmissionCount(): int
+    {
+        $sessionKey = config('captcha.revalidation.session_key', 'captcha_submissions');
+        return Session::get($sessionKey, 0);
+    }
+
+    /**
+     * Check if captcha validation should be enforced (not in local/testing environment).
+     *
+     * @return bool True if captcha should be enforced
+     */
+    public function shouldEnforceCaptcha(): bool
+    {
+        return !app()->environment(['local', 'testing']);
     }
 }

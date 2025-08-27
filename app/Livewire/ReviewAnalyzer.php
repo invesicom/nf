@@ -76,6 +76,9 @@ class ReviewAnalyzer extends Component
         $this->currentlyProcessing = '';
         $this->loading = false;
         $this->totalReviewsFound = 0;
+        
+        // Check if captcha re-validation is required
+        $this->checkCaptchaRevalidationStatus();
     }
 
     public function analyze()
@@ -160,24 +163,26 @@ class ReviewAnalyzer extends Component
             ]);
 
             // Captcha validation (if not local)
-            if (!app()->environment(['local', 'testing'])) {
-                if (!$this->captcha_passed) {
-                    $captchaService = app(CaptchaService::class);
+            $captchaService = app(CaptchaService::class);
+            if ($captchaService->shouldEnforceCaptcha()) {
+                $requiresCaptcha = !$this->captcha_passed || $captchaService->isRevalidationRequired();
+                
+                if ($requiresCaptcha) {
                     $provider = $captchaService->getProvider();
+                    $captchaResponse = null;
 
                     if ($provider === 'recaptcha' && !empty($this->g_recaptcha_response)) {
-                        if (!$captchaService->verify($this->g_recaptcha_response)) {
-                            throw new \Exception('Captcha verification failed. Please try again.');
-                        }
-                        $this->captcha_passed = true;
+                        $captchaResponse = $this->g_recaptcha_response;
                     } elseif ($provider === 'hcaptcha' && !empty($this->h_captcha_response)) {
-                        if (!$captchaService->verify($this->h_captcha_response)) {
-                            throw new \Exception('Captcha verification failed. Please try again.');
-                        }
-                        $this->captcha_passed = true;
-                    } else {
+                        $captchaResponse = $this->h_captcha_response;
+                    }
+
+                    if (!$captchaResponse || !$captchaService->verify($captchaResponse)) {
                         throw new \Exception('Captcha verification failed. Please try again.');
                     }
+                    
+                    $this->captcha_passed = true;
+                    $captchaService->resetSubmissionCounter();
                 }
             }
 
@@ -199,6 +204,9 @@ class ReviewAnalyzer extends Component
 
             $analysisResult = $analysisService->calculateFinalMetrics($asinData);
             $this->setResults($analysisResult);
+
+            // Record successful submission for captcha re-validation tracking
+            $captchaService->recordSuccessfulSubmission();
 
             // Sync mode: Use original behavior - redirect if product data exists, otherwise show in-place
             if ($asinData->have_product_data) {
@@ -476,5 +484,43 @@ class ReviewAnalyzer extends Component
         $this->loading = false;
 
         LoggingService::log('Async analysis results set successfully');
+    }
+
+    /**
+     * Check if captcha re-validation is required and reset captcha_passed if needed.
+     */
+    private function checkCaptchaRevalidationStatus(): void
+    {
+        $captchaService = app(CaptchaService::class);
+        
+        if ($captchaService->shouldEnforceCaptcha() && $captchaService->isRevalidationRequired()) {
+            $this->captcha_passed = false;
+            
+            // Clear any existing captcha responses to force fresh validation
+            $this->g_recaptcha_response = '';
+            $this->h_captcha_response = '';
+        }
+    }
+
+    /**
+     * Get the current submission count for display purposes.
+     */
+    public function getSubmissionCount(): int
+    {
+        return app(CaptchaService::class)->getSubmissionCount();
+    }
+
+    /**
+     * Check if captcha should be displayed.
+     */
+    public function shouldShowCaptcha(): bool
+    {
+        $captchaService = app(CaptchaService::class);
+        
+        if (!$captchaService->shouldEnforceCaptcha()) {
+            return false;
+        }
+        
+        return !$this->captcha_passed || $captchaService->isRevalidationRequired();
     }
 }

@@ -51,8 +51,12 @@ return [
         'api_key'              => env('BRIGHTDATA_API_KEY'),
         'base_url'             => env('BRIGHTDATA_BASE_URL', 'https://api.brightdata.com'),
         'timeout'              => env('BRIGHTDATA_TIMEOUT', 300), // 5 minutes
-        'polling_interval'     => env('BRIGHTDATA_POLLING_INTERVAL', 10), // seconds
-        'max_polling_attempts' => env('BRIGHTDATA_MAX_POLLING', 60), // 10 minutes total
+        'polling_interval'     => env('BRIGHTDATA_POLLING_INTERVAL', 30), // seconds between polls
+        'max_polling_attempts' => env('BRIGHTDATA_MAX_POLLING', 40), // 20 minutes total polling
+        'job_timeout_minutes'  => env('BRIGHTDATA_JOB_TIMEOUT', 30), // Cancel jobs after 30 minutes
+        'max_concurrent_jobs'  => env('BRIGHTDATA_MAX_CONCURRENT', 90), // Stop creating jobs at 90 running
+        'auto_cancel_enabled'  => env('BRIGHTDATA_AUTO_CANCEL', true), // Enable automatic job cancellation
+        'stale_job_threshold'  => env('BRIGHTDATA_STALE_THRESHOLD', 60), // Jobs older than 60 minutes are stale
     ],
 
     /*

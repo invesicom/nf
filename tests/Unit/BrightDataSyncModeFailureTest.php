@@ -174,6 +174,11 @@ class BrightDataSyncModeFailureTest extends TestCase
         // Simulate being in a queue worker (forces sync mode)
         $_SERVER['argv'] = ['artisan', 'queue:work', '--queue=analysis'];
 
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            // Return empty array to indicate no running jobs
+        ])));
+
         // Mock successful BrightData responses
         $this->mockHandler->append(new Response(200, [], json_encode([
             'snapshot_id' => 's_test_success',

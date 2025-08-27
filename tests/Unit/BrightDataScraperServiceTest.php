@@ -51,6 +51,11 @@ class BrightDataScraperServiceTest extends TestCase
     #[Test]
     public function it_can_trigger_scraping_job_successfully()
     {
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            // Return empty array to indicate no running jobs
+        ])));
+
         // Mock successful job trigger response
         $this->mockHandler->append(new Response(200, [], json_encode([
             'snapshot_id' => 's_test123456789',
@@ -193,6 +198,11 @@ class BrightDataScraperServiceTest extends TestCase
     #[Test]
     public function it_can_fetch_product_data()
     {
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            // Return empty array to indicate no running jobs
+        ])));
+
         // Mock successful scraping flow
         $this->mockHandler->append(new Response(200, [], json_encode([
             'snapshot_id' => 's_test_product',
@@ -220,6 +230,11 @@ class BrightDataScraperServiceTest extends TestCase
     #[Test]
     public function it_transforms_brightdata_review_format_correctly()
     {
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            // Return empty array to indicate no running jobs
+        ])));
+
         // Mock successful scraping flow with rich review data
         $this->mockHandler->append(new Response(200, [], json_encode([
             'snapshot_id' => 's_test_transform',
@@ -297,6 +312,11 @@ class BrightDataScraperServiceTest extends TestCase
         ];
 
         foreach ($testCases as [$country, $expectedDomain]) {
+            // Mock concurrent job check (getJobsByStatus call)
+            $this->mockHandler->append(new Response(200, [], json_encode([
+                // Return empty array to indicate no running jobs
+            ])));
+
             // Mock successful responses for each country
             $this->mockHandler->append(new Response(200, [], json_encode([
                 'snapshot_id' => "s_test_{$country}",
