@@ -16,16 +16,16 @@ class GradeCalculationConsistencyTest extends TestCase
     #[Test]
     public function all_services_use_consistent_grade_calculation()
     {
-        // Test various fake percentages to ensure consistency
+        // Test various fake percentages to ensure consistency with new stricter thresholds
         $testCases = [
             ['fake_percentage' => 5.0, 'expected_grade' => 'A'],
-            ['fake_percentage' => 15.0, 'expected_grade' => 'A'],
-            ['fake_percentage' => 25.0, 'expected_grade' => 'B'],
-            ['fake_percentage' => 30.0, 'expected_grade' => 'B'],
+            ['fake_percentage' => 8.0, 'expected_grade' => 'A'],
+            ['fake_percentage' => 15.0, 'expected_grade' => 'B'],
+            ['fake_percentage' => 20.0, 'expected_grade' => 'B'],
+            ['fake_percentage' => 30.0, 'expected_grade' => 'C'],
             ['fake_percentage' => 40.0, 'expected_grade' => 'C'],
-            ['fake_percentage' => 50.0, 'expected_grade' => 'C'],
+            ['fake_percentage' => 55.0, 'expected_grade' => 'D'],
             ['fake_percentage' => 65.0, 'expected_grade' => 'D'],
-            ['fake_percentage' => 70.0, 'expected_grade' => 'D'],
             ['fake_percentage' => 85.0, 'expected_grade' => 'F'],
             ['fake_percentage' => 100.0, 'expected_grade' => 'F'],
         ];
@@ -110,7 +110,7 @@ class GradeCalculationConsistencyTest extends TestCase
         $product = AsinData::factory()->create([
             'asin'            => 'B0TESTFIX01',
             'fake_percentage' => 45.0,
-            'grade'           => 'C', // This should match our centralized calculation
+            'grade'           => 'D', // This should match our centralized calculation (45% = D under new thresholds)
             'status'          => 'completed',
             'reviews'         => [
                 ['rating' => 5, 'text' => 'Test review 1', 'meta_data' => ['verified_purchase' => true]],
@@ -131,16 +131,16 @@ class GradeCalculationConsistencyTest extends TestCase
     #[Test]
     public function boundary_values_are_consistent_across_services()
     {
-        // Test exact boundary values that were inconsistent before
+        // Test exact boundary values with new stricter thresholds
         $boundaryTests = [
-            ['percentage' => 15.0, 'expected' => 'A'], // A/B boundary
-            ['percentage' => 15.1, 'expected' => 'B'],
-            ['percentage' => 30.0, 'expected' => 'B'], // B/C boundary
-            ['percentage' => 30.1, 'expected' => 'C'],
-            ['percentage' => 50.0, 'expected' => 'C'], // C/D boundary
-            ['percentage' => 50.1, 'expected' => 'D'],
-            ['percentage' => 70.0, 'expected' => 'D'], // D/F boundary
-            ['percentage' => 70.1, 'expected' => 'F'],
+            ['percentage' => 8.0, 'expected' => 'A'], // A/B boundary
+            ['percentage' => 8.1, 'expected' => 'B'],
+            ['percentage' => 20.0, 'expected' => 'B'], // B/C boundary
+            ['percentage' => 20.1, 'expected' => 'C'],
+            ['percentage' => 40.0, 'expected' => 'C'], // C/D boundary
+            ['percentage' => 40.1, 'expected' => 'D'],
+            ['percentage' => 65.0, 'expected' => 'D'], // D/F boundary
+            ['percentage' => 65.1, 'expected' => 'F'],
         ];
 
         foreach ($boundaryTests as $test) {
@@ -185,36 +185,39 @@ class GradeCalculationConsistencyTest extends TestCase
 
         // Test values that show the differences between old inconsistent systems
 
-        // 12% - All old systems would have given A, new system gives A (consistent)
+        // 5% - Under new stricter system should be A (only exceptional products)
         $this->assertEquals(
             'A',
-            GradeCalculationService::calculateGrade(12),
-            'Value 12% should be A under new standardized system'
+            GradeCalculationService::calculateGrade(5),
+            'Value 5% should be A under new stricter system'
         );
 
-        // 22% - Old ReviewAnalysisService would give C (≤35%), new system gives B
+        // 15% - Old system would give A, new stricter system gives B
         $this->assertEquals(
             'B',
-            GradeCalculationService::calculateGrade(22),
-            'Value 22% should be B under new system (was C under old ReviewAnalysisService)'
+            GradeCalculationService::calculateGrade(15),
+            'Value 15% should be B under new stricter system (was A under old system)'
         );
 
-        // 75% - Old FixReviewCountDiscrepancies would give D (≤75%), new system gives F
-        $this->assertEquals(
-            'F',
-            GradeCalculationService::calculateGrade(75),
-            'Value 75% should be F under new system (was D under old FixReviewCountDiscrepancies)'
-        );
-
-        // 35% - Old ReviewAnalysisService would give C (≤35%), new system gives C
+        // 30% - Old system would give B, new system gives C
         $this->assertEquals(
             'C',
-            GradeCalculationService::calculateGrade(35),
-            'Value 35% should be C under new system'
+            GradeCalculationService::calculateGrade(30),
+            'Value 30% should be C under new system (was B under old system)'
         );
 
-        // 65% - Shows difference between old ReanalyzeGradedProducts (D≤70%) and new system (D≤70%) - same
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(65),
-            'Value 65% should be D under new system');
+        // 50% - Old system would give C, new system gives D
+        $this->assertEquals(
+            'D',
+            GradeCalculationService::calculateGrade(50),
+            'Value 50% should be D under new system (was C under old system)'
+        );
+
+        // 70% - Old system would give D, new system gives F
+        $this->assertEquals(
+            'F',
+            GradeCalculationService::calculateGrade(70),
+            'Value 70% should be F under new system (was D under old system)'
+        );
     }
 }

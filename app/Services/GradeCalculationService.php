@@ -13,21 +13,22 @@ class GradeCalculationService
      */
     public static function calculateGrade(float $fakePercentage): string
     {
-        // Standardized grade thresholds - SINGLE SOURCE OF TRUTH
-        if ($fakePercentage <= 15) {
-            return 'A';
+        // Stricter grade thresholds to reduce A-grade inflation and improve affiliate click-through rates
+        // Analysis showed 49% A-grades was unrealistic and reduced user engagement
+        if ($fakePercentage <= 8) {
+            return 'A';  // Only exceptional products (was 15%)
         }
-        if ($fakePercentage <= 30) {
-            return 'B';
+        if ($fakePercentage <= 20) {
+            return 'B';  // Good products (was 30%)
         }
-        if ($fakePercentage <= 50) {
-            return 'C';
+        if ($fakePercentage <= 40) {
+            return 'C';  // Average products (was 50%)
         }
-        if ($fakePercentage <= 70) {
-            return 'D';
+        if ($fakePercentage <= 65) {
+            return 'D';  // Poor products (was 70%)
         }
 
-        return 'F';
+        return 'F';  // Terrible products (71-100%)
     }
 
     /**
@@ -38,11 +39,11 @@ class GradeCalculationService
     public static function getGradeThresholds(): array
     {
         return [
-            'A' => ['min' => 0, 'max' => 15],
-            'B' => ['min' => 16, 'max' => 30],
-            'C' => ['min' => 31, 'max' => 50],
-            'D' => ['min' => 51, 'max' => 70],
-            'F' => ['min' => 71, 'max' => 100],
+            'A' => ['min' => 0, 'max' => 8],
+            'B' => ['min' => 9, 'max' => 20],
+            'C' => ['min' => 21, 'max' => 40],
+            'D' => ['min' => 41, 'max' => 65],
+            'F' => ['min' => 66, 'max' => 100],
         ];
     }
 

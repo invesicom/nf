@@ -13,37 +13,37 @@ class GradeCalculationServiceTest extends TestCase
     {
         $this->assertEquals('A', GradeCalculationService::calculateGrade(0));
         $this->assertEquals('A', GradeCalculationService::calculateGrade(5));
-        $this->assertEquals('A', GradeCalculationService::calculateGrade(15));
+        $this->assertEquals('A', GradeCalculationService::calculateGrade(8));
     }
 
     #[Test]
     public function it_calculates_grade_b_for_moderate_fake_percentages()
     {
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(16));
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(25));
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(30));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(9));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(15));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(20));
     }
 
     #[Test]
     public function it_calculates_grade_c_for_medium_fake_percentages()
     {
-        $this->assertEquals('C', GradeCalculationService::calculateGrade(31));
+        $this->assertEquals('C', GradeCalculationService::calculateGrade(21));
+        $this->assertEquals('C', GradeCalculationService::calculateGrade(30));
         $this->assertEquals('C', GradeCalculationService::calculateGrade(40));
-        $this->assertEquals('C', GradeCalculationService::calculateGrade(50));
     }
 
     #[Test]
     public function it_calculates_grade_d_for_high_fake_percentages()
     {
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(51));
+        $this->assertEquals('D', GradeCalculationService::calculateGrade(41));
+        $this->assertEquals('D', GradeCalculationService::calculateGrade(55));
         $this->assertEquals('D', GradeCalculationService::calculateGrade(65));
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(70));
     }
 
     #[Test]
     public function it_calculates_grade_f_for_very_high_fake_percentages()
     {
-        $this->assertEquals('F', GradeCalculationService::calculateGrade(71));
+        $this->assertEquals('F', GradeCalculationService::calculateGrade(66));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(85));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(100));
     }
@@ -52,26 +52,26 @@ class GradeCalculationServiceTest extends TestCase
     public function it_handles_boundary_values_correctly()
     {
         // Test exact boundary values
-        $this->assertEquals('A', GradeCalculationService::calculateGrade(15.0));
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(15.1));
+        $this->assertEquals('A', GradeCalculationService::calculateGrade(8.0));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(8.1));
 
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(30.0));
-        $this->assertEquals('C', GradeCalculationService::calculateGrade(30.1));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(20.0));
+        $this->assertEquals('C', GradeCalculationService::calculateGrade(20.1));
 
-        $this->assertEquals('C', GradeCalculationService::calculateGrade(50.0));
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(50.1));
+        $this->assertEquals('C', GradeCalculationService::calculateGrade(40.0));
+        $this->assertEquals('D', GradeCalculationService::calculateGrade(40.1));
 
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(70.0));
-        $this->assertEquals('F', GradeCalculationService::calculateGrade(70.1));
+        $this->assertEquals('D', GradeCalculationService::calculateGrade(65.0));
+        $this->assertEquals('F', GradeCalculationService::calculateGrade(65.1));
     }
 
     #[Test]
     public function it_handles_decimal_values()
     {
-        $this->assertEquals('A', GradeCalculationService::calculateGrade(14.9));
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(29.5));
-        $this->assertEquals('C', GradeCalculationService::calculateGrade(49.99));
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(69.1));
+        $this->assertEquals('A', GradeCalculationService::calculateGrade(7.9));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(19.5));
+        $this->assertEquals('C', GradeCalculationService::calculateGrade(39.99));
+        $this->assertEquals('D', GradeCalculationService::calculateGrade(64.1));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(85.7));
     }
 
@@ -100,11 +100,11 @@ class GradeCalculationServiceTest extends TestCase
         $this->assertArrayHasKey('F', $thresholds);
 
         // Verify threshold values
-        $this->assertEquals(['min' => 0, 'max' => 15], $thresholds['A']);
-        $this->assertEquals(['min' => 16, 'max' => 30], $thresholds['B']);
-        $this->assertEquals(['min' => 31, 'max' => 50], $thresholds['C']);
-        $this->assertEquals(['min' => 51, 'max' => 70], $thresholds['D']);
-        $this->assertEquals(['min' => 71, 'max' => 100], $thresholds['F']);
+        $this->assertEquals(['min' => 0, 'max' => 8], $thresholds['A']);
+        $this->assertEquals(['min' => 9, 'max' => 20], $thresholds['B']);
+        $this->assertEquals(['min' => 21, 'max' => 40], $thresholds['C']);
+        $this->assertEquals(['min' => 41, 'max' => 65], $thresholds['D']);
+        $this->assertEquals(['min' => 66, 'max' => 100], $thresholds['F']);
     }
 
     #[Test]
@@ -137,33 +137,33 @@ class GradeCalculationServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_maintains_consistency_with_old_thresholds()
+    public function it_maintains_consistency_with_new_stricter_thresholds()
     {
-        // Test that the new standardized thresholds work correctly
-        // These are the thresholds we're standardizing to (A≤15%, B≤30%, C≤50%, D≤70%)
+        // Test that the new stricter thresholds work correctly to reduce A-grade inflation
+        // New thresholds: A≤8%, B≤20%, C≤40%, D≤65%, F>65%
 
-        // Grade A: 0-15%
+        // Grade A: 0-8% (only exceptional products)
         $this->assertEquals('A', GradeCalculationService::calculateGrade(0));
-        $this->assertEquals('A', GradeCalculationService::calculateGrade(10));
-        $this->assertEquals('A', GradeCalculationService::calculateGrade(15));
+        $this->assertEquals('A', GradeCalculationService::calculateGrade(5));
+        $this->assertEquals('A', GradeCalculationService::calculateGrade(8));
 
-        // Grade B: 16-30%
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(16));
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(25));
-        $this->assertEquals('B', GradeCalculationService::calculateGrade(30));
+        // Grade B: 9-20% (good products)
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(9));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(15));
+        $this->assertEquals('B', GradeCalculationService::calculateGrade(20));
 
-        // Grade C: 31-50%
-        $this->assertEquals('C', GradeCalculationService::calculateGrade(31));
+        // Grade C: 21-40% (average products)
+        $this->assertEquals('C', GradeCalculationService::calculateGrade(21));
+        $this->assertEquals('C', GradeCalculationService::calculateGrade(30));
         $this->assertEquals('C', GradeCalculationService::calculateGrade(40));
-        $this->assertEquals('C', GradeCalculationService::calculateGrade(50));
 
-        // Grade D: 51-70%
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(51));
+        // Grade D: 41-65% (poor products)
+        $this->assertEquals('D', GradeCalculationService::calculateGrade(41));
+        $this->assertEquals('D', GradeCalculationService::calculateGrade(55));
         $this->assertEquals('D', GradeCalculationService::calculateGrade(65));
-        $this->assertEquals('D', GradeCalculationService::calculateGrade(70));
 
-        // Grade F: 71-100%
-        $this->assertEquals('F', GradeCalculationService::calculateGrade(71));
+        // Grade F: 66-100% (terrible products)
+        $this->assertEquals('F', GradeCalculationService::calculateGrade(66));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(85));
         $this->assertEquals('F', GradeCalculationService::calculateGrade(100));
     }
