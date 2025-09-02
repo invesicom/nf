@@ -416,4 +416,185 @@ class CompleteAnalysisWorkflowTest extends TestCase
         $this->assertEquals('completed', $progressData['status']);
         $this->assertStringContainsString('/us/B0EXISTING', $progressData['redirect_url']);
     }
+
+    #[Test]
+    public function complete_workflow_handles_no_reviews_scenario_with_redirect()
+    {
+        $amazonUrl = 'https://www.amazon.com/dp/B0NOREVIEW?ref=test';
+
+        // Step 1: User submits URL via API endpoint
+        $response = $this->withHeaders([
+            'X-CSRF-TOKEN' => csrf_token(),
+            'Accept'       => 'application/json',
+        ])->post('/api/analysis/start', [
+            'productUrl' => $amazonUrl,
+        ]);
+
+        $response->assertStatus(200);
+        $responseData = $response->json();
+        $sessionId = $responseData['session_id'];
+
+        // Step 2: Verify analysis session was created
+        $this->assertDatabaseHas('analysis_sessions', [
+            'id'   => $sessionId,
+            'asin' => 'B0NOREVIEW',
+        ]);
+
+        // Step 3: Verify job was queued
+        Queue::assertPushed(\App\Jobs\ProcessProductAnalysis::class);
+
+        // Step 4: Simulate completed analysis with NO REVIEWS (Grade U scenario)
+        $policy = app(ProductAnalysisPolicy::class);
+        $asinData = AsinData::create([
+            'asin'                    => 'B0NOREVIEW',
+            'country'                 => 'us',
+            'status'                  => 'completed',
+            'have_product_data'       => true,
+            'product_title'           => 'Product With No Reviews',
+            'product_description'     => 'This product has no reviews available.',
+            'product_image_url'       => 'https://example.com/image.jpg',
+            'total_reviews_on_amazon' => 0,
+            'reviews'                 => [], // Empty reviews array
+            'openai_result'           => $policy->getDefaultAnalysisResult(),
+            'fake_percentage'         => 0.00,
+            'grade'                   => 'U', // Grade U = Unanalyzable (no reviews)
+            'explanation'             => $policy->getDefaultMetrics()['explanation'],
+            'amazon_rating'           => 0.0,
+            'adjusted_rating'         => 0.0,
+            'first_analyzed_at'       => now(),
+            'last_analyzed_at'        => now(),
+        ]);
+
+        // Step 5: Verify the product is considered "analyzed" despite Grade U
+        $this->assertTrue($asinData->isAnalyzed(), 'Grade U products should be considered analyzed');
+
+        // Step 6: Simulate session completion with redirect URL (this should now work)
+        $session = AnalysisSession::find($sessionId);
+        $redirectUrl = route('amazon.product.show', [
+            'country' => 'us', 
+            'asin' => 'B0NOREVIEW',
+            'slug' => $asinData->slug
+        ]);
+        
+        $session->markAsCompleted([
+            'success'         => true,
+            'asin_data'       => $asinData,
+            'analysis_result' => $policy->getDefaultAnalysisResult(),
+            'redirect_url'    => $redirectUrl,
+        ]);
+
+        // Step 7: Test progress polling endpoint returns redirect URL
+        $progressResponse = $this->get("/api/analysis/progress/{$sessionId}");
+        $progressResponse->assertStatus(200);
+        $progressData = $progressResponse->json();
+
+        $this->assertEquals('completed', $progressData['status']);
+        $this->assertEquals(100, $progressData['progress_percentage']);
+        $this->assertArrayHasKey('redirect_url', $progressData);
+        $this->assertNotNull($progressData['redirect_url'], 'Grade U products should have redirect URL');
+
+        // Step 8: Verify redirect URL leads to product page showing "no reviews" message
+        $redirectUrl = $progressData['redirect_url'];
+        $this->assertStringContainsString('/us/B0NOREVIEW', $redirectUrl);
+
+        $productPageResponse = $this->followingRedirects()->get($redirectUrl);
+        $productPageResponse->assertStatus(200);
+        
+        // Verify the page shows the product (not "Product Not Found")
+        $productPageResponse->assertSee('Product With No Reviews');
+        $productPageResponse->assertSee('Grade U');
+        
+        // Verify it shows appropriate message for no reviews
+        $productPageResponse->assertSee('No reviews could be extracted for analysis');
+        
+        // Should NOT see "Product Not Found" or "We haven't analyzed this Amazon product yet"
+        $productPageResponse->assertDontSee('Product Not Found');
+        $productPageResponse->assertDontSee('We haven\'t analyzed this Amazon product yet');
+    }
+
+    #[Test]
+    public function retry_command_identifies_and_processes_grade_u_products()
+    {
+        // Create several Grade U products (no reviews) at different ages
+        $oldProduct = AsinData::factory()->create([
+            'asin'              => 'B0OLD00001',
+            'country'           => 'us',
+            'status'            => 'completed',
+            'grade'             => 'U',
+            'fake_percentage'   => 0.00,
+            'have_product_data' => true,
+            'product_title'     => 'Old Product No Reviews',
+            'reviews'           => [],
+            'last_analyzed_at'  => now()->subHours(25), // Older than 24 hours
+        ]);
+
+        $recentProduct = AsinData::factory()->create([
+            'asin'              => 'B0RECENT01',
+            'country'           => 'us', 
+            'status'            => 'completed',
+            'grade'             => 'U',
+            'fake_percentage'   => 0.00,
+            'have_product_data' => true,
+            'product_title'     => 'Recent Product No Reviews',
+            'reviews'           => [],
+            'last_analyzed_at'  => now()->subHours(12), // Less than 24 hours
+        ]);
+
+        $analyzedProduct = AsinData::factory()->create([
+            'asin'              => 'B0ANALYZED1',
+            'country'           => 'us',
+            'status'            => 'completed', 
+            'grade'             => 'B',
+            'fake_percentage'   => 25.0,
+            'have_product_data' => true,
+            'product_title'     => 'Analyzed Product With Reviews',
+            'reviews'           => [['rating' => 4, 'text' => 'Good product']],
+            'last_analyzed_at'  => now()->subHours(25),
+        ]);
+
+        // Test dry run mode first
+        $this->artisan('products:retry-no-reviews', ['--dry-run' => true, '--limit' => 10, '--age' => 24])
+            ->expectsOutput('Found 1 products to retry:')
+            ->expectsTable(['ASIN', 'Country', 'Title', 'Analyzed', 'Reviews'], [
+                ['B0OLD00001', 'us', 'Old Product No Reviews', $oldProduct->last_analyzed_at->diffForHumans(), '0'],
+            ])
+            ->expectsOutput('DRY RUN: No changes made. Use without --dry-run to process.')
+            ->assertExitCode(0);
+
+        // Verify no actual changes were made in dry run
+        $oldProduct->refresh();
+        $this->assertEquals('completed', $oldProduct->status);
+        $this->assertNotNull($oldProduct->last_analyzed_at);
+
+        // Test actual execution (without dry-run)
+        Queue::fake(); // Prevent actual job execution in test
+        
+        $this->artisan('products:retry-no-reviews', ['--limit' => 10, '--age' => 24, '--force' => true])
+            ->expectsOutput('Found 1 products to retry:')
+            ->expectsOutput('Retrying ASIN: B0OLD00001 (us)')
+            ->expectsOutput('Processed: 1')
+            ->assertExitCode(0);
+
+        // Verify the old product was processed (analysis runs in the command)
+        $oldProduct->refresh();
+        // Note: The command actually runs the analysis, so status will be 'completed' again
+        // The important thing is that it was reset and re-analyzed
+        $this->assertEquals('completed', $oldProduct->status);
+        $this->assertNotNull($oldProduct->last_analyzed_at);
+        // The product will still have Grade U since it has no reviews
+        $this->assertEquals('U', $oldProduct->grade);
+
+        // Note: The retry command calls analyzeProduct directly, not via job queue
+        // So we don't expect any jobs to be pushed during the retry process
+
+        // Verify recent product was NOT processed (too new)
+        $recentProduct->refresh();
+        $this->assertEquals('completed', $recentProduct->status);
+        $this->assertEquals('U', $recentProduct->grade);
+
+        // Verify analyzed product was NOT processed (has reviews)
+        $analyzedProduct->refresh();
+        $this->assertEquals('completed', $analyzedProduct->status);
+        $this->assertEquals('B', $analyzedProduct->grade);
+    }
 }

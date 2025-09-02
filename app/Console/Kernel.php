@@ -24,6 +24,12 @@ class Kernel extends ConsoleKernel
                  ->weekly()
                  ->sundays()
                  ->at('03:00');
+
+        // Retry products with no reviews every hour
+        $schedule->command('products:retry-no-reviews --limit=25 --age=24')
+                 ->hourly()
+                 ->withoutOverlapping()
+                 ->runInBackground();
     }
 
     /**

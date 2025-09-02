@@ -239,7 +239,7 @@ class AsinDataModelTest extends TestCase
             'fake_percentage'   => 30.0,
             'grade'             => 'A',
         ]);
-        $this->assertFalse($asinDataNoReviews->isAnalyzed());
+        $this->assertTrue($asinDataNoReviews->isAnalyzed()); // Grade U products are now considered analyzed
     }
 
     public function test_unique_constraint_on_asin_and_country()

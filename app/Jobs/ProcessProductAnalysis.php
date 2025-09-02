@@ -160,31 +160,27 @@ class ProcessProductAnalysis implements ShouldQueue
 
     private function determineRedirectUrl(AsinData $asinData): ?string
     {
-        $policy = app(\App\Services\ProductAnalysisPolicy::class);
-
-        // CRITICAL: Only redirect if the product has meaningful analysis results
-        // Products with 0 reviews should never be shown (not useful for users)
-        $hasReviews = $policy->isAnalyzable($asinData);
+        // Always redirect if analysis is completed and we have product data
+        // This includes products with no reviews (Grade U) - users should see the result
         $hasAnalysis = $asinData->status === 'completed' &&
                        !is_null($asinData->fake_percentage) &&
                        !is_null($asinData->grade);
 
-        if (!$hasReviews || !$hasAnalysis) {
-            LoggingService::log('Product not analyzable - no redirect URL generated', [
+        if (!$hasAnalysis) {
+            LoggingService::log('Product analysis incomplete - no redirect URL generated', [
                 'asin'              => $asinData->asin,
                 'reviews_count'     => count($asinData->getReviewsArray()),
                 'status'            => $asinData->status,
                 'fake_percentage'   => $asinData->fake_percentage,
+                'grade'             => $asinData->grade,
                 'have_product_data' => $asinData->have_product_data,
-                'has_reviews'       => $hasReviews,
-                'has_analysis'      => $hasAnalysis,
             ]);
 
             return null;
         }
 
-        // Product has analysis results and reviews - redirect even if product data is incomplete
-        // (The product page can handle missing images/descriptions gracefully)
+        // Redirect to product page - handles both products with reviews and without reviews
+        // Products without reviews show Grade U with appropriate messaging
         if ($asinData->slug) {
             return route('amazon.product.show.slug', [
                 'country' => $asinData->country,

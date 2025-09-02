@@ -53,7 +53,7 @@ class OllamaProvider implements LLMProviderInterface
 
             throw new \Exception('Ollama API request failed: '.$response->body());
         } catch (\Exception $e) {
-            LoggingService::log('Ollama analysis failed: '.$e->getMessage());
+            LoggingService::log('Ollama analysis failed: '.mb_convert_encoding($e->getMessage(), 'UTF-8', 'UTF-8'));
 
             throw $e;
         }
@@ -89,6 +89,25 @@ class OllamaProvider implements LLMProviderInterface
         return $baseTokens + $buffer;
     }
 
+    /**
+     * Clean text to ensure valid UTF-8 encoding for JSON serialization.
+     */
+    private function cleanUtf8Text(string $text): string
+    {
+        // Remove or replace invalid UTF-8 sequences
+        $text = mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+
+        // Remove null bytes and other problematic characters
+        $text = str_replace(["\0", "\x1A"], '', $text);
+
+        // Ensure string is valid UTF-8
+        if (!mb_check_encoding($text, 'UTF-8')) {
+            $text = mb_convert_encoding($text, 'UTF-8', 'auto');
+        }
+
+        return trim($text);
+    }
+
     private function buildOptimizedPrompt($reviews): string
     {
         // BALANCED: Comprehensive analysis with reasonable performance
@@ -102,9 +121,9 @@ class OllamaProvider implements LLMProviderInterface
 
             $text = '';
             if (isset($review['review_text'])) {
-                $text = substr($review['review_text'], 0, 300); // Increased from 100 to 300 for better context
+                $text = $this->cleanUtf8Text(substr($review['review_text'], 0, 300)); // Increased from 100 to 300 for better context
             } elseif (isset($review['text'])) {
-                $text = substr($review['text'], 0, 300);
+                $text = $this->cleanUtf8Text(substr($review['text'], 0, 300));
             }
 
             $prompt .= "Review {$review['id']} ({$verified}, {$rating}★): {$text}\n\n";

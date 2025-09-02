@@ -80,7 +80,7 @@ class ProductAnalysisPolicy
         return [
             'fake_percentage' => 0,
             'grade'           => 'U', // U = Unanalyzable (single char to fit database constraint)
-            'explanation'     => 'Unable to analyze reviews at this time.',
+            'explanation'     => 'No reviews could be extracted for analysis. This may occur when Amazon is actively blocking automated review collection, implementing anti-bot measures, or when the product genuinely has no customer reviews. Our system will automatically retry this analysis periodically to check if reviews become available.',
             'amazon_rating'   => 0.0,
             'adjusted_rating' => 0.0,
             'total_reviews'   => 0,

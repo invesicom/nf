@@ -119,7 +119,7 @@ class ProductAnalysisPolicyTest extends TestCase
 
         $this->assertEquals(0, $metrics['fake_percentage']);
         $this->assertEquals('U', $metrics['grade']);
-        $this->assertEquals('Unable to analyze reviews at this time.', $metrics['explanation']);
+        $this->assertEquals('No reviews could be extracted for analysis. This may occur when Amazon is actively blocking automated review collection, implementing anti-bot measures, or when the product genuinely has no customer reviews. Our system will automatically retry this analysis periodically to check if reviews become available.', $metrics['explanation']);
         $this->assertEquals(0.0, $metrics['amazon_rating']);
         $this->assertEquals(0.0, $metrics['adjusted_rating']);
         $this->assertEquals(0, $metrics['total_reviews']);
@@ -152,7 +152,7 @@ class ProductAnalysisPolicyTest extends TestCase
         $this->assertEquals('completed', $result->status);
         $this->assertEquals(0, $result->fake_percentage);
         $this->assertEquals('U', $result->grade);
-        $this->assertEquals('Unable to analyze reviews at this time.', $result->explanation);
+        $this->assertEquals('No reviews could be extracted for analysis. This may occur when Amazon is actively blocking automated review collection, implementing anti-bot measures, or when the product genuinely has no customer reviews. Our system will automatically retry this analysis periodically to check if reviews become available.', $result->explanation);
         $this->assertEquals(0.0, $result->amazon_rating);
         $this->assertEquals(0.0, $result->adjusted_rating);
 

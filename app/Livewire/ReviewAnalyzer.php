@@ -427,16 +427,14 @@ class ReviewAnalyzer extends Component
 
             // Redirect to results page (same as sync mode)
             return redirect($data['redirect_url']);
-        } elseif (isset($data['result'])) {
-            // Extract the actual analysis result from the job data structure
-            $jobResult = $data['result'];
-            if (isset($jobResult['analysis_result'])) {
-                $this->setResults($jobResult['analysis_result']);
-                $this->isAnalyzed = true;
-            } else {
-                LoggingService::log('No analysis_result found in job result: '.json_encode($jobResult));
-                $this->handleAsyncError('Invalid result data structure');
-            }
+        } elseif (isset($data['analysis_result'])) {
+            // Show results in-place when no redirect URL (e.g., products with no reviews)
+            LoggingService::log('Setting results with data: '.json_encode($data['analysis_result']));
+            $this->setResults($data['analysis_result']);
+            $this->isAnalyzed = true;
+        } else {
+            LoggingService::log('No analysis_result found in completion data: '.json_encode($data));
+            $this->handleAsyncError('Analysis completed but no results available');
         }
     }
 

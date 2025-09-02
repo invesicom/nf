@@ -279,18 +279,16 @@ class AsinData extends Model
      */
     public function isAnalyzed(): bool
     {
-        $policy = app(\App\Services\ProductAnalysisPolicy::class);
-
         // A product is considered analyzed if it has:
         // 1. Status is completed AND
-        // 2. Has fake_percentage and grade (key analysis results) AND
-        // 3. Has at least 1 review (products with 0 reviews aren't useful)
-        // Note: We don't require have_product_data because analysis can be complete
-        // even if product title/image scraping failed - the review analysis is what matters
+        // 2. Has fake_percentage and grade (key analysis results)
+        // 
+        // Note: Grade U products (no reviews) ARE considered analyzed - they went through
+        // the complete analysis process and received a valid result (Grade U).
+        // The analysis is complete, just with no reviews to analyze.
         return $this->status === 'completed' &&
                !is_null($this->fake_percentage) &&
-               !is_null($this->grade) &&
-               $policy->isAnalyzable($this);
+               !is_null($this->grade);
     }
 
     /**
