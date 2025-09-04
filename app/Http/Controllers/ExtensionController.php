@@ -1,0 +1,186 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\AsinData;
+use App\Services\ExtensionReviewService;
+use App\Services\LoggingService;
+use App\Services\MetricsCalculationService;
+use App\Services\ReviewAnalysisService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
+
+class ExtensionController extends Controller
+{
+    private ExtensionReviewService $extensionService;
+    private ReviewAnalysisService $analysisService;
+    private MetricsCalculationService $metricsService;
+
+    public function __construct(
+        ExtensionReviewService $extensionService,
+        ReviewAnalysisService $analysisService,
+        MetricsCalculationService $metricsService
+    ) {
+        $this->extensionService = $extensionService;
+        $this->analysisService = $analysisService;
+        $this->metricsService = $metricsService;
+    }
+
+    /**
+     * Submit review data from Chrome extension.
+     */
+    public function submitReviews(Request $request): JsonResponse
+    {
+        // Validate API key
+        if (!$this->validateApiKey($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Invalid or missing API key',
+            ], 401);
+        }
+
+        // Validate the JSON structure
+        $rules = [
+            'asin' => 'required|string|regex:/^[A-Z0-9]{10}$/',
+            'country' => 'required|string|size:2',
+            'product_url' => 'required|url',
+            'extraction_timestamp' => 'required|date_format:Y-m-d\TH:i:s.v\Z',
+            'extension_version' => 'required|string',
+            'total_reviews' => 'required|integer|min:0',
+            'reviews' => 'present|array',
+        ];
+
+        // Only add review validation rules if reviews array is not empty
+        if (!empty($request->input('reviews'))) {
+            $rules = array_merge($rules, [
+                'reviews.*.author' => 'required|string',
+                'reviews.*.content' => 'required|string',
+                'reviews.*.date' => 'required|date_format:Y-m-d',
+                'reviews.*.extraction_index' => 'required|integer|min:1',
+                'reviews.*.helpful_votes' => 'required|integer|min:0',
+                'reviews.*.rating' => 'required|integer|min:1|max:5',
+                'reviews.*.review_id' => 'required|string',
+                'reviews.*.title' => 'required|string',
+                'reviews.*.verified_purchase' => 'required|boolean',
+                'reviews.*.vine_customer' => 'required|boolean',
+            ]);
+        }
+
+        $validator = Validator::make($request->all(), $rules);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Invalid data format',
+                'details' => $validator->errors(),
+            ], 422);
+        }
+
+        try {
+            $data = $request->all();
+            
+            LoggingService::log('Chrome extension data received', [
+                'asin' => $data['asin'],
+                'country' => $data['country'],
+                'review_count' => count($data['reviews']),
+                'extension_version' => $data['extension_version'],
+            ]);
+
+            // Process the extension data
+            $asinData = $this->extensionService->processExtensionData($data);
+
+            // Perform analysis
+            $analysisResult = $this->analysisService->analyzeWithLLM($asinData);
+            $metrics = $this->metricsService->calculateFinalMetrics($analysisResult);
+
+            // Build response with analysis results
+            $response = [
+                'success' => true,
+                'asin' => $data['asin'],
+                'country' => $data['country'],
+                'analysis_id' => $asinData->id,
+                'processed_reviews' => count($data['reviews']),
+                'analysis_complete' => true,
+                'results' => [
+                    'fake_percentage' => $analysisResult->fake_percentage,
+                    'grade' => $analysisResult->grade,
+                    'summary' => $analysisResult->summary,
+                ],
+                'view_url' => route('amazon.product.show', [
+                    'asin' => $data['asin'],
+                    'country' => $data['country'],
+                ]),
+            ];
+
+            LoggingService::log('Chrome extension analysis completed', [
+                'asin' => $data['asin'],
+                'fake_percentage' => $analysisResult->fake_percentage,
+                'grade' => $analysisResult->grade,
+            ]);
+
+            return response()->json($response);
+
+        } catch (\Exception $e) {
+            LoggingService::handleException($e, 'Chrome extension data processing failed');
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to process review data: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get analysis status for extension.
+     */
+    public function getAnalysisStatus(Request $request, string $asin, string $country): JsonResponse
+    {
+        if (!$this->validateApiKey($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Invalid or missing API key',
+            ], 401);
+        }
+
+        $asinData = AsinData::where('asin', $asin)
+            ->where('country', $country)
+            ->first();
+
+        if (!$asinData) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Analysis not found',
+            ], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'asin' => $asin,
+            'country' => $country,
+            'status' => $asinData->status,
+            'fake_percentage' => $asinData->fake_percentage,
+            'grade' => $asinData->grade,
+            'view_url' => route('amazon.product.show', [
+                'asin' => $asin,
+                'country' => $country,
+            ]),
+        ]);
+    }
+
+    /**
+     * Validate API key from request.
+     */
+    private function validateApiKey(Request $request): bool
+    {
+        $apiKey = $request->header('X-API-Key') ?? $request->input('api_key');
+        $validApiKey = config('services.extension.api_key');
+
+        if (!$validApiKey) {
+            LoggingService::log('Extension API key not configured');
+            return false;
+        }
+
+        return hash_equals($validApiKey, $apiKey ?? '');
+    }
+}

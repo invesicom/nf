@@ -1,0 +1,498 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Models\AsinData;
+use App\Services\ExtensionReviewService;
+use App\Services\LLMServiceManager;
+use App\Services\MetricsCalculationService;
+use App\Services\ReviewAnalysisService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use PHPUnit\Framework\Attributes\Test;
+use Tests\TestCase;
+
+class ExtensionApiTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private string $validApiKey = 'test-api-key-12345';
+    private array $sampleReviewData;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        // Set up test API key
+        Config::set('services.extension.api_key', $this->validApiKey);
+        
+        // Mock external services
+        Http::fake();
+        Queue::fake();
+        
+        // Sample review data from user's example
+        $this->sampleReviewData = [
+            "asin" => "B0FFVTPRQY",
+            "country" => "ca",
+            "product_url" => "https://www.amazon.ca/Victorias-Secret-Wireless-Smoothing-Adjustable/dp/B0FFVTPRQY/ref=ast_sto_dp_puis?th=1&psc=1",
+            "extraction_timestamp" => "2025-01-04T21:22:00.123Z",
+            "extension_version" => "1.4.4",
+            "total_reviews" => 10,
+            "reviews" => [
+                [
+                    "author" => "beth",
+                    "content" => "Great shape, fabric, and quality for a wireless bra. I started going wireless in Covid and can never go back. This offers great shape with comfort.",
+                    "date" => "2025-08-31",
+                    "extraction_index" => 1,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "RGEOLHTBB5CYJ",
+                    "title" => "Great shape for a wireless bra!",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "Lisa G. Saylor",
+                    "content" => "Not the 1st time I have bought this particular bra. No underwire is a big plus! They last a long time. Shoulder straps tend to loosen over time, but I find other bras do the same. I have rounded shoulders so things like pocketbooks and straps just don't stay up. I find them comfortable with light padding. I will buy again!",
+                    "date" => "2025-07-26",
+                    "extraction_index" => 2,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "R11YBCQWYYRT26",
+                    "title" => "Comfortable",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "Michael Henry",
+                    "content" => "Straps are super uncomfortable and dig in your skin.",
+                    "date" => "2025-07-07",
+                    "extraction_index" => 3,
+                    "helpful_votes" => 0,
+                    "rating" => 1,
+                    "review_id" => "RP32FVJ4JBXP2",
+                    "title" => "Straps suck",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "LILIAN",
+                    "content" => "excelente material, muy comodo la talla es exacta, me parece una muy buena compra",
+                    "date" => "2025-08-27",
+                    "extraction_index" => 4,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "R29V37XQIDEFZO",
+                    "title" => "talla exacta",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "E J",
+                    "content" => "Will be buying more!",
+                    "date" => "2025-08-06",
+                    "extraction_index" => 5,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "R3U3O42RW55SII",
+                    "title" => "Repurchasing!",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "carl mackenstein",
+                    "content" => "bought this bra before and it is comfortable and no wires.",
+                    "date" => "2025-07-30",
+                    "extraction_index" => 6,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "R29BVKXQJO2AF2",
+                    "title" => "comfortable no wires",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "Judith Guerra",
+                    "content" => "Súper cómodos para mi los mejores",
+                    "date" => "2025-07-25",
+                    "extraction_index" => 7,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "R3J7WGOZ20SVOQ",
+                    "title" => "Súper cómodos",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "Stacia",
+                    "content" => "The clasp broke after a few months. But it was very comfortable. And true to size based on my size with Victoria secret sizing.",
+                    "date" => "2025-06-23",
+                    "extraction_index" => 8,
+                    "helpful_votes" => 0,
+                    "rating" => 3,
+                    "review_id" => "RNPP2WDMDIYT1",
+                    "title" => "Comfortable but flimsy",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "Mav647",
+                    "content" => "My daughter's favorite bra. She said it's comfortable and very pretty.",
+                    "date" => "2025-07-02",
+                    "extraction_index" => 9,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "R3QM6I21LTFUEU",
+                    "title" => "Comfortable and pretty",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ],
+                [
+                    "author" => "Kat",
+                    "content" => "True to size. I ordered more in different colors and some for my daughter.",
+                    "date" => "2025-05-10",
+                    "extraction_index" => 10,
+                    "helpful_votes" => 0,
+                    "rating" => 5,
+                    "review_id" => "R13IMF560NF3P5",
+                    "title" => "True to size.",
+                    "verified_purchase" => true,
+                    "vine_customer" => false
+                ]
+            ]
+        ];
+    }
+
+    #[Test]
+    public function it_successfully_processes_valid_extension_data()
+    {
+        // Mock the LLM service to return analysis results
+        $this->mockLLMAnalysis();
+        
+        $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'asin' => 'B0FFVTPRQY',
+                'country' => 'ca',
+                'processed_reviews' => 10,
+                'analysis_complete' => true,
+            ])
+            ->assertJsonStructure([
+                'success',
+                'asin',
+                'country',
+                'analysis_id',
+                'processed_reviews',
+                'analysis_complete',
+                'results' => [
+                    'fake_percentage',
+                    'grade',
+                    'summary',
+                ],
+                'view_url',
+            ]);
+
+        // Verify data was saved to database
+        $this->assertDatabaseHas('asin_data', [
+            'asin' => 'B0FFVTPRQY',
+            'country' => 'ca',
+            'source' => 'chrome_extension',
+            'extension_version' => '1.4.4',
+            'total_reviews_on_amazon' => 10,
+        ]);
+
+        // Verify reviews were saved correctly
+        $asinData = AsinData::where('asin', 'B0FFVTPRQY')->first();
+        $savedReviews = json_decode($asinData->reviews, true);
+        $this->assertCount(10, $savedReviews);
+        $this->assertEquals('RGEOLHTBB5CYJ', $savedReviews[0]['id']);
+        $this->assertEquals('beth', $savedReviews[0]['author']);
+    }
+
+    #[Test]
+    public function it_rejects_requests_without_api_key()
+    {
+        $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData);
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'error' => 'Invalid or missing API key',
+            ]);
+    }
+
+    #[Test]
+    public function it_rejects_requests_with_invalid_api_key()
+    {
+        $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData, [
+            'X-API-Key' => 'invalid-key',
+        ]);
+
+        $response->assertStatus(401)
+            ->assertJson([
+                'success' => false,
+                'error' => 'Invalid or missing API key',
+            ]);
+    }
+
+    #[Test]
+    public function it_validates_required_fields()
+    {
+        $invalidData = $this->sampleReviewData;
+        unset($invalidData['asin']);
+
+        $response = $this->postJson('/api/extension/submit-reviews', $invalidData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJson([
+                'success' => false,
+                'error' => 'Invalid data format',
+            ])
+            ->assertJsonStructure([
+                'success',
+                'error',
+                'details',
+            ]);
+    }
+
+    #[Test]
+    public function it_validates_asin_format()
+    {
+        $invalidData = $this->sampleReviewData;
+        $invalidData['asin'] = 'INVALID'; // Invalid ASIN format (too short)
+
+        $response = $this->postJson('/api/extension/submit-reviews', $invalidData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    #[Test]
+    public function it_validates_country_code_format()
+    {
+        $invalidData = $this->sampleReviewData;
+        $invalidData['country'] = 'USA'; // Should be 2 characters
+
+        $response = $this->postJson('/api/extension/submit-reviews', $invalidData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    #[Test]
+    public function it_validates_review_structure()
+    {
+        $invalidData = $this->sampleReviewData;
+        unset($invalidData['reviews'][0]['author']); // Remove required field
+
+        $response = $this->postJson('/api/extension/submit-reviews', $invalidData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    #[Test]
+    public function it_validates_rating_range()
+    {
+        $invalidData = $this->sampleReviewData;
+        $invalidData['reviews'][0]['rating'] = 6; // Invalid rating (should be 1-5)
+
+        $response = $this->postJson('/api/extension/submit-reviews', $invalidData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(422)
+            ->assertJsonPath('success', false);
+    }
+
+    #[Test]
+    public function it_handles_empty_reviews_array()
+    {
+        $this->mockLLMAnalysisForNoReviews();
+        
+        $emptyReviewsData = $this->sampleReviewData;
+        $emptyReviewsData['reviews'] = [];
+        $emptyReviewsData['total_reviews'] = 0;
+
+        $response = $this->postJson('/api/extension/submit-reviews', $emptyReviewsData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('processed_reviews', 0);
+    }
+
+    #[Test]
+    public function it_gets_analysis_status_successfully()
+    {
+        // Create existing analysis data
+        $asinData = AsinData::create([
+            'asin' => 'B0FFVTPRQY',
+            'country' => 'ca',
+            'status' => 'completed',
+            'fake_percentage' => 25.5,
+            'grade' => 'B',
+            'reviews' => json_encode([]),
+        ]);
+
+        $response = $this->getJson('/api/extension/analysis/B0FFVTPRQY/ca', [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'asin' => 'B0FFVTPRQY',
+                'country' => 'ca',
+                'status' => 'completed',
+                'fake_percentage' => 25.5,
+                'grade' => 'B',
+            ])
+            ->assertJsonStructure([
+                'success',
+                'asin',
+                'country',
+                'status',
+                'fake_percentage',
+                'grade',
+                'view_url',
+            ]);
+    }
+
+    #[Test]
+    public function it_returns_404_for_nonexistent_analysis()
+    {
+        $response = $this->getJson('/api/extension/analysis/NONEXISTENT/us', [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(404)
+            ->assertJson([
+                'success' => false,
+                'error' => 'Analysis not found',
+            ]);
+    }
+
+    #[Test]
+    public function it_accepts_api_key_as_parameter()
+    {
+        $this->mockLLMAnalysis();
+        
+        $dataWithApiKey = array_merge($this->sampleReviewData, [
+            'api_key' => $this->validApiKey,
+        ]);
+
+        $response = $this->postJson('/api/extension/submit-reviews', $dataWithApiKey);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('success', true);
+    }
+
+    #[Test]
+    public function it_handles_llm_analysis_failure_gracefully()
+    {
+        // Mock LLM service to throw exception
+        $this->mock(LLMServiceManager::class, function ($mock) {
+            $mock->shouldReceive('analyzeReviews')
+                ->andThrow(new \Exception('LLM service unavailable'));
+        });
+
+        $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(500)
+            ->assertJsonPath('success', false)
+            ->assertJsonStructure([
+                'success',
+                'error',
+            ]);
+    }
+
+    #[Test]
+    public function it_updates_existing_asin_data()
+    {
+        // Create existing ASIN data
+        $existingAsinData = AsinData::create([
+            'asin' => 'B0FFVTPRQY',
+            'country' => 'ca',
+            'status' => 'pending',
+            'reviews' => json_encode([]),
+        ]);
+
+        $this->mockLLMAnalysis();
+
+        $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200);
+
+        // Verify the existing record was updated, not duplicated
+        $this->assertEquals(1, AsinData::where('asin', 'B0FFVTPRQY')->count());
+        
+        $updatedAsinData = AsinData::where('asin', 'B0FFVTPRQY')->first();
+        $this->assertEquals('chrome_extension', $updatedAsinData->source);
+        $this->assertEquals('1.4.4', $updatedAsinData->extension_version);
+    }
+
+    private function mockLLMAnalysis(): void
+    {
+        $this->mock(LLMServiceManager::class, function ($mock) {
+            $mock->shouldReceive('analyzeReviews')
+                ->andReturn([
+                    'individual_scores' => array_fill(0, 10, ['score' => 25]),
+                    'summary' => 'Test analysis summary',
+                ]);
+        });
+
+        $this->mock(MetricsCalculationService::class, function ($mock) {
+            $mock->shouldReceive('calculateFinalMetrics')
+                ->andReturn([
+                    'fake_percentage' => 25.5,
+                    'grade' => 'B',
+                    'summary' => 'Test analysis summary',
+                ]);
+        });
+    }
+
+    private function mockLLMAnalysisForNoReviews(): void
+    {
+        $this->mock(ReviewAnalysisService::class, function ($mock) {
+            $mock->shouldReceive('analyzeWithLLM')
+                ->andReturnUsing(function ($asinData) {
+                    $asinData->update([
+                        'fake_percentage' => 0,
+                        'grade' => 'U',
+                        'summary' => 'No reviews available for analysis',
+                        'status' => 'completed',
+                    ]);
+                    return $asinData->fresh();
+                });
+        });
+
+        $this->mock(MetricsCalculationService::class, function ($mock) {
+            $mock->shouldReceive('calculateFinalMetrics')
+                ->andReturn([
+                    'fake_percentage' => 0,
+                    'grade' => 'U',
+                    'summary' => 'No reviews available for analysis',
+                ]);
+        });
+    }
+}

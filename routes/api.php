@@ -31,3 +31,10 @@ Route::prefix('analysis')->name('api.analysis.')
         Route::delete('/cancel/{sessionId}', [AnalysisController::class, 'cancelAnalysis'])->name('cancel');
         Route::post('/cleanup', [AnalysisController::class, 'cleanup'])->name('cleanup');
     });
+
+// Chrome Extension API endpoints - use API key authentication
+Route::prefix('extension')->name('api.extension.')
+    ->group(function () {
+        Route::post('/submit-reviews', [App\Http\Controllers\ExtensionController::class, 'submitReviews'])->name('submit');
+        Route::get('/analysis/{asin}/{country}', [App\Http\Controllers\ExtensionController::class, 'getAnalysisStatus'])->name('status');
+    });
