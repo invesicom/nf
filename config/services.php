@@ -74,6 +74,7 @@ return [
 
     'extension' => [
         'api_key' => env('EXTENSION_API_KEY'),
+        'require_api_key' => env('EXTENSION_REQUIRE_API_KEY', true),
     ],
 
     /*

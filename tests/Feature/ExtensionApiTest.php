@@ -216,8 +216,11 @@ class ExtensionApiTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_requests_without_api_key()
+    public function it_rejects_requests_without_api_key_in_production()
     {
+        // Set to production environment to test API key validation
+        $this->app['env'] = 'production';
+        
         $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData);
 
         $response->assertStatus(401)
@@ -228,8 +231,11 @@ class ExtensionApiTest extends TestCase
     }
 
     #[Test]
-    public function it_rejects_requests_with_invalid_api_key()
+    public function it_rejects_requests_with_invalid_api_key_in_production()
     {
+        // Set to production environment to test API key validation
+        $this->app['env'] = 'production';
+        
         $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData, [
             'X-API-Key' => 'invalid-key',
         ]);
@@ -495,4 +501,5 @@ class ExtensionApiTest extends TestCase
                 ]);
         });
     }
+
 }

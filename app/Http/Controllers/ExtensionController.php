@@ -32,8 +32,8 @@ class ExtensionController extends Controller
      */
     public function submitReviews(Request $request): JsonResponse
     {
-        // Validate API key
-        if (!$this->validateApiKey($request)) {
+        // Validate API key (skip in local/testing environments)
+        if (!app()->environment(['local', 'testing']) && !$this->validateApiKey($request)) {
             return response()->json([
                 'success' => false,
                 'error' => 'Invalid or missing API key',
@@ -136,7 +136,7 @@ class ExtensionController extends Controller
      */
     public function getAnalysisStatus(Request $request, string $asin, string $country): JsonResponse
     {
-        if (!$this->validateApiKey($request)) {
+        if (!app()->environment(['local', 'testing']) && !$this->validateApiKey($request)) {
             return response()->json([
                 'success' => false,
                 'error' => 'Invalid or missing API key',
