@@ -56,6 +56,9 @@ return [
         'base_url' => env('OLLAMA_BASE_URL', 'http://localhost:11434'),
         'model'    => env('OLLAMA_MODEL', 'phi4:14b'),
         'timeout'  => env('OLLAMA_TIMEOUT', 120),
+        // Adaptive chunking for large review sets (transparent to API consumers)
+        'chunking_threshold' => env('OLLAMA_CHUNKING_THRESHOLD', 80), // Reviews count that triggers chunking
+        'chunk_size' => env('OLLAMA_CHUNK_SIZE', 25), // Reviews per chunk
     ],
 
     'llm' => [

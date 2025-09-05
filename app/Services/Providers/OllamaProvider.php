@@ -11,12 +11,14 @@ class OllamaProvider implements LLMProviderInterface
     private string $baseUrl;
     private string $model;
     private int $timeout;
+    private int $chunkingThreshold;
 
     public function __construct()
     {
         $this->baseUrl = config('services.ollama.base_url', 'http://localhost:11434');
         $this->model = config('services.ollama.model') ?: 'llama3.2:3b';
         $this->timeout = config('services.ollama.timeout', 120);
+        $this->chunkingThreshold = config('services.ollama.chunking_threshold', 80);
     }
 
     public function analyzeReviews(array $reviews): array
@@ -25,12 +27,13 @@ class OllamaProvider implements LLMProviderInterface
             return ['results' => []];
         }
 
-        // PERFORMANCE: Single requests are faster for small-medium sets (≤80 reviews)
-        // But large sets (100+) cause timeouts, so we chunk those
+        // ADAPTIVE PROCESSING: Automatically handle large review sets without changing API
+        // - Small/medium sets (≤80): Single request (existing behavior, optimal performance)
+        // - Large sets (80+): Internal chunking (prevents timeouts, invisible to API consumers)
         $reviewCount = count($reviews);
         
-        if ($reviewCount > 80) {
-            LoggingService::log("Large review set detected ({$reviewCount} reviews), using chunked processing for Ollama");
+        if ($reviewCount > $this->chunkingThreshold) {
+            LoggingService::log("Large review set detected ({$reviewCount} reviews > {$this->chunkingThreshold}), using adaptive chunking (transparent to API)");
             return $this->analyzeReviewsInChunks($reviews);
         }
 
@@ -119,9 +122,10 @@ class OllamaProvider implements LLMProviderInterface
      */
     private function analyzeReviewsInChunks(array $reviews): array
     {
-        $chunkSize = 25; // Optimal chunk size for Ollama (avoids timeouts while maintaining efficiency)
+        $chunkSize = config('services.ollama.chunk_size', 25); // Configurable chunk size
         $chunks = array_chunk($reviews, $chunkSize);
         $allResults = [];
+        $failedChunks = 0;
         
         $totalChunks = count($chunks);
         LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for Ollama");
@@ -159,7 +163,15 @@ class OllamaProvider implements LLMProviderInterface
                 
             } catch (\Exception $e) {
                 LoggingService::log("Error processing chunk {$chunkNumber}: " . $e->getMessage());
-                throw new \Exception("Chunked analysis failed on chunk {$chunkNumber}: " . $e->getMessage());
+                $failedChunks++;
+                
+                // If too many chunks fail, throw exception
+                if ($failedChunks > ($totalChunks * 0.5)) {
+                    throw new \Exception("Chunked analysis failed: {$failedChunks}/{$totalChunks} chunks failed. Last error: " . $e->getMessage());
+                }
+                
+                // Continue with remaining chunks for partial results
+                LoggingService::log("Continuing with remaining chunks ({$failedChunks} failures so far)");
             }
         }
         
