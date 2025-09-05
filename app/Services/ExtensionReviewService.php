@@ -26,8 +26,8 @@ class ExtensionReviewService
         // Transform extension review format to internal format
         $transformedReviews = $this->transformReviewsFormat($extensionData['reviews']);
 
-        // Extract product information from URL if possible
-        $productInfo = $this->extractProductInfoFromUrl($extensionData['product_url']);
+        // Use product information provided by Chrome extension
+        $productInfo = $extensionData['product_info'] ?? [];
 
         // Create or update AsinData record
         $asinData = AsinData::updateOrCreate(
@@ -37,12 +37,14 @@ class ExtensionReviewService
             ],
             [
                 'product_title' => $productInfo['title'] ?? null,
-                'product_description' => $productInfo['description'] ?? '',
+                'product_description' => $productInfo['description'] ?? null,
                 'product_image_url' => $productInfo['image_url'] ?? null,
+                'amazon_rating' => $productInfo['amazon_rating'] ?? null,
                 'reviews' => json_encode($transformedReviews),
-                'total_reviews_on_amazon' => $extensionData['total_reviews'],
+                'total_reviews_on_amazon' => $productInfo['total_reviews_on_amazon'] ?? 0,
                 'status' => 'fetched',
                 'have_product_data' => !empty($productInfo['title']),
+                'product_data_scraped_at' => now(),
                 'source' => 'chrome_extension',
                 'extension_version' => $extensionData['extension_version'],
                 'extraction_timestamp' => $extensionData['extraction_timestamp'],

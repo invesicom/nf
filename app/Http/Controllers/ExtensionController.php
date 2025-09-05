@@ -47,8 +47,16 @@ class ExtensionController extends Controller
             'product_url' => 'required|url',
             'extraction_timestamp' => 'required|date_format:Y-m-d\TH:i:s.v\Z',
             'extension_version' => 'required|string',
-            'total_reviews' => 'required|integer|min:0',
             'reviews' => 'present|array',
+            // Product information from Chrome extension (replaces backend scraping)
+            'product_info' => 'required|array',
+            'product_info.title' => 'required|string|max:500',
+            'product_info.description' => 'nullable|string|max:2000',
+            'product_info.image_url' => 'nullable|url|max:500',
+            'product_info.amazon_rating' => 'nullable|numeric|min:0|max:5',
+            'product_info.total_reviews_on_amazon' => 'required|integer|min:0',
+            'product_info.price' => 'nullable|string|max:50',
+            'product_info.availability' => 'nullable|string|max:100',
         ];
 
         // Only add review validation rules if reviews array is not empty

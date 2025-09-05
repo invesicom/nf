@@ -40,6 +40,15 @@ class ExtensionApiTest extends TestCase
             "extraction_timestamp" => "2025-01-04T21:22:00.123Z",
             "extension_version" => "1.4.4",
             "total_reviews" => 10,
+            "product_info" => [
+                "title" => "Victorias Secret Wireless Smoothing Adjustable Bra",
+                "description" => "Comfortable wireless bra with adjustable straps and smooth fabric for all-day comfort.",
+                "image_url" => "https://m.media-amazon.com/images/I/61234567890._AC_SL1500_.jpg",
+                "amazon_rating" => 4.2,
+                "total_reviews_on_amazon" => 1247,
+                "price" => "$29.99",
+                "availability" => "In Stock"
+            ],
             "reviews" => [
                 [
                     "author" => "beth",
@@ -219,7 +228,9 @@ class ExtensionApiTest extends TestCase
             'country' => 'ca',
             'source' => 'chrome_extension',
             'extension_version' => '1.4.4',
-            'total_reviews_on_amazon' => 10,
+            'total_reviews_on_amazon' => 1247, // From product_info.total_ratings
+            'product_title' => 'Victorias Secret Wireless Smoothing Adjustable Bra',
+            'amazon_rating' => 4.2,
         ]);
 
         // Verify reviews were saved correctly
