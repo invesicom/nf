@@ -28,12 +28,13 @@ class DeepSeekProvider implements LLMProviderInterface
 
         LoggingService::log('Sending '.count($reviews).' reviews to DeepSeek for analysis');
 
-        // ADAPTIVE PROCESSING: Handle large review sets with chunking (similar to Ollama)
+        // DeepSeek-V3 has 64k token context window - can handle 99+ reviews without chunking
+        // With format optimization, only chunk for extremely large datasets (200+ reviews)
         $reviewCount = count($reviews);
-        $chunkingThreshold = 50; // DeepSeek threshold (lower than Ollama's 80)
+        $chunkingThreshold = 200; // Increased from 50 - DeepSeek can handle much more
         
         if ($reviewCount > $chunkingThreshold) {
-            LoggingService::log("Large review set detected ({$reviewCount} reviews > {$chunkingThreshold}), using chunking for DeepSeek");
+            LoggingService::log("Extremely large review set detected ({$reviewCount} reviews > {$chunkingThreshold}), using chunking for DeepSeek");
             return $this->analyzeReviewsInChunks($reviews);
         }
 

@@ -41,8 +41,8 @@ class PromptGenerationServiceTest extends TestCase
 
         $this->assertArrayHasKey('prompt', $result);
         $this->assertStringContainsString('Analyze reviews for fake probability', $result['prompt']);
-        $this->assertStringContainsString('Review R1 (Verified, 5★)', $result['prompt']);
-        $this->assertStringContainsString('Review R2 (Unverified, 2★)', $result['prompt']);
+        $this->assertStringContainsString('R1|V|5★|', $result['prompt']);
+        $this->assertStringContainsString('R2|U|2★|', $result['prompt']);
         $this->assertStringContainsString('JSON array', $result['prompt']);
     }
 
@@ -58,7 +58,7 @@ class PromptGenerationServiceTest extends TestCase
         $this->assertArrayHasKey('system', $result);
         $this->assertArrayHasKey('user', $result);
         $this->assertStringContainsString('Analyze reviews for fake probability', $result['system']);
-        $this->assertStringContainsString('Review R1 (Verified, 5★)', $result['user']);
+        $this->assertStringContainsString('R1|V|5★|', $result['user']);
         $this->assertStringContainsString('JSON array', $result['user']);
     }
 
@@ -79,7 +79,7 @@ class PromptGenerationServiceTest extends TestCase
         );
 
         // Should be truncated to ~100 chars
-        $this->assertStringContainsString('Review R3', $result['prompt']);
+        $this->assertStringContainsString('R3|V|4★|', $result['prompt']);
         // The review text should be truncated (original was ~1500 chars, should be ~100)
         $originalLength = strlen(str_repeat('This is a very long review text. ', 50));
         $promptLength = strlen($result['prompt']);
@@ -102,7 +102,7 @@ class PromptGenerationServiceTest extends TestCase
             300
         );
 
-        $this->assertStringContainsString('Review R4 (Verified, 3★)', $result['prompt']);
+        $this->assertStringContainsString('R4|V|3★|', $result['prompt']);
     }
 
     #[Test]
@@ -121,7 +121,7 @@ class PromptGenerationServiceTest extends TestCase
             300
         );
 
-        $this->assertStringContainsString('Review R5 (Unverified, 4★)', $result['prompt']);
+        $this->assertStringContainsString('R5|U|4★|', $result['prompt']);
         $this->assertStringContainsString('text field instead', $result['prompt']);
     }
 
@@ -222,7 +222,7 @@ class PromptGenerationServiceTest extends TestCase
             300
         );
 
-        $this->assertStringContainsString('Review R7 (Unverified, 3★)', $result['prompt']);
+        $this->assertStringContainsString('R7|U|3★|', $result['prompt']);
     }
 
     #[Test]
@@ -240,6 +240,6 @@ class PromptGenerationServiceTest extends TestCase
             300
         );
 
-        $this->assertStringContainsString('Review R8 (Verified, N/A★)', $result['prompt']);
+        $this->assertStringContainsString('R8|V|?★|', $result['prompt']);
     }
 }

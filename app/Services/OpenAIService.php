@@ -32,10 +32,11 @@ class OpenAIService
         // Log the number of reviews being sent
         LoggingService::log('Sending '.count($reviews).' reviews to OpenAI for analysis');
 
-        // For better performance, process in parallel chunks if we have many reviews
-        $parallelThreshold = config('services.openai.parallel_threshold', 50);
+        // OpenAI GPT-4o-mini has 128k token context window - can handle 99+ reviews without chunking
+        // With format optimization, only chunk for extremely large datasets (300+ reviews)
+        $parallelThreshold = config('services.openai.parallel_threshold', 300);
         if (count($reviews) > $parallelThreshold) {
-            LoggingService::log('Large dataset detected ('.count($reviews).' reviews), processing in parallel chunks');
+            LoggingService::log('Extremely large dataset detected ('.count($reviews).' reviews), processing in parallel chunks');
 
             return $this->analyzeReviewsInParallelChunks($reviews);
         }
