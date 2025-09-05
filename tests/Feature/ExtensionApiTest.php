@@ -485,21 +485,46 @@ class ExtensionApiTest extends TestCase
 
     private function mockLLMAnalysis(): void
     {
-        $this->mock(LLMServiceManager::class, function ($mock) {
-            $mock->shouldReceive('analyzeReviews')
-                ->andReturn([
-                    'individual_scores' => array_fill(0, 10, ['score' => 25]),
-                    'summary' => 'Test analysis summary',
-                ]);
-        });
+        $this->mock(ReviewAnalysisService::class, function ($mock) {
+            $mock->shouldReceive('analyzeWithLLM')
+                ->andReturnUsing(function ($asinData) {
+                    // Update the model with analysis results
+                    $asinData->update([
+                        'openai_result' => [
+                            'detailed_scores' => [
+                                'R1' => ['score' => 25, 'label' => 'genuine'],
+                                'R2' => ['score' => 30, 'label' => 'genuine'],
+                                'R3' => ['score' => 35, 'label' => 'genuine'],
+                                'R4' => ['score' => 20, 'label' => 'genuine'],
+                                'R5' => ['score' => 28, 'label' => 'genuine'],
+                                'R6' => ['score' => 32, 'label' => 'genuine'],
+                                'R7' => ['score' => 22, 'label' => 'genuine'],
+                                'R8' => ['score' => 38, 'label' => 'genuine'],
+                                'R9' => ['score' => 26, 'label' => 'genuine'],
+                                'R10' => ['score' => 31, 'label' => 'genuine'],
+                            ]
+                        ],
+                        'status' => 'analyzed',
+                    ]);
+                    return $asinData->fresh();
+                });
 
-        $this->mock(MetricsCalculationService::class, function ($mock) {
             $mock->shouldReceive('calculateFinalMetrics')
-                ->andReturn([
-                    'fake_percentage' => 25.5,
-                    'grade' => 'B',
-                    'summary' => 'Test analysis summary',
-                ]);
+                ->andReturnUsing(function ($asinData) {
+                    // Update the model with final metrics
+                    $asinData->update([
+                        'fake_percentage' => 0.0, // All reviews are genuine (scores < 85)
+                        'grade' => 'A',
+                        'explanation' => 'Test analysis summary',
+                        'adjusted_rating' => 4.2,
+                        'status' => 'completed',
+                    ]);
+                    return [
+                        'fake_percentage' => 0.0,
+                        'grade' => 'A',
+                        'summary' => 'Test analysis summary',
+                    ];
+                });
         });
     }
 
