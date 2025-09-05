@@ -77,7 +77,7 @@ class PromptGenerationService
     }
 
     /**
-     * Get response format instructions - now using aggregate analysis.
+     * Get response format instructions - aggregate analysis with optional examples.
      */
     private static function getResponseFormatInstructions(): string
     {
@@ -85,17 +85,18 @@ class PromptGenerationService
                '{\n' .
                '  "fake_percentage": <number 0-100>,\n' .
                '  "confidence": <"high"|"medium"|"low">,\n' .
-               '  "explanation": "<overall analysis summary>",\n' .
+               '  "explanation": "<overall analysis summary explaining the percentage>",\n' .
                '  "fake_examples": [\n' .
                '    {\n' .
-               '      "review_number": <1-based index from list above>,\n' .
-               '      "text": "<review text excerpt>",\n' .
-               '      "fake_score": <0-100>,\n' .
-               '      "reason": "<why this review is fake>"\n' .
+               '      "review_number": <1-based index>,\n' .
+               '      "text": "<brief excerpt>",\n' .
+               '      "reason": "<why this seems fake>"\n' .
                '    }\n' .
                '  ],\n' .
                '  "key_patterns": ["<pattern1>", "<pattern2>"]\n' .
-               '}';
+               '}\n\n' .
+               'Analyze all reviews to determine overall fake percentage. ' .
+               'Provide 2-3 examples of suspicious reviews if found, but focus on aggregate assessment.';
     }
 
     /**
