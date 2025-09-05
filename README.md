@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://nullfake.com/img/nullfake.png" alt="Null Fake Logo" width="200">
+  <img src="public/img/nullfake.png" alt="Null Fake Logo" width="200">
 </div>
 
 # Null Fake
@@ -31,6 +31,10 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
   - [BrightData Web Scraper](#brightdata-web-scraper-recommended)
   - [Direct Amazon Scraping](#direct-amazon-scraping)
   - [AJAX Bypass](#ajax-bypass-experimental)
+- [Chrome Extension API](#chrome-extension-api)
+  - [API Endpoints](#api-endpoints)
+  - [Configuration](#configuration)
+  - [Benefits of Extension Integration](#benefits-of-extension-integration)
 - [Database Schema](#database-schema)
 - [Technology Stack](#technology-stack)
 - [Docker Deployment](#docker-deployment)
@@ -163,6 +167,13 @@ Before setting up Null Fake, ensure you have the following installed:
    CAPTCHA_ENABLED=false  # Set to true in production
    # RECAPTCHA_SITE_KEY=your-recaptcha-site-key
    # RECAPTCHA_SECRET_KEY=your-recaptcha-secret-key
+
+   # Amazon Affiliate Links (optional)
+   AMAZON_AFFILIATE_ENABLED=true  # Set to false to disable affiliate links
+   # AMAZON_AFFILIATE_TAG=your-affiliate-tag
+
+   # Chrome Extension API (optional)
+   # EXTENSION_API_KEY=your-extension-api-key  # Not required for local/testing
    ```
 
 ### Database Setup
@@ -458,12 +469,13 @@ Null Fake supports Amazon product analysis from the following countries:
 - **Captcha Protection**: reCAPTCHA and hCaptcha support with session persistence
 - **Product Metadata**: Title, image, and description extraction for complete product pages
 - **Shareable URLs**: SEO-optimized product analysis pages
+- **Chrome Extension API**: RESTful API endpoints for browser extension integration
 
 ### Infrastructure
 - **Database Caching**: Fast repeat lookups with 30-day cache validity
 - **Comprehensive Alerting**: Pushover notifications for API errors and system issues
 - **Command Line Tools**: Management commands for data processing and system maintenance
-- **Test Coverage**: Extensive test suite with 396+ tests covering all major functionality
+- **Test Coverage**: Extensive test suite with 530+ tests covering all major functionality
 
 ## Data Collection Methods
 
@@ -510,6 +522,113 @@ AMAZON_REVIEW_SERVICE=ajax
 ```
 
 Note: Currently disabled pending optimization. Uses Amazon's review rendering endpoints to bypass traditional page scraping.
+
+## Chrome Extension API
+
+Null Fake provides RESTful API endpoints for Chrome extension integration, allowing browser extensions to submit review data directly from Amazon product pages.
+
+### API Endpoints
+
+#### Submit Reviews for Analysis
+```
+POST /api/extension/submit-reviews
+```
+
+**Headers:**
+- `Content-Type: application/json`
+- `X-API-Key: your-api-key` (not required for local/testing environments)
+
+**Request Body:**
+```json
+{
+  "asin": "B0CGM1RSZH",
+  "country": "ca",
+  "product_url": "https://amazon.ca/dp/B0CGM1RSZH",
+  "extraction_timestamp": "2025-09-04T23:57:47.173Z",
+  "extension_version": "1.5.1",
+  "product_info": {
+    "title": "Product Title from Amazon Page",
+    "description": "Product description extracted from DOM",
+    "image_url": "https://m.media-amazon.com/images/I/product-image.jpg",
+    "amazon_rating": 4.3,
+    "total_reviews_on_amazon": 1247,
+    "price": "$29.99",
+    "availability": "In Stock"
+  },
+  "reviews": [
+    {
+      "author": "Customer Name",
+      "content": "Review text content...",
+      "date": "2025-03-17",
+      "extraction_index": 1,
+      "helpful_votes": 0,
+      "rating": 5,
+      "review_id": "AMAZON_REVIEW_ID",
+      "title": "Review title",
+      "verified_purchase": true,
+      "vine_customer": false
+    }
+  ]
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "asin": "B0CGM1RSZH",
+  "country": "ca",
+  "analysis_id": 12681,
+  "processed_reviews": 99,
+  "analysis_complete": true,
+  "results": {
+    "fake_percentage": 15.2,
+    "grade": "B",
+    "explanation": "Analysis detected some potentially inauthentic reviews...",
+    "amazon_rating": 4.3,
+    "adjusted_rating": 4.1,
+    "rating_difference": -0.2
+  },
+  "statistics": {
+    "total_reviews_on_amazon": 1247,
+    "reviews_analyzed": 99,
+    "genuine_reviews": 84,
+    "fake_reviews": 15
+  },
+  "product_info": {
+    "title": "Product Title",
+    "description": "Product description...",
+    "image_url": "https://m.media-amazon.com/images/I/product-image.jpg"
+  },
+  "view_url": "http://nullfake.com/amazon/ca/B0CGM1RSZH",
+  "redirect_url": "http://nullfake.com/amazon/ca/B0CGM1RSZH"
+}
+```
+
+#### Get Analysis Status
+```
+GET /api/extension/analysis/{asin}/{country}
+```
+
+Returns the current analysis status for a given ASIN and country combination.
+
+### Configuration
+
+```bash
+# Optional API key for production (not required for local/testing)
+EXTENSION_API_KEY=your-secure-api-key
+
+# API key requirement (automatically disabled for local/testing environments)
+EXTENSION_REQUIRE_API_KEY=true
+```
+
+### Benefits of Extension Integration
+
+- **Direct DOM Access**: Extensions can extract complete product data directly from Amazon pages
+- **No Backend Scraping**: Eliminates the need for server-side product metadata scraping
+- **Real-time Data**: Fresh product information and reviews from the user's current session
+- **Accurate Totals**: Access to exact review counts displayed on Amazon pages
+- **Enhanced Reliability**: Bypasses anti-bot measures by using legitimate browser sessions
 
 ## Database Schema
 
@@ -631,10 +750,14 @@ ANALYSIS_ASYNC_ENABLED=false
 ### Testing
 Run the comprehensive test suite:
 ```bash
+# Standard execution
 php artisan test
+
+# Parallel execution (faster)
+php artisan test --parallel
 ```
 
-The application includes 396+ tests covering:
+The application includes 530+ tests covering:
 - Unit tests for all major services
 - Feature tests for user workflows
 - Integration tests for external services
