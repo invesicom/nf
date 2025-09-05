@@ -110,10 +110,10 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        // BALANCED: Comprehensive analysis with reasonable performance
+        // BALANCED: Comprehensive analysis with reasonable performance aligned with system threshold
         $prompt = "Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake).\n\n";
-        $prompt .= "Consider: Generic language (+20), specific complaints (-20), unverified purchase (+10), verified purchase (-5), excessive positivity (+15), balanced tone (-10).\n\n";
-        $prompt .= "Scoring: ≤39=genuine, 40-59=uncertain, ≥60=fake\n\n";
+        $prompt .= "Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Consider: Generic language (+20), specific complaints (-20), unverified purchase (+10), verified purchase (-5), excessive positivity (+15), balanced tone (-10).\n\n";
+        $prompt .= "Scoring: Use full range 0-100. ≤39=genuine, 40-84=uncertain/suspicious, ≥85=fake. Be aggressive with scoring - obvious fakes should score 85-100.\n\n";
 
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'Verified' : 'Unverified';
@@ -299,7 +299,7 @@ class OllamaProvider implements LLMProviderInterface
     {
         if ($score <= 39) {
             return 'genuine';
-        } elseif ($score <= 59) {
+        } elseif ($score <= 84) {
             return 'uncertain';
         } else {
             return 'fake';

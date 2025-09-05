@@ -18,7 +18,7 @@ class ExtensionReviewService
         LoggingService::log('Processing Chrome extension data', [
             'asin' => $asin,
             'country' => $country,
-            'total_reviews' => $extensionData['total_reviews'],
+            'total_reviews' => $extensionData['product_info']['total_reviews_on_amazon'] ?? count($extensionData['reviews']),
             'extracted_reviews' => count($extensionData['reviews']),
             'extension_version' => $extensionData['extension_version'],
         ]);
