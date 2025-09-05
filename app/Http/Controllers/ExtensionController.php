@@ -93,21 +93,47 @@ class ExtensionController extends Controller
             // Perform analysis
             $analysisResult = $this->analysisService->analyzeWithLLM($asinData);
             $metrics = $this->metricsService->calculateFinalMetrics($analysisResult);
+            
+            // Get updated model with final metrics
+            $asinData = $asinData->fresh();
 
-            // Build response with analysis results
+            // Build response with detailed analysis results (matching front-end display)
+            $reviewsAnalyzed = count($asinData->getReviewsArray());
+            $fakeReviewCount = round(($asinData->fake_percentage / 100) * $reviewsAnalyzed);
+            $genuineReviewCount = $reviewsAnalyzed - $fakeReviewCount;
+            $ratingDifference = ($asinData->adjusted_rating ?? 0) - ($asinData->amazon_rating ?? 0);
+            
             $response = [
                 'success' => true,
                 'asin' => $data['asin'],
                 'country' => $data['country'],
                 'analysis_id' => $asinData->id,
-                'processed_reviews' => count($data['reviews']),
+                'processed_reviews' => $reviewsAnalyzed,
                 'analysis_complete' => true,
                 'results' => [
-                    'fake_percentage' => $analysisResult->fake_percentage,
-                    'grade' => $analysisResult->grade,
-                    'summary' => $analysisResult->summary,
+                    'fake_percentage' => $asinData->fake_percentage ?? 0,
+                    'grade' => $asinData->grade,
+                    'explanation' => $asinData->explanation,
+                    'amazon_rating' => $asinData->amazon_rating ?? 0,
+                    'adjusted_rating' => $asinData->adjusted_rating ?? 0,
+                    'rating_difference' => round($ratingDifference, 2),
+                ],
+                'statistics' => [
+                    'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon ?? null,
+                    'reviews_analyzed' => $reviewsAnalyzed,
+                    'genuine_reviews' => $genuineReviewCount,
+                    'fake_reviews' => $fakeReviewCount,
+                ],
+                'product_info' => [
+                    'title' => $asinData->product_title,
+                    'description' => $asinData->product_description,
+                    'image_url' => $asinData->product_image_url,
                 ],
                 'view_url' => route('amazon.product.show', [
+                    'asin' => $data['asin'],
+                    'country' => $data['country'],
+                ]),
+                'redirect_url' => route('amazon.product.show', [
                     'asin' => $data['asin'],
                     'country' => $data['country'],
                 ]),
@@ -115,8 +141,8 @@ class ExtensionController extends Controller
 
             LoggingService::log('Chrome extension analysis completed', [
                 'asin' => $data['asin'],
-                'fake_percentage' => $analysisResult->fake_percentage,
-                'grade' => $analysisResult->grade,
+                'fake_percentage' => $asinData->fake_percentage,
+                'grade' => $asinData->grade,
             ]);
 
             return response()->json($response);

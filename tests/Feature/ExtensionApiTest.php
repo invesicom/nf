@@ -193,9 +193,24 @@ class ExtensionApiTest extends TestCase
                 'results' => [
                     'fake_percentage',
                     'grade',
-                    'summary',
+                    'explanation',
+                    'amazon_rating',
+                    'adjusted_rating',
+                    'rating_difference',
+                ],
+                'statistics' => [
+                    'total_reviews_on_amazon',
+                    'reviews_analyzed',
+                    'genuine_reviews',
+                    'fake_reviews',
+                ],
+                'product_info' => [
+                    'title',
+                    'description',
+                    'image_url',
                 ],
                 'view_url',
+                'redirect_url',
             ]);
 
         // Verify data was saved to database
@@ -500,6 +515,87 @@ class ExtensionApiTest extends TestCase
                     'summary' => 'No reviews available for analysis',
                 ]);
         });
+    }
+
+    #[Test]
+    public function it_includes_detailed_statistics_in_response(): void
+    {
+        $this->mockLLMAnalysis();
+
+        $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200);
+        $data = $response->json();
+
+        // Verify detailed statistics are calculated correctly
+        $this->assertEquals(10, $data['statistics']['reviews_analyzed']);
+        $this->assertEquals(10, $data['statistics']['genuine_reviews']); // 0% fake = all genuine
+        $this->assertEquals(0, $data['statistics']['fake_reviews']); // 0% fake
+        $this->assertArrayHasKey('total_reviews_on_amazon', $data['statistics']);
+        
+        // Verify results structure
+        $this->assertArrayHasKey('amazon_rating', $data['results']);
+        $this->assertArrayHasKey('adjusted_rating', $data['results']);
+        $this->assertArrayHasKey('rating_difference', $data['results']);
+        $this->assertArrayHasKey('explanation', $data['results']);
+        
+        // Verify product info
+        $this->assertArrayHasKey('title', $data['product_info']);
+        $this->assertArrayHasKey('description', $data['product_info']);
+        $this->assertArrayHasKey('image_url', $data['product_info']);
+        
+        // Verify URLs
+        $this->assertStringContainsString('/amazon/ca/B0FFVTPRQY', $data['view_url']);
+        $this->assertStringContainsString('/amazon/ca/B0FFVTPRQY', $data['redirect_url']);
+    }
+
+
+    #[Test]
+    public function it_handles_products_with_no_reviews_gracefully(): void
+    {
+        $emptyReviewsData = $this->sampleReviewData;
+        $emptyReviewsData['reviews'] = [];
+        $emptyReviewsData['total_reviews'] = 0;
+
+        $this->mockLLMAnalysisForNoReviews();
+
+        $response = $this->postJson('/api/extension/submit-reviews', $emptyReviewsData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200);
+        $data = $response->json();
+
+        $this->assertEquals(0, $data['processed_reviews']);
+        $this->assertEquals(0, $data['statistics']['reviews_analyzed']);
+        $this->assertEquals(0, $data['statistics']['genuine_reviews']);
+        $this->assertEquals(0, $data['statistics']['fake_reviews']);
+        $this->assertEquals('U', $data['results']['grade']);
+    }
+
+    #[Test]
+    public function it_preserves_data_for_subsequent_searches(): void
+    {
+        $this->mockLLMAnalysis();
+
+        // Submit via extension API
+        $response = $this->postJson('/api/extension/submit-reviews', $this->sampleReviewData, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200);
+        $analysisId = $response->json('analysis_id');
+
+        // Verify data is saved and can be retrieved
+        $asinData = AsinData::find($analysisId);
+        $this->assertNotNull($asinData);
+        $this->assertEquals('B0FFVTPRQY', $asinData->asin);
+        $this->assertEquals('ca', $asinData->country);
+        $this->assertEquals('chrome_extension', $asinData->source);
+        $this->assertEquals('1.4.4', $asinData->extension_version);
+        $this->assertCount(10, $asinData->getReviewsArray());
     }
 
 }
