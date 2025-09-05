@@ -105,6 +105,26 @@ class ExtensionController extends Controller
             // Get updated model with final metrics
             $asinData = $asinData->fresh();
 
+            // Check if analysis actually succeeded
+            if (is_null($asinData->fake_percentage) || is_null($asinData->grade)) {
+                LoggingService::log('Chrome extension analysis failed - no valid results', [
+                    'asin' => $data['asin'],
+                    'fake_percentage' => $asinData->fake_percentage,
+                    'grade' => $asinData->grade,
+                    'status' => $asinData->status,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Analysis failed - unable to process reviews',
+                    'error_details' => 'All LLM providers failed or returned invalid results. Please try again later.',
+                    'asin' => $data['asin'],
+                    'country' => $data['country'],
+                    'processed_reviews' => count($asinData->getReviewsArray()),
+                    'retry_suggested' => true,
+                ], 500);
+            }
+
             // Build response with detailed analysis results (matching front-end display)
             $reviewsAnalyzed = count($asinData->getReviewsArray());
             $fakeReviewCount = round(($asinData->fake_percentage / 100) * $reviewsAnalyzed);

@@ -25,8 +25,14 @@ class OllamaProvider implements LLMProviderInterface
             return ['results' => []];
         }
 
-        // PERFORMANCE: Single requests are actually faster than chunking for Ollama
-        // Removed chunking as testing showed single requests are 144% faster
+        // PERFORMANCE: Single requests are faster for small-medium sets (≤80 reviews)
+        // But large sets (100+) cause timeouts, so we chunk those
+        $reviewCount = count($reviews);
+        
+        if ($reviewCount > 80) {
+            LoggingService::log("Large review set detected ({$reviewCount} reviews), using chunked processing for Ollama");
+            return $this->analyzeReviewsInChunks($reviews);
+        }
 
         LoggingService::log('Sending '.count($reviews).' reviews to Ollama for analysis');
 
@@ -106,6 +112,64 @@ class OllamaProvider implements LLMProviderInterface
         }
 
         return trim($text);
+    }
+
+    /**
+     * Process large review sets in chunks to avoid timeouts.
+     */
+    private function analyzeReviewsInChunks(array $reviews): array
+    {
+        $chunkSize = 25; // Optimal chunk size for Ollama (avoids timeouts while maintaining efficiency)
+        $chunks = array_chunk($reviews, $chunkSize);
+        $allResults = [];
+        
+        $totalChunks = count($chunks);
+        LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for Ollama");
+        
+        foreach ($chunks as $index => $chunk) {
+            $chunkNumber = $index + 1;
+            LoggingService::log("Processing chunk {$chunkNumber}/{$totalChunks} with " . count($chunk) . " reviews");
+            
+            try {
+                $prompt = $this->buildOptimizedPrompt($chunk);
+                
+                $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
+                    'model'   => $this->model,
+                    'prompt'  => $prompt,
+                    'stream'  => false,
+                    'options' => [
+                        'temperature' => 0.1,
+                        'num_ctx'     => 4096,
+                        'top_p'       => 0.9,
+                        'num_predict' => 1024, // Smaller for chunks
+                    ],
+                ]);
+
+                if ($response->successful()) {
+                    $result = $response->json();
+                    $chunkResults = $this->parseAnalysisResponse($result['response']);
+                    
+                    if (isset($chunkResults['detailed_scores'])) {
+                        $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
+                    }
+                } else {
+                    LoggingService::log("Chunk {$chunkNumber} failed: " . $response->body());
+                    throw new \Exception("Chunk {$chunkNumber} failed: " . $response->body());
+                }
+                
+            } catch (\Exception $e) {
+                LoggingService::log("Error processing chunk {$chunkNumber}: " . $e->getMessage());
+                throw new \Exception("Chunked analysis failed on chunk {$chunkNumber}: " . $e->getMessage());
+            }
+        }
+        
+        LoggingService::log("Chunked analysis completed. Processed " . count($allResults) . " total reviews");
+        
+        return [
+            'detailed_scores'   => $allResults,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost'        => 0.0,
+        ];
     }
 
     private function buildOptimizedPrompt($reviews): string
