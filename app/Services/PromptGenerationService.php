@@ -77,11 +77,25 @@ class PromptGenerationService
     }
 
     /**
-     * Get response format instructions.
+     * Get response format instructions - now using aggregate analysis.
      */
     private static function getResponseFormatInstructions(): string
     {
-        return 'Respond with JSON array: [{"id":"review_id","score":number,"label":"genuine|uncertain|fake"}]';
+        return 'Respond with JSON:\n' .
+               '{\n' .
+               '  "fake_percentage": <number 0-100>,\n' .
+               '  "confidence": <"high"|"medium"|"low">,\n' .
+               '  "explanation": "<overall analysis summary>",\n' .
+               '  "fake_examples": [\n' .
+               '    {\n' .
+               '      "review_number": <1-based index from list above>,\n' .
+               '      "text": "<review text excerpt>",\n' .
+               '      "fake_score": <0-100>,\n' .
+               '      "reason": "<why this review is fake>"\n' .
+               '    }\n' .
+               '  ],\n' .
+               '  "key_patterns": ["<pattern1>", "<pattern2>"]\n' .
+               '}';
     }
 
     /**

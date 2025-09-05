@@ -61,7 +61,16 @@ class OllamaProvider implements LLMProviderInterface
                 return $this->parseAnalysisResponse($result['response']);
             }
 
-            throw new \Exception('Ollama API request failed: '.$response->body());
+            // Enhanced error handling for common Ollama issues
+            $statusCode = $response->status();
+            $body = $response->body();
+            
+            // Check if we're getting HTML instead of JSON (common when Ollama is down)
+            if (str_starts_with(trim($body), '<html') || str_starts_with(trim($body), '<!DOCTYPE')) {
+                throw new \Exception("Ollama service is returning HTML instead of JSON (HTTP {$statusCode}). This usually means Ollama is down or misconfigured. Check if Ollama is running on {$this->baseUrl}");
+            }
+            
+            throw new \Exception("Ollama API request failed (HTTP {$statusCode}): " . substr($body, 0, 200));
         } catch (\Exception $e) {
             LoggingService::log('Ollama analysis failed: '.mb_convert_encoding($e->getMessage(), 'UTF-8', 'UTF-8'));
 
@@ -158,8 +167,18 @@ class OllamaProvider implements LLMProviderInterface
                         $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
                     }
                 } else {
-                    LoggingService::log("Chunk {$chunkNumber} failed: " . $response->body());
-                    throw new \Exception("Chunk {$chunkNumber} failed: " . $response->body());
+                    $statusCode = $response->status();
+                    $body = $response->body();
+                    
+                    // Check for HTML response in chunks too
+                    if (str_starts_with(trim($body), '<html') || str_starts_with(trim($body), '<!DOCTYPE')) {
+                        $errorMsg = "Chunk {$chunkNumber} failed: Ollama returning HTML instead of JSON (HTTP {$statusCode}). Service may be down.";
+                    } else {
+                        $errorMsg = "Chunk {$chunkNumber} failed (HTTP {$statusCode}): " . substr($body, 0, 200);
+                    }
+                    
+                    LoggingService::log($errorMsg);
+                    throw new \Exception($errorMsg);
                 }
                 
             } catch (\Exception $e) {

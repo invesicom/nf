@@ -553,7 +553,7 @@ class CompleteAnalysisWorkflowTest extends TestCase
         ]);
 
         // Test dry run mode first
-        $this->artisan('products:retry-no-reviews', ['--dry-run' => true, '--limit' => 10, '--age' => 24])
+        $this->artisan('analysis:manage', ['action' => 'retry', '--dry-run' => true, '--limit' => 10])
             ->expectsOutput('Found 1 products to retry:')
             ->expectsTable(['ASIN', 'Country', 'Title', 'Analyzed', 'Reviews'], [
                 ['B0OLD00001', 'us', 'Old Product No Reviews', $oldProduct->last_analyzed_at->diffForHumans(), '0'],
@@ -569,7 +569,7 @@ class CompleteAnalysisWorkflowTest extends TestCase
         // Test actual execution (without dry-run)
         Queue::fake(); // Prevent actual job execution in test
         
-        $this->artisan('products:retry-no-reviews', ['--limit' => 10, '--age' => 24, '--force' => true])
+        $this->artisan('analysis:manage', ['action' => 'retry', '--limit' => 10, '--force' => true])
             ->expectsOutput('Found 1 products to retry:')
             ->expectsOutput('Retrying ASIN: B0OLD00001 (us)')
             ->expectsOutput('Processed: 1')

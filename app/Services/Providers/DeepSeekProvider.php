@@ -88,11 +88,15 @@ class DeepSeekProvider implements LLMProviderInterface
 
     public function getOptimizedMaxTokens(int $reviewCount): int
     {
-        // DeepSeek-V3 needs more tokens for large review sets
-        $baseTokens = $reviewCount * 15; // Increased from 8 to 15
-        $buffer = min(2000, $reviewCount * 8); // Increased buffer
+        // DeepSeek-V3 needs significantly more tokens for JSON responses
+        // Each review needs ~25-30 tokens for: {"id":"R123...","score":85,"label":"fake","confidence":0.95,"explanation":"..."},
+        $baseTokens = $reviewCount * 30; // Increased from 15 to 30
+        $buffer = min(4000, $reviewCount * 15); // Much larger buffer for JSON overhead + explanations
+        
+        // Minimum 3000 tokens even for small sets to prevent truncation
+        $minTokens = 3000;
 
-        return $baseTokens + $buffer;
+        return max($minTokens, $baseTokens + $buffer);
     }
 
     /**
@@ -244,10 +248,26 @@ class DeepSeekProvider implements LLMProviderInterface
             
             // If direct decode fails, try extracting JSON from markdown or wrapped content
             if (!is_array($scores)) {
-                // Try extracting JSON from markdown code blocks
+                // Try extracting JSON from markdown code blocks (most common case)
                 if (preg_match('/```(?:json)?\s*(\[.*?\])\s*```/s', $content, $matches)) {
                     $scores = json_decode($matches[1], true);
                 } 
+                // Handle truncated responses - try to extract partial JSON and fix it
+                elseif (preg_match('/```(?:json)?\s*(\[.*)/s', $content, $matches)) {
+                    $partialJson = $matches[1];
+                    // If it ends with incomplete entry, try to close it properly
+                    if (!str_ends_with(trim($partialJson), ']')) {
+                        // Remove incomplete last entry and close array
+                        $partialJson = preg_replace('/,\s*\{[^}]*$/', '', $partialJson);
+                        if (!str_ends_with(trim($partialJson), ']')) {
+                            $partialJson = rtrim($partialJson, ',') . ']';
+                        }
+                    }
+                    $scores = json_decode($partialJson, true);
+                    if (is_array($scores)) {
+                        LoggingService::log('DeepSeek: Recovered ' . count($scores) . ' reviews from truncated response');
+                    }
+                }
                 // Try extracting JSON array from anywhere in the content
                 elseif (preg_match('/(\[(?:[^[\]]+|(?1))*\])/', $content, $matches)) {
                     $scores = json_decode($matches[1], true);

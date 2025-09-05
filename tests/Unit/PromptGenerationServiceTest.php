@@ -43,7 +43,7 @@ class PromptGenerationServiceTest extends TestCase
         $this->assertStringContainsString('Analyze reviews for fake probability', $result['prompt']);
         $this->assertStringContainsString('R1|V|5★|', $result['prompt']);
         $this->assertStringContainsString('R2|U|2★|', $result['prompt']);
-        $this->assertStringContainsString('JSON array', $result['prompt']);
+        $this->assertStringContainsString('fake_percentage', $result['prompt']);
     }
 
     #[Test]
@@ -59,7 +59,7 @@ class PromptGenerationServiceTest extends TestCase
         $this->assertArrayHasKey('user', $result);
         $this->assertStringContainsString('Analyze reviews for fake probability', $result['system']);
         $this->assertStringContainsString('R1|V|5★|', $result['user']);
-        $this->assertStringContainsString('JSON array', $result['user']);
+        $this->assertStringContainsString('fake_percentage', $result['user']);
     }
 
     #[Test]
