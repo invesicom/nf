@@ -532,6 +532,9 @@ class AsinDataModelTest extends TestCase
             'analysis_notes',
             'first_analyzed_at',
             'last_analyzed_at',
+            'source',
+            'extension_version',
+            'extraction_timestamp',
         ];
 
         $this->assertEquals($expectedFillable, $fillable);

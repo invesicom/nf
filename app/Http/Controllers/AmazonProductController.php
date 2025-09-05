@@ -269,10 +269,21 @@ class AmazonProductController extends Controller
      */
     private function getAffiliateTagForCountry(string $country): ?string
     {
-        // Try country-specific affiliate tag first
-        $countryTag = config("app.amazon_affiliate_tag_{$country}");
+        // Check if affiliate links are enabled
+        if (!config('amazon.affiliate.enabled', true)) {
+            return null;
+        }
+
+        // Try country-specific affiliate tag from new config system
+        $countryTag = config("amazon.affiliate.tags.{$country}");
         if ($countryTag) {
             return $countryTag;
+        }
+
+        // Fall back to old config system for backward compatibility
+        $legacyCountryTag = config("app.amazon_affiliate_tag_{$country}");
+        if ($legacyCountryTag) {
+            return $legacyCountryTag;
         }
 
         // Fall back to default affiliate tag (usually for US)
