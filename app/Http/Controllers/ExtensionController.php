@@ -208,14 +208,26 @@ class ExtensionController extends Controller
             ], 404);
         }
 
+        // Calculate review counts
+        $reviews = $asinData->getReviewsArray();
+        $totalReviews = count($reviews);
+        $fakeCount = round(($asinData->fake_percentage / 100) * $totalReviews);
+        $genuineCount = $totalReviews - $fakeCount;
+
         return response()->json([
-            'success' => true,
-            'asin' => $asin,
-            'country' => $country,
-            'status' => $asinData->status,
-            'fake_percentage' => $asinData->fake_percentage,
-            'grade' => $asinData->grade,
-            'view_url' => route('amazon.product.show', [
+            'analysis' => [
+                'grade' => $asinData->grade,
+                'fake_percentage' => number_format($asinData->fake_percentage, 2),
+                'adjusted_rating' => number_format($asinData->adjusted_rating ?? 0, 1),
+                'total_reviews' => $totalReviews,
+                'fake_count' => $fakeCount,
+                'genuine_count' => $genuineCount,
+                'explanation' => $asinData->explanation ?? 'Analysis completed successfully.',
+            ],
+            'product_info' => [
+                'amazon_rating' => number_format($asinData->amazon_rating ?? 0, 1),
+            ],
+            'redirect_url' => route('amazon.product.show', [
                 'asin' => $asin,
                 'country' => $country,
             ]),

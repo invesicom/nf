@@ -372,14 +372,22 @@ class ExtensionApiTest extends TestCase
     #[Test]
     public function it_gets_analysis_status_successfully()
     {
-        // Create existing analysis data
+        // Create existing analysis data with sample reviews
+        $sampleReviews = [
+            ['id' => 1, 'text' => 'Great product!'],
+            ['id' => 2, 'text' => 'Good quality'],
+        ];
+        
         $asinData = AsinData::create([
             'asin' => 'B0FFVTPRQY',
             'country' => 'ca',
             'status' => 'completed',
             'fake_percentage' => 25.5,
             'grade' => 'B',
-            'reviews' => json_encode([]),
+            'amazon_rating' => 4.2,
+            'adjusted_rating' => 3.8,
+            'explanation' => 'Some reviews appear suspicious but overall trustworthy.',
+            'reviews' => json_encode($sampleReviews),
         ]);
 
         $response = $this->getJson('/api/extension/analysis/B0FFVTPRQY/ca', [
@@ -387,23 +395,27 @@ class ExtensionApiTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJson([
-                'success' => true,
-                'asin' => 'B0FFVTPRQY',
-                'country' => 'ca',
-                'status' => 'completed',
-                'fake_percentage' => 25.5,
-                'grade' => 'B',
-            ])
             ->assertJsonStructure([
-                'success',
-                'asin',
-                'country',
-                'status',
-                'fake_percentage',
-                'grade',
-                'view_url',
-            ]);
+                'analysis' => [
+                    'grade',
+                    'fake_percentage',
+                    'adjusted_rating',
+                    'total_reviews',
+                    'fake_count',
+                    'genuine_count',
+                    'explanation',
+                ],
+                'product_info' => [
+                    'amazon_rating',
+                ],
+                'redirect_url',
+            ])
+            ->assertJsonPath('analysis.grade', 'B')
+            ->assertJsonPath('analysis.fake_percentage', '25.50')
+            ->assertJsonPath('analysis.total_reviews', 2)
+            ->assertJsonPath('analysis.fake_count', 1)
+            ->assertJsonPath('analysis.genuine_count', 1)
+            ->assertJsonPath('product_info.amazon_rating', '4.2');
     }
 
     #[Test]
