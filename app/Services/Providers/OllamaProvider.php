@@ -39,9 +39,9 @@ class OllamaProvider implements LLMProviderInterface
                 'stream'  => false,
                 'options' => [
                     'temperature' => 0.1, // Lower temperature for more consistent, less aggressive scoring
-                    'num_ctx'     => 2048, // Full context for complete review processing
+                    'num_ctx'     => 4096, // Increased context for large review sets
                     'top_p'       => 0.9, // Slightly more focused responses
-                    'num_predict' => 512, // Full output for complete JSON responses
+                    'num_predict' => 2048, // Increased output limit for large JSON responses (59 reviews need ~1500+ tokens)
                 ],
             ]);
 
@@ -140,21 +140,25 @@ class OllamaProvider implements LLMProviderInterface
 
         // Try multiple JSON extraction patterns
         $patterns = [
-            '/\[.*?\]/s',           // Standard array
-            '/```json\s*(\[.*?\])\s*```/s',  // Markdown code blocks
-            '/(?:```)?json\s*(\[.*?\])(?:```)?/s',  // Various json tags
-            '/(\[[\s\S]*?\])/s',    // Any array-like structure
+            '/```json\s*(\[[\s\S]*?\])\s*```/s',  // Markdown code blocks with multiline
+            '/```\s*(\[[\s\S]*?\])\s*```/s',      // Code blocks without json tag
+            '/(?:json\s*)?(\[[\s\S]*?\])/s',      // Any array with optional json prefix
+            '/\[[\s\S]*?\]/s',                    // Any array-like structure (greedy)
         ];
 
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $response, $matches)) {
                 $jsonString = $matches[1] ?? $matches[0];
+                LoggingService::log('Attempting to parse JSON: '.substr($jsonString, 0, 200).'...');
+                
                 $decoded = json_decode($jsonString, true);
 
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    LoggingService::log('Successfully parsed JSON with pattern: '.$pattern);
+                    LoggingService::log('Successfully parsed JSON with pattern: '.$pattern.' - Found '.count($decoded).' items');
 
                     return $this->formatAnalysisResults($decoded);
+                } else {
+                    LoggingService::log('JSON parse error: '.json_last_error_msg().' for pattern: '.$pattern);
                 }
             }
         }
