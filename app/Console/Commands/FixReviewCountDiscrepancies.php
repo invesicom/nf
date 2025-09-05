@@ -225,7 +225,7 @@ class FixReviewCountDiscrepancies extends Command
             $isFake = false;
             if (isset($openaiResult['detailed_scores'][$index])) {
                 $score = $openaiResult['detailed_scores'][$index];
-                $isFake = $score > 50; // Assuming >50 means fake
+                $isFake = $score >= 85; // Using consistent fake threshold (85+)
             }
 
             if ($isFake) {

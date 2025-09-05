@@ -53,14 +53,14 @@ class OllamaProviderResearchBasedTest extends TestCase
             // Check for key balanced prompt elements
             $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
             $this->assertStringContainsString('Consider: Generic language (+20), specific complaints (-20)', $prompt);
-            $this->assertStringContainsString('Scoring: ≤39=genuine, 40-59=uncertain, ≥60=fake', $prompt);
+            $this->assertStringContainsString('Scoring: Use full range 0-100. ≤39=genuine, 40-84=uncertain/suspicious, ≥85=fake', $prompt);
 
             // Verify temperature is set for consistency
             $this->assertEquals(0.1, $body['options']['temperature']);
 
-            // Verify increased context and output settings
-            $this->assertEquals(2048, $body['options']['num_ctx']);
-            $this->assertEquals(512, $body['options']['num_predict']);
+            // Verify increased context and output settings (updated for large review sets)
+            $this->assertEquals(4096, $body['options']['num_ctx']);
+            $this->assertEquals(2048, $body['options']['num_predict']);
 
             return true;
         });
@@ -128,7 +128,7 @@ class OllamaProviderResearchBasedTest extends TestCase
         $scoreData = $result['detailed_scores']['TEST001'];
         $this->assertIsArray($scoreData);
         $this->assertEquals(75, $scoreData['score']);
-        $this->assertEquals('fake', $scoreData['label']); // Generated from score
+        $this->assertEquals('uncertain', $scoreData['label']); // Generated from score (75 is in 40-84 range)
         $this->assertGreaterThan(0, $scoreData['confidence']); // Generated from score
         $this->assertNotEmpty($scoreData['explanation']);
     }
@@ -140,13 +140,13 @@ class OllamaProviderResearchBasedTest extends TestCase
         $method = $reflection->getMethod('generateLabel');
         $method->setAccessible(true);
 
-        // Test label generation thresholds
+        // Test label generation thresholds (updated to match new 85+ fake threshold)
         $this->assertEquals('genuine', $method->invoke($this->provider, 25));
         $this->assertEquals('genuine', $method->invoke($this->provider, 39));
         $this->assertEquals('uncertain', $method->invoke($this->provider, 40));
-        $this->assertEquals('uncertain', $method->invoke($this->provider, 59));
-        $this->assertEquals('fake', $method->invoke($this->provider, 60));
+        $this->assertEquals('uncertain', $method->invoke($this->provider, 84));
         $this->assertEquals('fake', $method->invoke($this->provider, 85));
+        $this->assertEquals('fake', $method->invoke($this->provider, 95));
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
