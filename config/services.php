@@ -72,6 +72,11 @@ return [
         'timeout'   => env('MAILTRAIN_TIMEOUT', 30),
     ],
 
+    'extension' => [
+        'api_key' => env('EXTENSION_API_KEY'),
+        'require_api_key' => env('EXTENSION_REQUIRE_API_KEY', true),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Note: Configuration Consolidation

@@ -47,6 +47,9 @@ class AsinData extends Model
         'analysis_notes',
         'first_analyzed_at',
         'last_analyzed_at',
+        'source',
+        'extension_version',
+        'extraction_timestamp',
     ];
 
     /**
@@ -63,6 +66,7 @@ class AsinData extends Model
         'product_data_scraped_at'  => 'datetime',
         'first_analyzed_at'        => 'datetime',
         'last_analyzed_at'         => 'datetime',
+        'extraction_timestamp'     => 'datetime',
     ];
 
     /*
