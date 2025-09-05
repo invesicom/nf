@@ -4,6 +4,7 @@ namespace App\Services\Providers;
 
 use App\Services\LLMProviderInterface;
 use App\Services\LoggingService;
+use App\Services\PromptGenerationService;
 use Illuminate\Support\Facades\Http;
 
 class OllamaProvider implements LLMProviderInterface
@@ -186,28 +187,14 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        // BALANCED: Comprehensive analysis with reasonable performance aligned with system threshold
-        $prompt = "Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake).\n\n";
-        $prompt .= "Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Consider: Generic language (+20), specific complaints (-20), unverified purchase (+10), verified purchase (-5), excessive positivity (+15), balanced tone (-10).\n\n";
-        $prompt .= "Scoring: Use full range 0-100. ≤39=genuine, 40-84=uncertain/suspicious, ≥85=fake. Be aggressive with scoring - obvious fakes should score 85-100.\n\n";
+        // Use centralized prompt generation service
+        $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+            $reviews,
+            'single', // Ollama uses single prompt format
+            PromptGenerationService::getProviderTextLimit('ollama')
+        );
 
-        foreach ($reviews as $review) {
-            $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'Verified' : 'Unverified';
-            $rating = $review['rating'] ?? 'N/A';
-
-            $text = '';
-            if (isset($review['review_text'])) {
-                $text = $this->cleanUtf8Text(substr($review['review_text'], 0, 300)); // Increased from 100 to 300 for better context
-            } elseif (isset($review['text'])) {
-                $text = $this->cleanUtf8Text(substr($review['text'], 0, 300));
-            }
-
-            $prompt .= "Review {$review['id']} ({$verified}, {$rating}★): {$text}\n\n";
-        }
-
-        $prompt .= "Respond with JSON array: [{\"id\":\"review_id\",\"score\":number,\"label\":\"genuine|uncertain|fake\"}]\n";
-
-        return $prompt;
+        return $promptData['prompt'];
     }
 
     private function parseAnalysisResponse(string $response): array

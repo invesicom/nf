@@ -216,13 +216,16 @@ class LLMEfficacyComparisonTest extends TestCase
             // Find the score for this review
             $actualScore = null;
             if (is_array($scores) && isset($scores[0]) && is_array($scores[0])) {
-                // Results format: [{'id': 'x', 'score': y}]
+                // Old results format: [{'id': 'x', 'score': y}]
                 foreach ($scores as $scoreData) {
                     if ($scoreData['id'] == $reviewId) {
                         $actualScore = $scoreData['score'];
                         break;
                     }
                 }
+            } elseif (is_array($scores) && isset($scores[$reviewId]) && is_array($scores[$reviewId])) {
+                // New detailed_scores format: {'id': {'score': x, 'label': y, ...}}
+                $actualScore = $scores[$reviewId]['score'] ?? null;
             } else {
                 // Direct scores format: {'id': score}
                 $actualScore = $scores[$reviewId] ?? null;

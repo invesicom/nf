@@ -4,6 +4,7 @@ namespace App\Services\Providers;
 
 use App\Services\LLMProviderInterface;
 use App\Services\LoggingService;
+use App\Services\PromptGenerationService;
 use Illuminate\Support\Facades\Http;
 
 class DeepSeekProvider implements LLMProviderInterface
@@ -27,7 +28,12 @@ class DeepSeekProvider implements LLMProviderInterface
 
         LoggingService::log('Sending '.count($reviews).' reviews to DeepSeek for analysis');
 
-        $prompt = $this->buildOptimizedPrompt($reviews);
+        // Use centralized prompt generation service
+        $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+            $reviews,
+            'chat', // DeepSeek uses chat format
+            PromptGenerationService::getProviderTextLimit('deepseek')
+        );
 
         try {
             $endpoint = rtrim($this->baseUrl, '/').'/chat/completions';
@@ -44,11 +50,11 @@ class DeepSeekProvider implements LLMProviderInterface
                 'messages' => [
                     [
                         'role'    => 'system',
-                        'content' => 'You are an expert Amazon review authenticity detector. Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Score 0-100 where 0=definitely genuine, 100=definitely fake. Use the full range: 20-40 for suspicious, 50-70 for likely fake, 80+ for obvious fakes. Return ONLY JSON: [{"id":"X","score":Y}]',
+                        'content' => PromptGenerationService::getProviderSystemMessage('deepseek'),
                     ],
                     [
                         'role'    => 'user',
-                        'content' => $prompt,
+                        'content' => $promptData['user'],
                     ],
                 ],
                 'temperature' => 0.0,
@@ -88,7 +94,9 @@ class DeepSeekProvider implements LLMProviderInterface
 
             // Quick health check
             $endpoint = rtrim($this->baseUrl, '/').'/models';
-            $response = Http::timeout(10)->get($endpoint);
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->apiKey,
+            ])->timeout(10)->get($endpoint);
 
             return $response->successful();
         } catch (\Exception $e) {
@@ -128,47 +136,55 @@ class DeepSeekProvider implements LLMProviderInterface
                str_contains($this->baseUrl, '10.0.');
     }
 
-    private function buildOptimizedPrompt(array $reviews): string
-    {
-        $promptParts = [];
-        $promptParts[] = 'Analyze these Amazon reviews for authenticity. Return JSON array with fake probability scores (0-100):';
-
-        foreach ($reviews as $index => $review) {
-            $reviewText = is_array($review) ? ($review['text'] ?? '') : $review;
-            $reviewId = is_array($review) ? ($review['id'] ?? $index + 1) : $index + 1;
-
-            // Truncate for efficiency
-            $truncatedText = strlen($reviewText) > 400 ? substr($reviewText, 0, 400).'...' : $reviewText;
-            $promptParts[] = "Review {$reviewId}: \"{$truncatedText}\"";
-        }
-
-        return implode("\n", $promptParts);
-    }
 
     private function parseResponse($response, $reviews): array
     {
         $content = $response['choices'][0]['message']['content'] ?? '';
 
-        // Parse JSON response similar to OpenAI
+        // Debug: Log the actual response content
+        LoggingService::log('DeepSeek raw response content: ' . substr($content, 0, 500) . (strlen($content) > 500 ? '...' : ''));
+        LoggingService::log('DeepSeek response length: ' . strlen($content) . ' characters');
+
+        // Parse JSON response with enhanced extraction (similar to Ollama)
         try {
+            // Try direct JSON decode first
             $scores = json_decode($content, true);
-
+            
+            // If direct decode fails, try extracting JSON from markdown or wrapped content
             if (!is_array($scores)) {
-                throw new \Exception('Invalid JSON response format');
-            }
-
-            $detailedScores = [];
-            foreach ($scores as $scoreData) {
-                if (isset($scoreData['id']) && isset($scoreData['score'])) {
-                    $detailedScores[] = [
-                        'id'       => $scoreData['id'],
-                        'score'    => (int) $scoreData['score'],
-                        'provider' => 'deepseek',
-                    ];
+                LoggingService::log('Direct JSON decode failed, attempting enhanced extraction');
+                
+                // Try extracting JSON from markdown code blocks
+                if (preg_match('/```(?:json)?\s*(\[.*?\])\s*```/s', $content, $matches)) {
+                    LoggingService::log('Found JSON in markdown code block');
+                    $scores = json_decode($matches[1], true);
+                } 
+                // Try extracting JSON array from anywhere in the content
+                elseif (preg_match('/(\[(?:[^[\]]+|(?1))*\])/', $content, $matches)) {
+                    LoggingService::log('Found JSON array pattern in content');
+                    $scores = json_decode($matches[1], true);
+                }
+                // Try extracting from lines that look like JSON
+                elseif (preg_match('/^.*?(\[.*\]).*?$/s', $content, $matches)) {
+                    LoggingService::log('Attempting to extract JSON from full content');
+                    $scores = json_decode($matches[1], true);
                 }
             }
+            
+            // Debug: Log JSON decode result
+            LoggingService::log('JSON decode result type: ' . gettype($scores));
+            if (is_array($scores)) {
+                LoggingService::log('JSON decode successful, array length: ' . count($scores));
+                LoggingService::log('First few elements: ' . json_encode(array_slice($scores, 0, 3)));
+            } else {
+                LoggingService::log('JSON decode failed or returned non-array: ' . json_encode($scores));
+            }
 
-            return ['results' => $detailedScores];
+            if (!is_array($scores)) {
+                throw new \Exception('Invalid JSON response format - expected array, got: ' . gettype($scores));
+            }
+
+            return $this->formatAnalysisResults($scores);
         } catch (\Exception $e) {
             LoggingService::log('Failed to parse DeepSeek response: '.$e->getMessage());
 
@@ -176,27 +192,70 @@ class DeepSeekProvider implements LLMProviderInterface
         }
     }
 
-    private function generateExplanation(float $score): string
+    private function formatAnalysisResults(array $decoded): array
     {
-        if ($score >= 70) {
-            return 'High fake risk: Multiple suspicious indicators detected';
+        $results = [];
+        foreach ($decoded as $item) {
+            if (isset($item['id']) && isset($item['score'])) {
+                $score = max(0, min(100, (int) $item['score'])); // Clamp to 0-100
+
+                // Support new research-based format with additional metadata
+                $label = $item['label'] ?? $this->generateLabel($score);
+                $confidence = isset($item['confidence']) ? (float) $item['confidence'] : $this->calculateConfidenceFromScore($score);
+
+                $results[$item['id']] = [
+                    'score'       => $score,
+                    'label'       => $label,
+                    'confidence'  => $confidence,
+                    'explanation' => $this->generateExplanationFromLabel($label, $score),
+                ];
+            }
+        }
+
+        return [
+            'detailed_scores'   => $results,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost'        => $this->getEstimatedCost(count($decoded)),
+        ];
+    }
+
+    private function generateLabel(int $score): string
+    {
+        if ($score >= 85) {
+            return 'fake';
         } elseif ($score >= 40) {
-            return 'Medium fake risk: Some concerning patterns found';
-        } elseif ($score >= 20) {
-            return 'Low fake risk: Minor inconsistencies noted';
+            return 'uncertain';
         } else {
-            return 'Appears genuine: Natural language and specific details';
+            return 'genuine';
         }
     }
 
-    private function calculateConfidence(float $score): string
+    private function calculateConfidenceFromScore(int $score): float
     {
-        if ($score >= 80 || $score <= 20) {
-            return 'high';
+        // Higher confidence for extreme scores, lower for middle range
+        if ($score >= 90 || $score <= 10) {
+            return 0.95;
+        } elseif ($score >= 80 || $score <= 20) {
+            return 0.85;
+        } elseif ($score >= 70 || $score <= 30) {
+            return 0.75;
         } elseif ($score >= 60 || $score <= 40) {
-            return 'medium';
+            return 0.65;
         } else {
-            return 'low';
+            return 0.55; // Lowest confidence for uncertain middle range
+        }
+    }
+
+    private function generateExplanationFromLabel(string $label, int $score): string
+    {
+        switch ($label) {
+            case 'fake':
+                return $score >= 95 ? 'Extremely suspicious: Multiple red flags detected' : 'High fake risk: Multiple suspicious indicators detected';
+            case 'uncertain':
+                return $score >= 60 ? 'Moderately suspicious: Some concerning patterns found' : 'Mildly suspicious: Minor inconsistencies noted';
+            case 'genuine':
+            default:
+                return $score <= 10 ? 'Highly authentic: Strong genuine indicators' : 'Appears genuine: Natural language and specific details';
         }
     }
 }

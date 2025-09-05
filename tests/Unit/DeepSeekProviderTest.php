@@ -41,13 +41,16 @@ class DeepSeekProviderTest extends TestCase
         $result = $this->provider->analyzeReviews($reviews);
 
         $this->assertIsArray($result);
-        $this->assertArrayHasKey('results', $result);
-        $this->assertCount(2, $result['results']);
+        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertArrayHasKey('analysis_provider', $result);
+        $this->assertArrayHasKey('total_cost', $result);
+        $this->assertCount(2, $result['detailed_scores']);
 
-        $firstResult = $result['results'][0];
-        $this->assertEquals(1, $firstResult['id']);
+        $firstResult = $result['detailed_scores']['1'];
         $this->assertEquals(25, $firstResult['score']);
-        $this->assertEquals('deepseek', $firstResult['provider']);
+        $this->assertEquals('genuine', $firstResult['label']);
+        $this->assertArrayHasKey('confidence', $firstResult);
+        $this->assertArrayHasKey('explanation', $firstResult);
     }
 
     public function test_handles_api_errors_gracefully()

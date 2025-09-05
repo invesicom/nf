@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use App\Services\PromptGenerationService;
 
 class OpenAIService
 {
@@ -39,10 +40,15 @@ class OpenAIService
             return $this->analyzeReviewsInParallelChunks($reviews);
         }
 
-        $prompt = $this->buildOptimizedPrompt($reviews);
+        // Use centralized prompt generation service
+        $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+            $reviews,
+            'chat', // OpenAI uses chat format
+            PromptGenerationService::getProviderTextLimit('openai')
+        );
 
         // Log prompt size for debugging
-        $promptSize = strlen($prompt);
+        $promptSize = strlen($promptData['user']);
         LoggingService::log("Optimized prompt size: {$promptSize} characters");
 
         try {
@@ -68,11 +74,11 @@ class OpenAIService
                 'messages' => [
                     [
                         'role'    => 'system',
-                        'content' => 'You are an expert Amazon review authenticity detector. Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Score 0-100 where 0=definitely genuine, 100=definitely fake. Use the full range: 20-40 for suspicious, 50-70 for likely fake, 80+ for obvious fakes. Return ONLY JSON: [{"id":"X","score":Y}]',
+                        'content' => PromptGenerationService::getProviderSystemMessage('openai'),
                     ],
                     [
                         'role'    => 'user',
-                        'content' => $prompt,
+                        'content' => $promptData['user'],
                     ],
                 ],
                 'temperature' => 0.0, // Deterministic for consistency and speed
@@ -184,7 +190,11 @@ class OpenAIService
             }
 
             foreach ($chunks as $index => $chunk) {
-                $prompt = $this->buildOptimizedPrompt($chunk);
+                $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+                    $chunk,
+                    'chat',
+                    PromptGenerationService::getProviderTextLimit('openai')
+                );
                 $maxTokens = $this->getOptimizedMaxTokens(count($chunk));
 
                 $pool->withHeaders([
@@ -196,11 +206,11 @@ class OpenAIService
                     'messages' => [
                         [
                             'role'    => 'system',
-                            'content' => 'You are an expert Amazon review authenticity detector. Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Score 0-100 where 0=definitely genuine, 100=definitely fake. Use the full range: 20-40 for suspicious, 50-70 for likely fake, 80+ for obvious fakes. Return ONLY JSON: [{"id":"X","score":Y}]',
+                            'content' => PromptGenerationService::getProviderSystemMessage('openai'),
                         ],
                         [
                             'role'    => 'user',
-                            'content' => $prompt,
+                            'content' => $promptData['user'],
                         ],
                     ],
                     'temperature' => 0.0,

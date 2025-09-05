@@ -69,7 +69,7 @@ class LLMServiceManagerTest extends TestCase
         $result = $this->manager->analyzeReviews($reviews);
 
         $this->assertIsArray($result);
-        $this->assertArrayHasKey('results', $result);
+        $this->assertArrayHasKey('detailed_scores', $result);
     }
 
     public function test_throws_exception_when_all_providers_fail()
