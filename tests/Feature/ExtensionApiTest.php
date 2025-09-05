@@ -516,6 +516,17 @@ class ExtensionApiTest extends TestCase
                     ]);
                     return $asinData->fresh();
                 });
+            
+            $mock->shouldReceive('calculateFinalMetrics')
+                ->andReturn([
+                    'fake_percentage' => 0,
+                    'grade' => 'U',
+                    'explanation' => 'No reviews available for analysis',
+                    'amazon_rating' => 0,
+                    'adjusted_rating' => 0,
+                    'total_reviews' => 0,
+                    'fake_count' => 0,
+                ]);
         });
 
         $this->mock(MetricsCalculationService::class, function ($mock) {

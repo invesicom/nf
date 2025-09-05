@@ -99,8 +99,8 @@ class ExtensionController extends Controller
             $asinData = $this->extensionService->processExtensionData($data);
 
             // Perform analysis
-            $analysisResult = $this->analysisService->analyzeWithLLM($asinData);
-            $metrics = $this->metricsService->calculateFinalMetrics($analysisResult);
+            $asinData = $this->analysisService->analyzeWithLLM($asinData);
+            $metrics = $this->analysisService->calculateFinalMetrics($asinData);
             
             // Get updated model with final metrics
             $asinData = $asinData->fresh();
