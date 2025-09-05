@@ -141,9 +141,6 @@ class DeepSeekProvider implements LLMProviderInterface
     {
         $content = $response['choices'][0]['message']['content'] ?? '';
 
-        // Debug: Log the actual response content
-        LoggingService::log('DeepSeek raw response content: ' . substr($content, 0, 500) . (strlen($content) > 500 ? '...' : ''));
-        LoggingService::log('DeepSeek response length: ' . strlen($content) . ' characters');
 
         // Parse JSON response with enhanced extraction (similar to Ollama)
         try {
@@ -152,32 +149,18 @@ class DeepSeekProvider implements LLMProviderInterface
             
             // If direct decode fails, try extracting JSON from markdown or wrapped content
             if (!is_array($scores)) {
-                LoggingService::log('Direct JSON decode failed, attempting enhanced extraction');
-                
                 // Try extracting JSON from markdown code blocks
                 if (preg_match('/```(?:json)?\s*(\[.*?\])\s*```/s', $content, $matches)) {
-                    LoggingService::log('Found JSON in markdown code block');
                     $scores = json_decode($matches[1], true);
                 } 
                 // Try extracting JSON array from anywhere in the content
                 elseif (preg_match('/(\[(?:[^[\]]+|(?1))*\])/', $content, $matches)) {
-                    LoggingService::log('Found JSON array pattern in content');
                     $scores = json_decode($matches[1], true);
                 }
                 // Try extracting from lines that look like JSON
                 elseif (preg_match('/^.*?(\[.*\]).*?$/s', $content, $matches)) {
-                    LoggingService::log('Attempting to extract JSON from full content');
                     $scores = json_decode($matches[1], true);
                 }
-            }
-            
-            // Debug: Log JSON decode result
-            LoggingService::log('JSON decode result type: ' . gettype($scores));
-            if (is_array($scores)) {
-                LoggingService::log('JSON decode successful, array length: ' . count($scores));
-                LoggingService::log('First few elements: ' . json_encode(array_slice($scores, 0, 3)));
-            } else {
-                LoggingService::log('JSON decode failed or returned non-array: ' . json_encode($scores));
             }
 
             if (!is_array($scores)) {
