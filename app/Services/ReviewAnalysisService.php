@@ -12,7 +12,7 @@ class ReviewAnalysisService
     private ReviewFetchingService $fetchService;
     private ReviewService $reviewService;
     private OpenAIService $openAIService;
-    private MetricsCalculationService $metricsService;
+    private MetricsCalculationServiceAggregate $metricsService;
 
     public function __construct(
         ReviewService $reviewService,
@@ -22,7 +22,7 @@ class ReviewAnalysisService
         $this->fetchService = new ReviewFetchingService();
         $this->reviewService = $reviewService;
         $this->openAIService = $openAIService;
-        $this->metricsService = new MetricsCalculationService();
+        $this->metricsService = new MetricsCalculationServiceAggregate();
     }
 
     /**

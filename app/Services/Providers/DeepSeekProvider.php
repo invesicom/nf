@@ -241,48 +241,55 @@ class DeepSeekProvider implements LLMProviderInterface
         LoggingService::log('DeepSeek raw response content: ' . substr($content, 0, 1000) . (strlen($content) > 1000 ? '...' : ''));
         LoggingService::log('DeepSeek response length: ' . strlen($content) . ' characters');
 
-        // Parse JSON response with enhanced extraction (similar to Ollama)
+        // Parse aggregate JSON response
         try {
             // Try direct JSON decode first
-            $scores = json_decode($content, true);
+            $result = json_decode($content, true);
             
             // If direct decode fails, try extracting JSON from markdown or wrapped content
-            if (!is_array($scores)) {
+            if (!is_array($result)) {
                 // Try extracting JSON from markdown code blocks (most common case)
-                if (preg_match('/```(?:json)?\s*(\[.*?\])\s*```/s', $content, $matches)) {
-                    $scores = json_decode($matches[1], true);
+                if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/s', $content, $matches)) {
+                    $result = json_decode($matches[1], true);
                 } 
                 // Handle truncated responses - try to extract partial JSON and fix it
-                elseif (preg_match('/```(?:json)?\s*(\[.*)/s', $content, $matches)) {
+                elseif (preg_match('/```(?:json)?\s*(\{.*)/s', $content, $matches)) {
                     $partialJson = $matches[1];
-                    // If it ends with incomplete entry, try to close it properly
-                    if (!str_ends_with(trim($partialJson), ']')) {
-                        // Remove incomplete last entry and close array
-                        $partialJson = preg_replace('/,\s*\{[^}]*$/', '', $partialJson);
-                        if (!str_ends_with(trim($partialJson), ']')) {
-                            $partialJson = rtrim($partialJson, ',') . ']';
-                        }
+                    // If it ends incomplete, try to close it properly
+                    if (!str_ends_with(trim($partialJson), '}')) {
+                        $partialJson = rtrim($partialJson, ',') . '}';
                     }
-                    $scores = json_decode($partialJson, true);
-                    if (is_array($scores)) {
-                        LoggingService::log('DeepSeek: Recovered ' . count($scores) . ' reviews from truncated response');
+                    $result = json_decode($partialJson, true);
+                    if (is_array($result)) {
+                        LoggingService::log('DeepSeek: Recovered aggregate data from truncated response');
                     }
                 }
-                // Try extracting JSON array from anywhere in the content
-                elseif (preg_match('/(\[(?:[^[\]]+|(?1))*\])/', $content, $matches)) {
-                    $scores = json_decode($matches[1], true);
-                }
-                // Try extracting from lines that look like JSON
-                elseif (preg_match('/^.*?(\[.*\]).*?$/s', $content, $matches)) {
-                    $scores = json_decode($matches[1], true);
+                // Try extracting JSON object from anywhere in the content
+                elseif (preg_match('/(\{(?:[^{}]+|(?1))*\})/', $content, $matches)) {
+                    $result = json_decode($matches[1], true);
                 }
             }
 
-            if (!is_array($scores)) {
-                throw new \Exception('Invalid JSON response format - expected array, got: ' . gettype($scores));
+            if (!is_array($result)) {
+                throw new \Exception('Invalid JSON response format - expected object, got: ' . gettype($result));
             }
 
-            return $this->formatAnalysisResults($scores);
+            // Validate required fields
+            if (!isset($result['fake_percentage']) || !isset($result['confidence']) || !isset($result['explanation'])) {
+                throw new \Exception('Invalid response format - missing required fields (fake_percentage, confidence, explanation)');
+            }
+
+            LoggingService::log('DeepSeek: Successfully parsed aggregate analysis - ' . $result['fake_percentage'] . '% fake, confidence: ' . $result['confidence']);
+            
+            return [
+                'fake_percentage' => (float) $result['fake_percentage'],
+                'confidence' => $result['confidence'],
+                'explanation' => $result['explanation'],
+                'fake_examples' => $result['fake_examples'] ?? [],
+                'key_patterns' => $result['key_patterns'] ?? [],
+                'analysis_provider' => 'DeepSeek-API-' . $this->model,
+                'total_cost' => 0.0001 // Placeholder cost
+            ];
         } catch (\Exception $e) {
             LoggingService::log('Failed to parse DeepSeek response: '.$e->getMessage());
 

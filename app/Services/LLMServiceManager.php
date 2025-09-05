@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Services\Providers\DeepSeekProvider;
-use App\Services\Providers\OllamaProvider;
-use App\Services\Providers\OpenAIProvider;
+use App\Services\Providers\DeepSeekProviderAggregate;
+use App\Services\Providers\OllamaProviderAggregate;
+use App\Services\OpenAIServiceAggregate;
 use Illuminate\Support\Facades\Cache;
 
 class LLMServiceManager
@@ -34,7 +34,7 @@ class LLMServiceManager
                 $duration = microtime(true) - $startTime;
 
                 // Log success metrics
-                $cost = $provider->getEstimatedCost(count($reviews));
+                $cost = $result['total_cost'] ?? 0.0;
                 LoggingService::log("Analysis successful with {$provider->getProviderName()}", [
                     'duration'     => round($duration, 2),
                     'cost'         => $cost,
@@ -143,14 +143,14 @@ class LLMServiceManager
 
     private function initializeProviders(): void
     {
-        // Initialize OpenAI provider
-        $this->providers['openai'] = app(OpenAIProvider::class);
+        // Initialize OpenAI provider (aggregate)
+        $this->providers['openai'] = app(OpenAIServiceAggregate::class);
 
-        // Initialize DeepSeek provider
-        $this->providers['deepseek'] = app(DeepSeekProvider::class);
+        // Initialize DeepSeek provider (aggregate)
+        $this->providers['deepseek'] = app(DeepSeekProviderAggregate::class);
 
-        // Initialize Ollama provider
-        $this->providers['ollama'] = app(OllamaProvider::class);
+        // Initialize Ollama provider (aggregate)
+        $this->providers['ollama'] = app(OllamaProviderAggregate::class);
 
         // Set primary provider based on config
         $primaryProviderName = config('services.llm.primary_provider', 'openai');
