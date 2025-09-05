@@ -28,6 +28,15 @@ class DeepSeekProvider implements LLMProviderInterface
 
         LoggingService::log('Sending '.count($reviews).' reviews to DeepSeek for analysis');
 
+        // ADAPTIVE PROCESSING: Handle large review sets with chunking (similar to Ollama)
+        $reviewCount = count($reviews);
+        $chunkingThreshold = 50; // DeepSeek threshold (lower than Ollama's 80)
+        
+        if ($reviewCount > $chunkingThreshold) {
+            LoggingService::log("Large review set detected ({$reviewCount} reviews > {$chunkingThreshold}), using chunking for DeepSeek");
+            return $this->analyzeReviewsInChunks($reviews);
+        }
+
         // Use centralized prompt generation service
         $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
             $reviews,
@@ -78,11 +87,93 @@ class DeepSeekProvider implements LLMProviderInterface
 
     public function getOptimizedMaxTokens(int $reviewCount): int
     {
-        // DeepSeek-V3 is efficient, needs fewer tokens than GPT-4
-        $baseTokens = $reviewCount * 8; // Less than GPT-4o-mini
-        $buffer = min(800, $reviewCount * 4);
+        // DeepSeek-V3 needs more tokens for large review sets
+        $baseTokens = $reviewCount * 15; // Increased from 8 to 15
+        $buffer = min(2000, $reviewCount * 8); // Increased buffer
 
         return $baseTokens + $buffer;
+    }
+
+    /**
+     * Process large review sets in chunks to avoid token limits and timeouts.
+     */
+    private function analyzeReviewsInChunks(array $reviews): array
+    {
+        $chunkSize = 25; // Smaller chunks for DeepSeek
+        $chunks = array_chunk($reviews, $chunkSize);
+        $allResults = [];
+        $failedChunks = 0;
+        
+        $totalChunks = count($chunks);
+        LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for DeepSeek");
+        
+        foreach ($chunks as $index => $chunk) {
+            $chunkNumber = $index + 1;
+            LoggingService::log("Processing DeepSeek chunk {$chunkNumber}/{$totalChunks} with " . count($chunk) . " reviews");
+            
+            try {
+                $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+                    $chunk,
+                    'chat',
+                    PromptGenerationService::getProviderTextLimit('deepseek')
+                );
+                
+                $endpoint = rtrim($this->baseUrl, '/').'/chat/completions';
+                $maxTokens = $this->getOptimizedMaxTokens(count($chunk));
+                
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer '.$this->apiKey,
+                    'Content-Type'  => 'application/json',
+                    'User-Agent'    => 'ReviewAnalyzer-DeepSeek/1.0',
+                ])->timeout(120)->post($endpoint, [
+                    'model'    => $this->model,
+                    'messages' => [
+                        [
+                            'role'    => 'system',
+                            'content' => PromptGenerationService::getProviderSystemMessage('deepseek'),
+                        ],
+                        [
+                            'role'    => 'user',
+                            'content' => $promptData['user'],
+                        ],
+                    ],
+                    'temperature' => 0.0,
+                    'max_tokens'  => $maxTokens,
+                ]);
+
+                if ($response->successful()) {
+                    $result = $response->json();
+                    $chunkResults = $this->parseResponse($result, $chunk);
+                    
+                    if (isset($chunkResults['detailed_scores'])) {
+                        $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
+                    }
+                } else {
+                    LoggingService::log("DeepSeek chunk {$chunkNumber} failed: " . $response->body());
+                    $failedChunks++;
+                }
+                
+                // Small delay between chunks to avoid rate limiting
+                usleep(500000); // 0.5 seconds
+                
+            } catch (\Exception $e) {
+                LoggingService::log("DeepSeek chunk {$chunkNumber} error: " . $e->getMessage());
+                $failedChunks++;
+            }
+        }
+        
+        LoggingService::log("DeepSeek chunking completed: {$totalChunks} chunks, {$failedChunks} failed, " . count($allResults) . " results");
+        
+        // Allow up to 50% chunk failures for partial results
+        if ($failedChunks > ($totalChunks / 2)) {
+            throw new \Exception("Too many DeepSeek chunks failed ({$failedChunks}/{$totalChunks})");
+        }
+        
+        return [
+            'detailed_scores'   => $allResults,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost'        => $this->getEstimatedCost(count($reviews)),
+        ];
     }
 
     public function isAvailable(): bool
@@ -141,6 +232,9 @@ class DeepSeekProvider implements LLMProviderInterface
     {
         $content = $response['choices'][0]['message']['content'] ?? '';
 
+        // Debug: Log the actual response content for troubleshooting
+        LoggingService::log('DeepSeek raw response content: ' . substr($content, 0, 1000) . (strlen($content) > 1000 ? '...' : ''));
+        LoggingService::log('DeepSeek response length: ' . strlen($content) . ' characters');
 
         // Parse JSON response with enhanced extraction (similar to Ollama)
         try {
