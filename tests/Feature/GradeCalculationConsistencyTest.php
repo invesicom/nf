@@ -85,9 +85,9 @@ class GradeCalculationConsistencyTest extends TestCase
         ]);
 
         // Run the reanalyze command in fast mode
-        $this->artisan('reanalyze:graded-products', [
-            '--fast'   => true,
-            '--grades' => 'F',
+        $this->artisan('analysis:manage', [
+            'action' => 'reanalyze',
+            '--grade' => 'F',
             '--limit'  => 1,
             '--force'  => true,
         ])->assertExitCode(0);

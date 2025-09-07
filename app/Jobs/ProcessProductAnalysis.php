@@ -151,7 +151,7 @@ class ProcessProductAnalysis implements ShouldQueue
             LoggingService::log('Async product analysis completed successfully', [
                 'session_id' => $this->sessionId,
                 'asin'       => $session->asin,
-                'total_time' => now()->diffInSeconds($session->started_at),
+                'total_time' => $session->started_at->diffInSeconds(now()),
             ]);
         } catch (\Exception $e) {
             $this->handleFailure($session, $e);

@@ -244,7 +244,7 @@ class OllamaProviderResearchBasedTest extends TestCase
         // Verify the request was made with balanced format
         Http::assertSent(function ($request) {
             $body = $request->data();
-            $this->assertStringContainsString('Review TEST001 (Unverified, 5★): Test review without meta_data', $body['prompt']);
+            $this->assertStringContainsString('TEST001|U|5★|Test review without meta_data', $body['prompt']);
 
             return true;
         });
@@ -277,7 +277,7 @@ class OllamaProviderResearchBasedTest extends TestCase
 
             // Verify balanced prompt format
             $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
-            $this->assertStringContainsString('Review TEST001 (Verified, 2★): Product broke after one week', $prompt);
+            $this->assertStringContainsString('TEST001|V|2★|Product broke after one week', $prompt);
 
             return true;
         });

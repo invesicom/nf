@@ -26,25 +26,43 @@ class MetricsCalculationService
             return $policy->getDefaultMetrics();
         }
 
-        // Parse OpenAI results
-        $detailedScores = $this->extractDetailedScores($openaiResult);
+        // Check if this is aggregate format (new) or individual format (legacy)
+        $aggregateData = $this->extractAggregateData($openaiResult);
+        
+        if (!empty($aggregateData)) {
+            // Use aggregate analysis data directly
+            $fakePercentage = (float) $aggregateData['fake_percentage'];
+            $totalReviews = count($reviews);
+            $fakeCount = round(($fakePercentage / 100) * $totalReviews);
+            
+            // Calculate ratings (simplified since we don't have per-review scores)
+            $averageRating = $this->calculateAverageRating($reviews);
+            $adjustedRating = $this->calculateAdjustedRatingFromPercentage($averageRating, $fakePercentage);
+            
+            // Use LLM's explanation or generate fallback
+            $grade = $this->gradeService->calculateGrade($fakePercentage);
+            $explanation = $aggregateData['explanation'] ?? $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
+        } else {
+            // Legacy individual scoring format
+            $detailedScores = $this->extractDetailedScores($openaiResult);
 
-        if (empty($detailedScores)) {
-            return $policy->getDefaultMetrics();
+            if (empty($detailedScores)) {
+                return $policy->getDefaultMetrics();
+            }
+
+            // Calculate metrics from individual scores
+            $totalReviews = count($reviews);
+            $fakeCount = $this->countFakeReviews($detailedScores);
+            $fakePercentage = $totalReviews > 0 ? round(($fakeCount / $totalReviews) * 100, 1) : 0;
+
+            // Calculate ratings
+            $averageRating = $this->calculateAverageRating($reviews);
+            $adjustedRating = $this->calculateAdjustedRating($reviews, $detailedScores);
+
+            // Generate grade and explanation
+            $grade = $this->gradeService->calculateGrade($fakePercentage);
+            $explanation = $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
         }
-
-        // Calculate metrics
-        $totalReviews = count($reviews);
-        $fakeCount = $this->countFakeReviews($detailedScores);
-        $fakePercentage = $totalReviews > 0 ? round(($fakeCount / $totalReviews) * 100, 1) : 0;
-
-        // Calculate ratings
-        $averageRating = $this->calculateAverageRating($reviews);
-        $adjustedRating = $this->calculateAdjustedRating($reviews, $detailedScores);
-
-        // Generate grade and explanation
-        $grade = $this->gradeService->calculateGrade($fakePercentage);
-        $explanation = $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
 
         // Only update the model if it hasn't been analyzed yet or if metrics are missing
         $needsUpdate = $asinData->status !== 'completed' ||
@@ -78,6 +96,36 @@ class MetricsCalculationService
     /**
      * Extract detailed scores from OpenAI result.
      */
+    /**
+     * Extract aggregate analysis data from LLM result.
+     */
+    private function extractAggregateData($openaiResult): array
+    {
+        if (is_string($openaiResult)) {
+            $decoded = json_decode($openaiResult, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return [];
+            }
+            $openaiResult = $decoded;
+        }
+
+        if (!is_array($openaiResult)) {
+            return [];
+        }
+
+        // Check if this is aggregate format
+        if (isset($openaiResult['fake_percentage'])) {
+            return $openaiResult;
+        }
+
+        // Check if this is wrapped in a results key
+        if (isset($openaiResult['results']) && isset($openaiResult['results']['fake_percentage'])) {
+            return $openaiResult['results'];
+        }
+
+        return [];
+    }
+
     private function extractDetailedScores($openaiResult): array
     {
         if (is_string($openaiResult)) {
@@ -170,6 +218,23 @@ class MetricsCalculationService
         }
 
         return round($genuineRatingSum / $genuineCount, 2);
+    }
+
+    /**
+     * Calculate adjusted rating based on fake percentage (for aggregate analysis).
+     */
+    private function calculateAdjustedRatingFromPercentage(float $averageRating, float $fakePercentage): float
+    {
+        if ($averageRating <= 0) {
+            return 0.0;
+        }
+
+        // Adjust rating based on fake percentage
+        // Higher fake percentage = lower adjusted rating
+        $adjustmentFactor = 1 - ($fakePercentage / 200); // Max 50% reduction for 100% fake
+        $adjustedRating = $averageRating * max(0.5, $adjustmentFactor); // Minimum 50% of original
+
+        return round($adjustedRating, 1);
     }
 
     /**

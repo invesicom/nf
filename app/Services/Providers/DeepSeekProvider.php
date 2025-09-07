@@ -4,6 +4,7 @@ namespace App\Services\Providers;
 
 use App\Services\LLMProviderInterface;
 use App\Services\LoggingService;
+use App\Services\PromptGenerationService;
 use Illuminate\Support\Facades\Http;
 
 class DeepSeekProvider implements LLMProviderInterface
@@ -27,7 +28,22 @@ class DeepSeekProvider implements LLMProviderInterface
 
         LoggingService::log('Sending '.count($reviews).' reviews to DeepSeek for analysis');
 
-        $prompt = $this->buildOptimizedPrompt($reviews);
+        // DeepSeek-V3 has 64k token context window - can handle 99+ reviews without chunking
+        // With format optimization, only chunk for extremely large datasets (200+ reviews)
+        $reviewCount = count($reviews);
+        $chunkingThreshold = 200; // Increased from 50 - DeepSeek can handle much more
+        
+        if ($reviewCount > $chunkingThreshold) {
+            LoggingService::log("Extremely large review set detected ({$reviewCount} reviews > {$chunkingThreshold}), using chunking for DeepSeek");
+            return $this->analyzeReviewsInChunks($reviews);
+        }
+
+        // Use centralized prompt generation service
+        $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+            $reviews,
+            'chat', // DeepSeek uses chat format
+            PromptGenerationService::getProviderTextLimit('deepseek')
+        );
 
         try {
             $endpoint = rtrim($this->baseUrl, '/').'/chat/completions';
@@ -44,11 +60,11 @@ class DeepSeekProvider implements LLMProviderInterface
                 'messages' => [
                     [
                         'role'    => 'system',
-                        'content' => 'You are an expert Amazon review authenticity detector. Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Score 0-100 where 0=definitely genuine, 100=definitely fake. Use the full range: 20-40 for suspicious, 50-70 for likely fake, 80+ for obvious fakes. Return ONLY JSON: [{"id":"X","score":Y}]',
+                        'content' => PromptGenerationService::getProviderSystemMessage('deepseek'),
                     ],
                     [
                         'role'    => 'user',
-                        'content' => $prompt,
+                        'content' => $promptData['user'],
                     ],
                 ],
                 'temperature' => 0.0,
@@ -72,11 +88,97 @@ class DeepSeekProvider implements LLMProviderInterface
 
     public function getOptimizedMaxTokens(int $reviewCount): int
     {
-        // DeepSeek-V3 is efficient, needs fewer tokens than GPT-4
-        $baseTokens = $reviewCount * 8; // Less than GPT-4o-mini
-        $buffer = min(800, $reviewCount * 4);
+        // DeepSeek-V3 needs significantly more tokens for JSON responses
+        // Each review needs ~25-30 tokens for: {"id":"R123...","score":85,"label":"fake","confidence":0.95,"explanation":"..."},
+        $baseTokens = $reviewCount * 30; // Increased from 15 to 30
+        $buffer = min(4000, $reviewCount * 15); // Much larger buffer for JSON overhead + explanations
+        
+        // Minimum 3000 tokens even for small sets to prevent truncation
+        $minTokens = 3000;
 
-        return $baseTokens + $buffer;
+        return max($minTokens, $baseTokens + $buffer);
+    }
+
+    /**
+     * Process large review sets in chunks to avoid token limits and timeouts.
+     */
+    private function analyzeReviewsInChunks(array $reviews): array
+    {
+        $chunkSize = 25; // Smaller chunks for DeepSeek
+        $chunks = array_chunk($reviews, $chunkSize);
+        $allResults = [];
+        $failedChunks = 0;
+        
+        $totalChunks = count($chunks);
+        LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for DeepSeek");
+        
+        foreach ($chunks as $index => $chunk) {
+            $chunkNumber = $index + 1;
+            LoggingService::log("Processing DeepSeek chunk {$chunkNumber}/{$totalChunks} with " . count($chunk) . " reviews");
+            
+            try {
+                $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+                    $chunk,
+                    'chat',
+                    PromptGenerationService::getProviderTextLimit('deepseek')
+                );
+                
+                $endpoint = rtrim($this->baseUrl, '/').'/chat/completions';
+                $maxTokens = $this->getOptimizedMaxTokens(count($chunk));
+                
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer '.$this->apiKey,
+                    'Content-Type'  => 'application/json',
+                    'User-Agent'    => 'ReviewAnalyzer-DeepSeek/1.0',
+                ])->timeout(120)->post($endpoint, [
+                    'model'    => $this->model,
+                    'messages' => [
+                        [
+                            'role'    => 'system',
+                            'content' => PromptGenerationService::getProviderSystemMessage('deepseek'),
+                        ],
+                        [
+                            'role'    => 'user',
+                            'content' => $promptData['user'],
+                        ],
+                    ],
+                    'temperature' => 0.0,
+                    'max_tokens'  => $maxTokens,
+                ]);
+
+                if ($response->successful()) {
+                    $result = $response->json();
+                    $chunkResults = $this->parseResponse($result, $chunk);
+                    
+                    if (isset($chunkResults['detailed_scores'])) {
+                        $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
+                    }
+                } else {
+                    LoggingService::log("DeepSeek chunk {$chunkNumber} failed: " . $response->body());
+                    $failedChunks++;
+                }
+                
+                // Small delay between chunks to avoid rate limiting
+                usleep(500000); // 0.5 seconds
+                
+            } catch (\Exception $e) {
+                LoggingService::log("DeepSeek chunk {$chunkNumber} error: " . $e->getMessage());
+                $failedChunks++;
+            }
+        }
+        
+        LoggingService::log("DeepSeek chunking completed: {$totalChunks} chunks, {$failedChunks} failed, " . count($allResults) . " results");
+        
+        // Allow up to 50% chunk failures for partial results
+        if ($failedChunks > ($totalChunks / 2)) {
+            throw new \Exception("Too many DeepSeek chunks failed ({$failedChunks}/{$totalChunks})");
+        }
+        
+        return [
+            'detailed_scores'   => $allResults,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost'        => $this->getEstimatedCost(count($reviews)),
+        ];
     }
 
     public function isAvailable(): bool
@@ -88,7 +190,9 @@ class DeepSeekProvider implements LLMProviderInterface
 
             // Quick health check
             $endpoint = rtrim($this->baseUrl, '/').'/models';
-            $response = Http::timeout(10)->get($endpoint);
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->apiKey,
+            ])->timeout(10)->get($endpoint);
 
             return $response->successful();
         } catch (\Exception $e) {
@@ -128,47 +232,64 @@ class DeepSeekProvider implements LLMProviderInterface
                str_contains($this->baseUrl, '10.0.');
     }
 
-    private function buildOptimizedPrompt(array $reviews): string
-    {
-        $promptParts = [];
-        $promptParts[] = 'Analyze these Amazon reviews for authenticity. Return JSON array with fake probability scores (0-100):';
-
-        foreach ($reviews as $index => $review) {
-            $reviewText = is_array($review) ? ($review['text'] ?? '') : $review;
-            $reviewId = is_array($review) ? ($review['id'] ?? $index + 1) : $index + 1;
-
-            // Truncate for efficiency
-            $truncatedText = strlen($reviewText) > 400 ? substr($reviewText, 0, 400).'...' : $reviewText;
-            $promptParts[] = "Review {$reviewId}: \"{$truncatedText}\"";
-        }
-
-        return implode("\n", $promptParts);
-    }
 
     private function parseResponse($response, $reviews): array
     {
         $content = $response['choices'][0]['message']['content'] ?? '';
 
-        // Parse JSON response similar to OpenAI
+        // Debug: Log the actual response content for troubleshooting
+        LoggingService::log('DeepSeek raw response content: ' . substr($content, 0, 1000) . (strlen($content) > 1000 ? '...' : ''));
+        LoggingService::log('DeepSeek response length: ' . strlen($content) . ' characters');
+
+        // Parse aggregate JSON response
         try {
-            $scores = json_decode($content, true);
-
-            if (!is_array($scores)) {
-                throw new \Exception('Invalid JSON response format');
-            }
-
-            $detailedScores = [];
-            foreach ($scores as $scoreData) {
-                if (isset($scoreData['id']) && isset($scoreData['score'])) {
-                    $detailedScores[] = [
-                        'id'       => $scoreData['id'],
-                        'score'    => (int) $scoreData['score'],
-                        'provider' => 'deepseek',
-                    ];
+            // Try direct JSON decode first
+            $result = json_decode($content, true);
+            
+            // If direct decode fails, try extracting JSON from markdown or wrapped content
+            if (!is_array($result)) {
+                // Try extracting JSON from markdown code blocks (most common case)
+                if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/s', $content, $matches)) {
+                    $result = json_decode($matches[1], true);
+                } 
+                // Handle truncated responses - try to extract partial JSON and fix it
+                elseif (preg_match('/```(?:json)?\s*(\{.*)/s', $content, $matches)) {
+                    $partialJson = $matches[1];
+                    // If it ends incomplete, try to close it properly
+                    if (!str_ends_with(trim($partialJson), '}')) {
+                        $partialJson = rtrim($partialJson, ',') . '}';
+                    }
+                    $result = json_decode($partialJson, true);
+                    if (is_array($result)) {
+                        LoggingService::log('DeepSeek: Recovered aggregate data from truncated response');
+                    }
+                }
+                // Try extracting JSON object from anywhere in the content
+                elseif (preg_match('/(\{(?:[^{}]+|(?1))*\})/', $content, $matches)) {
+                    $result = json_decode($matches[1], true);
                 }
             }
 
-            return ['results' => $detailedScores];
+            if (!is_array($result)) {
+                throw new \Exception('Invalid JSON response format - expected object, got: ' . gettype($result));
+            }
+
+            // Validate required fields
+            if (!isset($result['fake_percentage']) || !isset($result['confidence']) || !isset($result['explanation'])) {
+                throw new \Exception('Invalid response format - missing required fields (fake_percentage, confidence, explanation)');
+            }
+
+            LoggingService::log('DeepSeek: Successfully parsed aggregate analysis - ' . $result['fake_percentage'] . '% fake, confidence: ' . $result['confidence']);
+            
+            return [
+                'fake_percentage' => (float) $result['fake_percentage'],
+                'confidence' => $result['confidence'],
+                'explanation' => $result['explanation'],
+                'fake_examples' => $result['fake_examples'] ?? [],
+                'key_patterns' => $result['key_patterns'] ?? [],
+                'analysis_provider' => 'DeepSeek-API-' . $this->model,
+                'total_cost' => 0.0001 // Placeholder cost
+            ];
         } catch (\Exception $e) {
             LoggingService::log('Failed to parse DeepSeek response: '.$e->getMessage());
 
@@ -176,27 +297,70 @@ class DeepSeekProvider implements LLMProviderInterface
         }
     }
 
-    private function generateExplanation(float $score): string
+    private function formatAnalysisResults(array $decoded): array
     {
-        if ($score >= 70) {
-            return 'High fake risk: Multiple suspicious indicators detected';
+        $results = [];
+        foreach ($decoded as $item) {
+            if (isset($item['id']) && isset($item['score'])) {
+                $score = max(0, min(100, (int) $item['score'])); // Clamp to 0-100
+
+                // Support new research-based format with additional metadata
+                $label = $item['label'] ?? $this->generateLabel($score);
+                $confidence = isset($item['confidence']) ? (float) $item['confidence'] : $this->calculateConfidenceFromScore($score);
+
+                $results[$item['id']] = [
+                    'score'       => $score,
+                    'label'       => $label,
+                    'confidence'  => $confidence,
+                    'explanation' => $this->generateExplanationFromLabel($label, $score),
+                ];
+            }
+        }
+
+        return [
+            'detailed_scores'   => $results,
+            'analysis_provider' => $this->getProviderName(),
+            'total_cost'        => $this->getEstimatedCost(count($decoded)),
+        ];
+    }
+
+    private function generateLabel(int $score): string
+    {
+        if ($score >= 85) {
+            return 'fake';
         } elseif ($score >= 40) {
-            return 'Medium fake risk: Some concerning patterns found';
-        } elseif ($score >= 20) {
-            return 'Low fake risk: Minor inconsistencies noted';
+            return 'uncertain';
         } else {
-            return 'Appears genuine: Natural language and specific details';
+            return 'genuine';
         }
     }
 
-    private function calculateConfidence(float $score): string
+    private function calculateConfidenceFromScore(int $score): float
     {
-        if ($score >= 80 || $score <= 20) {
-            return 'high';
+        // Higher confidence for extreme scores, lower for middle range
+        if ($score >= 90 || $score <= 10) {
+            return 0.95;
+        } elseif ($score >= 80 || $score <= 20) {
+            return 0.85;
+        } elseif ($score >= 70 || $score <= 30) {
+            return 0.75;
         } elseif ($score >= 60 || $score <= 40) {
-            return 'medium';
+            return 0.65;
         } else {
-            return 'low';
+            return 0.55; // Lowest confidence for uncertain middle range
+        }
+    }
+
+    private function generateExplanationFromLabel(string $label, int $score): string
+    {
+        switch ($label) {
+            case 'fake':
+                return $score >= 95 ? 'Extremely suspicious: Multiple red flags detected' : 'High fake risk: Multiple suspicious indicators detected';
+            case 'uncertain':
+                return $score >= 60 ? 'Moderately suspicious: Some concerning patterns found' : 'Mildly suspicious: Minor inconsistencies noted';
+            case 'genuine':
+            default:
+                return $score <= 10 ? 'Highly authentic: Strong genuine indicators' : 'Appears genuine: Natural language and specific details';
         }
     }
 }

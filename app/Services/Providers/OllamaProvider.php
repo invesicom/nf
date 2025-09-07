@@ -4,6 +4,7 @@ namespace App\Services\Providers;
 
 use App\Services\LLMProviderInterface;
 use App\Services\LoggingService;
+use App\Services\PromptGenerationService;
 use Illuminate\Support\Facades\Http;
 
 class OllamaProvider implements LLMProviderInterface
@@ -60,7 +61,16 @@ class OllamaProvider implements LLMProviderInterface
                 return $this->parseAnalysisResponse($result['response']);
             }
 
-            throw new \Exception('Ollama API request failed: '.$response->body());
+            // Enhanced error handling for common Ollama issues
+            $statusCode = $response->status();
+            $body = $response->body();
+            
+            // Check if we're getting HTML instead of JSON (common when Ollama is down)
+            if (str_starts_with(trim($body), '<html') || str_starts_with(trim($body), '<!DOCTYPE')) {
+                throw new \Exception("Ollama service is returning HTML instead of JSON (HTTP {$statusCode}). This usually means Ollama is down or misconfigured. Check if Ollama is running on {$this->baseUrl}");
+            }
+            
+            throw new \Exception("Ollama API request failed (HTTP {$statusCode}): " . substr($body, 0, 200));
         } catch (\Exception $e) {
             LoggingService::log('Ollama analysis failed: '.mb_convert_encoding($e->getMessage(), 'UTF-8', 'UTF-8'));
 
@@ -157,8 +167,18 @@ class OllamaProvider implements LLMProviderInterface
                         $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
                     }
                 } else {
-                    LoggingService::log("Chunk {$chunkNumber} failed: " . $response->body());
-                    throw new \Exception("Chunk {$chunkNumber} failed: " . $response->body());
+                    $statusCode = $response->status();
+                    $body = $response->body();
+                    
+                    // Check for HTML response in chunks too
+                    if (str_starts_with(trim($body), '<html') || str_starts_with(trim($body), '<!DOCTYPE')) {
+                        $errorMsg = "Chunk {$chunkNumber} failed: Ollama returning HTML instead of JSON (HTTP {$statusCode}). Service may be down.";
+                    } else {
+                        $errorMsg = "Chunk {$chunkNumber} failed (HTTP {$statusCode}): " . substr($body, 0, 200);
+                    }
+                    
+                    LoggingService::log($errorMsg);
+                    throw new \Exception($errorMsg);
                 }
                 
             } catch (\Exception $e) {
@@ -186,28 +206,14 @@ class OllamaProvider implements LLMProviderInterface
 
     private function buildOptimizedPrompt($reviews): string
     {
-        // BALANCED: Comprehensive analysis with reasonable performance aligned with system threshold
-        $prompt = "Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake).\n\n";
-        $prompt .= "Be SUSPICIOUS and thorough - most products have 15-40% fake reviews. Consider: Generic language (+20), specific complaints (-20), unverified purchase (+10), verified purchase (-5), excessive positivity (+15), balanced tone (-10).\n\n";
-        $prompt .= "Scoring: Use full range 0-100. ≤39=genuine, 40-84=uncertain/suspicious, ≥85=fake. Be aggressive with scoring - obvious fakes should score 85-100.\n\n";
+        // Use centralized prompt generation service
+        $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+            $reviews,
+            'single', // Ollama uses single prompt format
+            PromptGenerationService::getProviderTextLimit('ollama')
+        );
 
-        foreach ($reviews as $review) {
-            $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'Verified' : 'Unverified';
-            $rating = $review['rating'] ?? 'N/A';
-
-            $text = '';
-            if (isset($review['review_text'])) {
-                $text = $this->cleanUtf8Text(substr($review['review_text'], 0, 300)); // Increased from 100 to 300 for better context
-            } elseif (isset($review['text'])) {
-                $text = $this->cleanUtf8Text(substr($review['text'], 0, 300));
-            }
-
-            $prompt .= "Review {$review['id']} ({$verified}, {$rating}★): {$text}\n\n";
-        }
-
-        $prompt .= "Respond with JSON array: [{\"id\":\"review_id\",\"score\":number,\"label\":\"genuine|uncertain|fake\"}]\n";
-
-        return $prompt;
+        return $promptData['prompt'];
     }
 
     private function parseAnalysisResponse(string $response): array
