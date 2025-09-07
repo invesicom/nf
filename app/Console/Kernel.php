@@ -30,6 +30,12 @@ class Kernel extends ConsoleKernel
                  ->hourly()
                  ->withoutOverlapping()
                  ->runInBackground();
+
+        // Clean up stale BrightData jobs every hour
+        $schedule->command('brightdata:manage cleanup --force')
+                 ->hourly()
+                 ->withoutOverlapping()
+                 ->runInBackground();
     }
 
     /**
