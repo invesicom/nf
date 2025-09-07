@@ -384,6 +384,7 @@ class BrightDataScraperServiceTest extends TestCase
         $this->assertEquals(0, $result['total_reviews']);
     }
 
+
     private function createMockBrightDataResponse(): array
     {
         return [
