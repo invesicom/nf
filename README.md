@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="public/img/nullfake.png" alt="Null Fake Logo" width="200">
+  <img src="public/img/nullfake.svg" alt="Null Fake Logo" width="200">
 </div>
 
 # Null Fake

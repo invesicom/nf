@@ -32,23 +32,23 @@
   <link rel="icon" type="image/png" sizes="96x96" href="/img/favicon-96x96.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png">
   <link rel="manifest" href="/manifest.json">
-  <meta name="msapplication-TileColor" content="#ffffff">
+  <meta name="msapplication-TileColor" content="#424da0">
   <meta name="msapplication-TileImage" content="/img/ms-icon-144x144.png">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#424da0">
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="{{ url('/') }}" />
   <meta property="og:title" content="Null Fake - Amazon Review Analysis" />
   <meta property="og:description" content="AI-powered Amazon review analyzer. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product." />
-  <meta property="og:image" content="{{ url('/img/nullfake.png') }}" />
+  <meta property="og:image" content="{{ url('/img/nullfake.svg') }}" />
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:url" content="{{ url('/') }}" />
   <meta name="twitter:title" content="Null Fake - Amazon Review Analysis" />
   <meta name="twitter:description" content="AI-powered Amazon review analyzer. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product." />
-  <meta name="twitter:image" content="/img/nullfake.png" />
+  <meta name="twitter:image" content="/img/nullfake.svg" />
 
   <!-- Schema.org for Google -->
   <script type="application/ld+json">
@@ -65,7 +65,7 @@
       "price": "0",
       "priceCurrency": "USD"
     },
-    "image": "{{ url('/img/nullfake.png') }}",
+    "image": "{{ url('/img/nullfake.svg') }}",
     "author": {
       "@type": "Organization",
       "name": "shift8 web",
@@ -78,6 +78,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  @vite(['resources/css/app.css'])
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
   </style>
@@ -99,7 +100,7 @@
   <header class="bg-white shadow p-4">
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <div class="flex items-center pr-4 md:pr-0 space-x-3">
-        <img src="/img/nullfake.png" alt="Null Fake Logo" class="h-12 w-auto object-contain" />
+        <img src="/img/nullfake.svg" alt="Null Fake Logo" class="h-20 w-auto object-contain" />
       </div>
       <p class="text-sm text-gray-500">Analyze Amazon reviews for authenticity</p>
     </div>

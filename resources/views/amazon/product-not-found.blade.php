@@ -9,6 +9,7 @@
   
   <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  @vite(['resources/css/app.css'])
 </head>
 
 <body class="bg-gray-50 min-h-screen">
@@ -16,7 +17,7 @@
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <div class="flex items-center pr-4 md:pr-0 space-x-3">
         <a href="{{ route('home') }}">
-          <img src="/img/nullfake.png" alt="Null Fake Logo" class="h-12 w-auto object-contain" />
+          <img src="/img/nullfake.svg" alt="Null Fake Logo" class="h-20 w-auto object-contain" />
         </a>
       </div>
       <p class="text-sm text-gray-500">Amazon Review Analysis</p>
@@ -50,8 +51,8 @@
         </a>
       </div>
 
-      <div class="mt-8 p-4 bg-blue-50 rounded-lg">
-        <p class="text-sm text-blue-700">
+      <div class="mt-8 p-4 bg-brand bg-opacity-5 rounded-lg">
+        <p class="text-sm text-brand-dark">
           <strong>Want to analyze this product?</strong> 
           Copy the Amazon URL and paste it on our home page to get started.
         </p>
