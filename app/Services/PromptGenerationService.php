@@ -137,7 +137,13 @@ class PromptGenerationService
             case 'openai':
                 return $baseMessage; // OpenAI works well with concise instructions
             case 'deepseek':
-                return $baseMessage; // DeepSeek similar to OpenAI
+                // DeepSeek-specific prompt to reduce bias and encourage full range usage
+                return 'You are an expert Amazon review authenticity detector. ' .
+                       'IMPORTANT: Use the FULL 0-100 range. Many legitimate products have 0-20% fake reviews. ' .
+                       'Only suspicious products should score 40+. Be balanced, not overly suspicious. ' .
+                       'Score guidelines: 0-15=excellent/genuine, 16-30=good with minor concerns, ' .
+                       '31-50=moderate fake percentage, 51-70=high fake percentage, 71-100=mostly fake. ' .
+                       'Return ONLY JSON: [{"id":"X","score":Y}]';
             case 'ollama':
             default:
                 return $baseMessage; // Default format
