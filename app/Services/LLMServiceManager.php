@@ -204,42 +204,59 @@ class LLMServiceManager
 
     private function trackProviderSuccess(LLMProviderInterface $provider, float $duration, float $cost): void
     {
-        $key = 'llm.metrics.'.md5($provider->getProviderName());
+        try {
+            $key = 'llm.metrics.'.md5($provider->getProviderName());
 
-        $metrics = Cache::get($key, [
-            'success_count'  => 0,
-            'failure_count'  => 0,
-            'total_duration' => 0,
-            'total_cost'     => 0,
-            'last_success'   => null,
-        ]);
+            $metrics = Cache::get($key, [
+                'success_count'  => 0,
+                'failure_count'  => 0,
+                'total_duration' => 0,
+                'total_cost'     => 0,
+                'last_success'   => null,
+            ]);
 
-        $metrics['success_count']++;
-        $metrics['total_duration'] += $duration;
-        $metrics['total_cost'] += $cost;
-        $metrics['last_success'] = now()->toISOString();
+            $metrics['success_count']++;
+            $metrics['total_duration'] += $duration;
+            $metrics['total_cost'] += $cost;
+            $metrics['last_success'] = now()->toISOString();
 
-        Cache::put($key, $metrics, now()->addDays(7));
+            Cache::put($key, $metrics, now()->addDays(7));
+        } catch (\Exception $e) {
+            // Gracefully handle cache failures - don't let cache issues break LLM functionality
+            LoggingService::log("Cache operation failed for provider success tracking: {$e->getMessage()}", [
+                'provider' => $provider->getProviderName(),
+                'duration' => $duration,
+                'cost' => $cost
+            ]);
+        }
     }
 
     private function trackProviderFailure(LLMProviderInterface $provider, string $error): void
     {
-        $key = 'llm.metrics.'.md5($provider->getProviderName());
+        try {
+            $key = 'llm.metrics.'.md5($provider->getProviderName());
 
-        $metrics = Cache::get($key, [
-            'success_count'  => 0,
-            'failure_count'  => 0,
-            'total_duration' => 0,
-            'total_cost'     => 0,
-            'last_failure'   => null,
-            'last_error'     => null,
-        ]);
+            $metrics = Cache::get($key, [
+                'success_count'  => 0,
+                'failure_count'  => 0,
+                'total_duration' => 0,
+                'total_cost'     => 0,
+                'last_failure'   => null,
+                'last_error'     => null,
+            ]);
 
-        $metrics['failure_count']++;
-        $metrics['last_failure'] = now()->toISOString();
-        $metrics['last_error'] = $error;
+            $metrics['failure_count']++;
+            $metrics['last_failure'] = now()->toISOString();
+            $metrics['last_error'] = $error;
 
-        Cache::put($key, $metrics, now()->addDays(7));
+            Cache::put($key, $metrics, now()->addDays(7));
+        } catch (\Exception $e) {
+            // Gracefully handle cache failures - don't let cache issues break LLM functionality
+            LoggingService::log("Cache operation failed for provider failure tracking: {$e->getMessage()}", [
+                'provider' => $provider->getProviderName(),
+                'original_error' => $error
+            ]);
+        }
     }
 
     private function getProviderSuccessRate(LLMProviderInterface $provider): float
