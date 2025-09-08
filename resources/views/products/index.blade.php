@@ -7,6 +7,7 @@
   <meta name="description" content="Browse all Amazon products analyzed by Null Fake - Amazon Review Analysis Tool. Find authentic reviews and avoid fake products." />
   <meta name="keywords" content="amazon reviews, fake reviews, product analysis, review authenticity, amazon products" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  @vite(['resources/css/app.css'])
 </head>
 <body class="bg-gray-100 text-gray-800">
 
@@ -16,7 +17,7 @@
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <div class="flex items-center pr-4 md:pr-0 space-x-3">
         <a href="/">
-          <img src="/img/nullfake.png" alt="Null Fake Logo" class="h-12 w-auto object-contain" />
+          <img src="/img/nullfake.svg" alt="Null Fake Logo" class="h-20 w-auto object-contain" />
         </a>
       </div>
       <p class="text-sm text-gray-500">Analyze Amazon reviews for authenticity</p>
@@ -117,7 +118,7 @@
           <h3 class="mt-2 text-sm font-medium text-gray-900">No products found</h3>
           <p class="mt-1 text-sm text-gray-500">No analyzed products are available yet.</p>
           <div class="mt-6">
-            <a href="/" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-teal-600 hover:bg-teal-700">
+            <a href="/" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-brand hover:bg-brand-dark">
               Start analyzing products
             </a>
           </div>

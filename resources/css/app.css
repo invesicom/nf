@@ -1,4 +1,60 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Brand Color Utilities */
+.bg-brand {
+  background-color: #424da0;
+}
+
+.bg-brand-light {
+  background-color: #5a66b3;
+}
+
+.bg-brand-dark {
+  background-color: #353f87;
+}
+
+.text-brand {
+  color: #424da0;
+}
+
+.text-brand-light {
+  color: #5a66b3;
+}
+
+.text-brand-dark {
+  color: #353f87;
+}
+
+.border-brand {
+  border-color: #424da0;
+}
+
+.border-brand-light {
+  border-color: #5a66b3;
+}
+
+.border-brand-dark {
+  border-color: #353f87;
+}
+
+.hover\:bg-brand:hover {
+  background-color: #424da0;
+}
+
+.hover\:bg-brand-light:hover {
+  background-color: #5a66b3;
+}
+
+.hover\:bg-brand-dark:hover {
+  background-color: #353f87;
+}
+
+.hover\:text-brand:hover {
+  color: #424da0;
+}
+
+.focus\:border-brand:focus {
+  border-color: #424da0;
+}
+
+.focus\:ring-brand:focus {
+  --tw-ring-color: #424da0;
+}

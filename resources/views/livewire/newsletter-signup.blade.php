@@ -2,9 +2,9 @@
 
 <div class="newsletter-signup-container">
     @if(!$subscribed)
-        <div class="bg-gradient-to-r from-gray-50 to-slate-50 border border-gray-300 rounded-lg p-6 shadow-sm" style="border-color: #19939f;">
+        <div class="bg-gradient-to-r from-gray-50 to-slate-50 border rounded-lg p-6 shadow-sm border-brand">
             <div class="flex items-center mb-4">
-                <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #19939f;">
+                <svg class="w-6 h-6 mr-3 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                 </svg>
                 <h3 class="text-lg font-semibold text-gray-800">Stay Updated</h3>
@@ -21,8 +21,7 @@
                             type="email" 
                             wire:model="email" 
                             placeholder="Enter your email address"
-                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors text-sm"
-                            style="--tw-ring-color: #19939f;"
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent focus:ring-brand transition-colors text-sm"
                             :disabled="loading"
                         />
                         @error('email')
@@ -32,10 +31,7 @@
                     
                     <button 
                         type="submit" 
-                        class="px-6 py-3 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors font-medium text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                        style="background-color: #19939f; --tw-ring-color: #19939f;"
-                        onmouseover="this.style.backgroundColor='#167a84'"
-                        onmouseout="this.style.backgroundColor='#19939f'"
+                        class="px-6 py-3 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand transition-colors font-medium text-sm whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center bg-brand hover:bg-brand-dark"
                         :disabled="loading"
                         wire:loading.attr="disabled"
                     >
@@ -72,10 +68,7 @@
             @if($subscribed)
                 <button 
                     wire:click="resetForm" 
-                    class="mt-3 text-sm underline hover:no-underline"
-                    style="color: #19939f;"
-                    onmouseover="this.style.color='#167a84'"
-                    onmouseout="this.style.color='#19939f'"
+                    class="mt-3 text-sm underline hover:no-underline text-brand hover:text-brand-dark"
                 >
                     Subscribe another email
                 </button>

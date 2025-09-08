@@ -6,6 +6,7 @@
   <title>Privacy Policy - Null Fake</title>
   <meta name="description" content="Privacy Policy for Null Fake - Amazon Review Analysis Tool" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  @vite(['resources/css/app.css'])
 </head>
 <body class="bg-gray-100 text-gray-800">
 
@@ -15,7 +16,7 @@
     <div class="max-w-4xl mx-auto px-6 py-4">
       <div class="flex items-center">
         <a href="/" class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-teal-600 rounded-lg flex items-center justify-center">
+          <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
             <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
               <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
             </svg>
@@ -95,7 +96,7 @@
         <p class="mb-6">
           Null Fake is open source software released under the MIT License. You can review our 
           code and data handling practices on 
-          <a href="https://github.com/stardothosting/nullfake" class="text-blue-600 hover:underline">GitHub</a>.
+          <a href="https://github.com/stardothosting/nullfake" class="text-brand hover:underline">GitHub</a>.
         </p>
 
         <h2 class="text-xl font-semibold text-gray-900 mt-8 mb-4">Changes to This Policy</h2>
@@ -107,7 +108,7 @@
         <h2 class="text-xl font-semibold text-gray-900 mt-8 mb-4">Contact Us</h2>
         <p class="mb-6">
           If you have questions about this privacy policy, please contact us through our 
-          <a href="https://github.com/stardothosting/nullfake" class="text-blue-600 hover:underline">GitHub repository</a>.
+          <a href="https://github.com/stardothosting/nullfake" class="text-brand hover:underline">GitHub repository</a>.
         </p>
 
       </div>
@@ -117,7 +118,7 @@
   <!-- Footer -->
   <footer class="text-center text-gray-500 text-sm mt-10 p-2">
     <div class="flex items-center justify-center mb-2">
-      <a href="/" class="text-teal-600 hover:underline">← Back to Null Fake</a>
+      <a href="/" class="text-brand hover:underline">← Back to Null Fake</a>
     </div>
     <div class="flex items-center justify-center space-x-4 text-xs">
       <a href="https://github.com/stardothosting/nullfake/blob/main/LICENSE" class="text-gray-500 hover:text-gray-700" target="_blank" rel="noopener">MIT License</a>

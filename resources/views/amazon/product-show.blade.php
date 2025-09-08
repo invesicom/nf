@@ -79,12 +79,13 @@
   <link rel="icon" type="image/png" sizes="96x96" href="/img/favicon-96x96.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon-16x16.png">
   <link rel="manifest" href="/manifest.json">
-  <meta name="msapplication-TileColor" content="#ffffff">
+  <meta name="msapplication-TileColor" content="#424da0">
   <meta name="msapplication-TileImage" content="/img/ms-icon-144x144.png">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="theme-color" content="#424da0">
 
   <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  @vite(['resources/css/app.css'])
 
   <!-- JSON-LD Structured Data -->
   <script type="application/ld+json">
@@ -177,7 +178,7 @@
       "name": "Null Fake",
       "logo": {
         "@type": "ImageObject",
-        "url": "{{ url('/img/nullfake.png') }}"
+        "url": "{{ url('/img/nullfake.svg') }}"
       }
     },
     "datePublished": "{{ $asinData->updated_at->toISOString() }}",
@@ -320,7 +321,7 @@
     <div class="max-w-4xl mx-auto flex items-center justify-between">
       <div class="flex items-center pr-4 md:pr-0 space-x-3">
         <a href="{{ route('home') }}">
-          <img src="/img/nullfake.png" alt="Null Fake Logo" class="h-12 w-auto object-contain" />
+          <img src="/img/nullfake.svg" alt="Null Fake Logo" class="h-20 w-auto object-contain" />
         </a>
       </div>
       <p class="text-sm text-gray-500">Amazon Review Analysis</p>
@@ -376,7 +377,7 @@
               View on Amazon
             </a>
             <a href="{{ route('home') }}" 
-               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+               class="bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg text-sm font-medium">
               Analyze Another Product
             </a>
           </div>
@@ -568,7 +569,7 @@
                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
                id="share-url">
         <button onclick="copyToClipboard()" 
-                class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                class="bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg text-sm font-medium">
           Copy Link
         </button>
       </div>
@@ -630,12 +631,12 @@
       const originalText = button.textContent;
       button.textContent = 'Copied!';
       button.classList.add('bg-green-500');
-      button.classList.remove('bg-blue-500');
+      button.classList.remove('bg-brand');
       
       setTimeout(() => {
         button.textContent = originalText;
         button.classList.remove('bg-green-500');
-        button.classList.add('bg-blue-500');
+        button.classList.add('bg-brand');
       }, 2000);
     }
   </script>

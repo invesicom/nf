@@ -9,7 +9,7 @@
 
         @if($isLoading)
             <div class="flex justify-center items-center py-12">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
                 <span class="ml-2 text-gray-600">Loading products...</span>
             </div>
         @elseif(empty($products))
@@ -44,7 +44,7 @@
                                         
                                         <!-- Trust Score Badge -->
                                         <div class="absolute top-2 left-2">
-                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 border border-blue-200">
+                                            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-brand bg-opacity-10 text-brand border border-brand border-opacity-20">
                                                 {{ $product['trust_score'] }}% Trust
                                             </span>
                                         </div>
@@ -52,7 +52,7 @@
                                     
                                     <!-- Product Info -->
                                     <div class="p-4">
-                                        <h3 class="font-medium text-gray-900 text-sm mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                                        <h3 class="font-medium text-gray-900 text-sm mb-2 line-clamp-2 group-hover:text-brand transition-colors">
                                             {{ Str::limit($product['title'], 60) }}
                                         </h3>
                                         
@@ -77,7 +77,7 @@
                                         
                                         <!-- Action Button -->
                                         <a href="{{ url($product['seo_url']) }}" 
-                                           class="block w-full bg-blue-500 hover:bg-blue-600 text-white text-center py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200">
+                                           class="block w-full bg-brand hover:bg-brand-dark text-white text-center py-2 px-4 rounded-md text-sm font-medium transition-colors duration-200">
                                             View Analysis
                                         </a>
                                     </div>
@@ -136,7 +136,7 @@
         if (indicators && maxPosition > 0) {
             for (let i = 0; i <= maxPosition; i++) {
                 const indicator = document.createElement('button');
-                indicator.className = `w-2 h-2 rounded-full transition-colors duration-200 ${i === 0 ? 'bg-blue-500' : 'bg-gray-300'}`;
+                indicator.className = `w-2 h-2 rounded-full transition-colors duration-200 ${i === 0 ? 'bg-brand' : 'bg-gray-300'}`;
                 indicator.addEventListener('click', () => goToPosition(i));
                 indicators.appendChild(indicator);
             }
@@ -157,7 +157,7 @@
             if (indicators) {
                 const indicatorButtons = indicators.children;
                 for (let i = 0; i < indicatorButtons.length; i++) {
-                    indicatorButtons[i].className = `w-2 h-2 rounded-full transition-colors duration-200 ${i === currentPosition ? 'bg-blue-500' : 'bg-gray-300'}`;
+                    indicatorButtons[i].className = `w-2 h-2 rounded-full transition-colors duration-200 ${i === currentPosition ? 'bg-brand' : 'bg-gray-300'}`;
                 }
             }
         }

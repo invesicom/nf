@@ -96,7 +96,7 @@
             </div>
         @endif
 
-        <button type="submit" class="w-full bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600 disabled:opacity-50"
+        <button type="submit" class="w-full bg-brand text-white py-2 px-4 rounded hover:bg-brand-dark disabled:opacity-50"
                 wire:loading.attr="disabled" 
                 onclick="showAnalysisProgress()"
                 id="analyze-button">
@@ -120,7 +120,7 @@
             
                          <!-- Animated progress bar -->
              <div class="w-full bg-gray-200 rounded-full h-3 mb-4">
-                 <div id="progress-bar" class="bg-blue-500 h-3 rounded-full transition-all duration-1000 ease-out" 
+                 <div id="progress-bar" class="bg-brand h-3 rounded-full transition-all duration-1000 ease-out" 
                       style="width: {{ $progressPercentage }}%"></div>
              </div>
              
@@ -132,7 +132,7 @@
              </p>
             
             <div class="flex justify-center">
-                <svg id="loading-spinner" class="animate-spin h-8 w-8 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg id="loading-spinner" class="animate-spin h-8 w-8 text-brand" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -896,7 +896,7 @@ function showValidationStatus(message, type) {
             statusDiv.className += ' text-yellow-600';
             break;
         case 'checking':
-            statusDiv.className += ' text-blue-600';
+            statusDiv.className += ' text-brand';
             break;
     }
 }
