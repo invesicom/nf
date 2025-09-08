@@ -190,22 +190,7 @@ class DockerConfigurationTest extends TestCase
         $this->assertStringContainsString('curl', $content);
     }
 
-    #[Test]
-    public function docker_readme_exists_and_contains_essential_information()
-    {
-        $dockerReadmePath = base_path('docker/README.md');
-        
-        $this->assertFileExists($dockerReadmePath);
-        
-        $content = file_get_contents($dockerReadmePath);
-        
-        // Check for essential documentation sections
-        $this->assertStringContainsString('# Docker Setup', $content);
-        $this->assertStringContainsString('Quick Start', $content);
-        $this->assertStringContainsString('docker-compose', $content);
-        $this->assertStringContainsString('localhost:8080', $content);
-        $this->assertStringContainsString('Troubleshooting', $content);
-    }
+    // Docker README test removed - documentation files deleted per .cursorrules policy
 
     #[Test]
     public function docker_volumes_are_properly_defined()

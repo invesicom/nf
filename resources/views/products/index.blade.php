@@ -12,17 +12,7 @@
 <body class="bg-gray-100 text-gray-800">
 
 <div class="min-h-screen bg-gray-100">
-  <!-- Header -->
-  <header class="bg-white shadow p-4">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
-      <div class="flex items-center pr-4 md:pr-0 space-x-3">
-        <a href="/">
-          <img src="/img/nullfake.svg" alt="Null Fake Logo" class="h-20 w-auto object-contain" />
-        </a>
-      </div>
-      <p class="text-sm text-gray-500">Analyze Amazon reviews for authenticity</p>
-    </div>
-  </header>
+  @include('partials.header')
 
   <!-- Main Content -->
   <main class="max-w-7xl mx-auto px-6 py-8">

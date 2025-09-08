@@ -1,6 +1,19 @@
 #!/bin/sh
 
-/usr/bin/php82 /usr/local/bin/composer dump-autoload;php82 artisan config:clear;php82 artisan cache:clear;php82 artisan route:clear;php82 artisan view:clear;rm -rf bootstrap/cache/*;systemctl restart php82-php-fpm;systemctl restart supervisord;php82 artisan livewire:publish;chown -R nullfake:nginx *
+php_cmd="/usr/bin/php82"
+
+${php_cmd} /usr/local/bin/composer dump-autoload
+${php_cmd} /usr/local/bin/composer install
+${php_cmd} artisan config:clear
+${php_cmd} artisan cache:clear
+${php_cmd} artisan route:clear
+${php_cmd} artisan view:clear
+rm -rf bootstrap/cache/*
+systemctl restart php82-php-fpm
+systemctl restart supervisord
+${php_cmd} artisan livewire:publish
+
+chown -R nullfake:nginx *
 
 # Fix cache directory permissions
 sudo chown -R nullfake:nginx storage/framework/cache/

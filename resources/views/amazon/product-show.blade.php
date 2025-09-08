@@ -317,16 +317,7 @@
 </head>
 
 <body class="bg-gray-50 min-h-screen">
-  <header class="bg-white shadow p-4">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
-      <div class="flex items-center pr-4 md:pr-0 space-x-3">
-        <a href="{{ route('home') }}">
-          <img src="/img/nullfake.svg" alt="Null Fake Logo" class="h-20 w-auto object-contain" />
-        </a>
-      </div>
-      <p class="text-sm text-gray-500">Amazon Review Analysis</p>
-    </div>
-  </header>
+  @include('partials.header')
 
   <main class="max-w-4xl mx-auto mt-8 p-6">
     <!-- Product Information -->

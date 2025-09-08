@@ -11,21 +11,7 @@
 <body class="bg-gray-100 text-gray-800">
 
 <div class="min-h-screen bg-gray-100">
-  <!-- Header -->
-  <header class="bg-white shadow-sm border-b">
-    <div class="max-w-4xl mx-auto px-6 py-4">
-      <div class="flex items-center">
-        <a href="/" class="flex items-center space-x-3">
-          <div class="w-8 h-8 bg-brand rounded-lg flex items-center justify-center">
-            <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
-          </div>
-          <span class="text-xl font-bold text-gray-900">NULL FAKE</span>
-        </a>
-      </div>
-    </div>
-  </header>
+  @include('partials.header')
 
   <!-- Main Content -->
   <main class="max-w-4xl mx-auto px-6 py-8">

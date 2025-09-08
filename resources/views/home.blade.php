@@ -97,14 +97,7 @@
 </head>
 <body class="bg-gray-100 text-gray-800">
 
-  <header class="bg-white shadow p-4">
-    <div class="max-w-4xl mx-auto flex items-center justify-between">
-      <div class="flex items-center pr-4 md:pr-0 space-x-3">
-        <img src="/img/nullfake.svg" alt="Null Fake Logo" class="h-20 w-auto object-contain" />
-      </div>
-      <p class="text-sm text-gray-500">Analyze Amazon reviews for authenticity</p>
-    </div>
-  </header>
+  @include('partials.header')
 
   <main class="max-w-3xl mx-auto mt-10 p-6 bg-white rounded shadow">
   <div class="pb-4 text-base">AI-powered review analyzer. Easily detect fake, AI-generated or suspicious reviews and get a trust score for any product. Supports Amazon products from US, Canada, Germany, France, UK, Spain, Italy, India, Japan, Mexico, Brazil, Singapore, Australia, and more.</div>
@@ -150,6 +143,8 @@
       <a href="https://github.com/stardothosting/nullfake/blob/main/LICENSE" class="text-gray-500 hover:text-gray-700" target="_blank" rel="noopener">MIT License</a>
       <span>•</span>
       <a href="/privacy" class="text-gray-500 hover:text-gray-700">Privacy Policy</a>
+      <span>•</span>
+      <a href="/contact" class="text-gray-500 hover:text-gray-700">Contact</a>
     </div>
   </footer>
 

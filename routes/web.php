@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AmazonProductController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\NewsletterController;
 use App\Http\Controllers\SitemapController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,12 @@ Route::get('/', function () {
 Route::get('/privacy', function () {
     return view('privacy');
 });
+
+// Contact routes
+Route::get('/contact', [ContactController::class, 'show'])->name('contact.show');
+Route::post('/contact', [ContactController::class, 'submit'])
+    ->middleware('throttle:5,1') // 5 attempts per minute
+    ->name('contact.submit');
 
 Route::get('/products', [AmazonProductController::class, 'index'])->name('products.index');
 

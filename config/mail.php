@@ -48,6 +48,18 @@ return [
 
         'ses' => [
             'transport' => 'ses',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
+            'options' => [
+                'ConfigurationSetName' => env('SES_CONFIGURATION_SET'),
+                'EmailTags' => [
+                    [
+                        'Name' => 'Application',
+                        'Value' => 'NullFake',
+                    ],
+                ],
+            ],
         ],
 
         'postmark' => [
@@ -111,6 +123,18 @@ return [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
         'name'    => env('MAIL_FROM_NAME', 'Example'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Email Address
+    |--------------------------------------------------------------------------
+    |
+    | This is the email address where contact form submissions and other
+    | administrative notifications will be sent.
+    |
+    */
+
+    'admin_email' => env('MAIL_ADMIN_EMAIL', 'kevink@shift8web.com'),
 
     /*
     |--------------------------------------------------------------------------
