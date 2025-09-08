@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\AsinData;
 use App\Services\LoggingService;
+use Illuminate\Support\Facades\Schema;
 
 class ExtensionReviewService
 {
@@ -29,26 +30,37 @@ class ExtensionReviewService
         // Use product information provided by Chrome extension
         $productInfo = $extensionData['product_info'] ?? [];
 
+        // Prepare data for AsinData record
+        $updateData = [
+            'product_title' => $productInfo['title'] ?? null,
+            'product_description' => $productInfo['description'] ?? null,
+            'product_image_url' => $productInfo['image_url'] ?? null,
+            'amazon_rating' => $productInfo['amazon_rating'] ?? null,
+            'reviews' => json_encode($transformedReviews),
+            'total_reviews_on_amazon' => $productInfo['total_reviews_on_amazon'] ?? 0,
+            'status' => 'fetched',
+            'have_product_data' => !empty($productInfo['title']),
+            'product_data_scraped_at' => now(),
+        ];
+
+        // Add extension-specific fields if they exist in the database schema
+        if (Schema::hasColumn('asin_data', 'source')) {
+            $updateData['source'] = 'chrome_extension';
+        }
+        if (Schema::hasColumn('asin_data', 'extension_version')) {
+            $updateData['extension_version'] = $extensionData['extension_version'];
+        }
+        if (Schema::hasColumn('asin_data', 'extraction_timestamp')) {
+            $updateData['extraction_timestamp'] = $extensionData['extraction_timestamp'];
+        }
+
         // Create or update AsinData record
         $asinData = AsinData::updateOrCreate(
             [
                 'asin' => $asin,
                 'country' => $country,
             ],
-            [
-                'product_title' => $productInfo['title'] ?? null,
-                'product_description' => $productInfo['description'] ?? null,
-                'product_image_url' => $productInfo['image_url'] ?? null,
-                'amazon_rating' => $productInfo['amazon_rating'] ?? null,
-                'reviews' => json_encode($transformedReviews),
-                'total_reviews_on_amazon' => $productInfo['total_reviews_on_amazon'] ?? 0,
-                'status' => 'fetched',
-                'have_product_data' => !empty($productInfo['title']),
-                'product_data_scraped_at' => now(),
-                'source' => 'chrome_extension',
-                'extension_version' => $extensionData['extension_version'],
-                'extraction_timestamp' => $extensionData['extraction_timestamp'],
-            ]
+            $updateData
         );
 
         LoggingService::log('Chrome extension data processed successfully', [
