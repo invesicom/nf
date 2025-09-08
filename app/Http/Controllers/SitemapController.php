@@ -86,12 +86,11 @@ class SitemapController extends Controller
         ];
 
         // Recent analyzed products (last 100 for main sitemap)
-        $recentProducts = AsinData::all()
-            ->filter(function ($product) {
-                return $product->isAnalyzed();
-            })
-            ->sortByDesc('updated_at')
-            ->take(100);
+        $recentProducts = AsinData::where('status', 'completed')
+            ->whereNotNull('fake_percentage')
+            ->orderBy('updated_at', 'desc')
+            ->limit(100)
+            ->get(['asin', 'country', 'updated_at', 'have_product_data', 'product_title']);
 
         foreach ($recentProducts as $product) {
             // Use SEO-friendly URL if available
@@ -116,13 +115,12 @@ class SitemapController extends Controller
         $offset = ($page - 1) * $limit;
 
         // Get analyzed products for this page
-        $allAnalyzedProducts = AsinData::all()
-            ->filter(function ($product) {
-                return $product->isAnalyzed();
-            })
-            ->sortByDesc('updated_at');
-
-        $products = $allAnalyzedProducts->slice($offset, $limit);
+        $products = AsinData::where('status', 'completed')
+            ->whereNotNull('fake_percentage')
+            ->orderBy('updated_at', 'desc')
+            ->offset($offset)
+            ->limit($limit)
+            ->get(['asin', 'country', 'updated_at', 'have_product_data', 'grade', 'fake_percentage', 'product_title']);
 
         if ($products->isEmpty()) {
             // Return empty sitemap if no products on this page
@@ -153,10 +151,8 @@ class SitemapController extends Controller
      */
     private function generateSitemapIndex(): string
     {
-        $totalProducts = AsinData::all()
-            ->filter(function ($product) {
-                return $product->isAnalyzed();
-            })
+        $totalProducts = AsinData::where('status', 'completed')
+            ->whereNotNull('fake_percentage')
             ->count();
 
         $limit = 1000;
