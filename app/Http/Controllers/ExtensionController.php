@@ -32,8 +32,8 @@ class ExtensionController extends Controller
      */
     public function submitReviews(Request $request): JsonResponse
     {
-        // Validate API key (skip in local/testing environments)
-        if (!app()->environment(['local', 'testing']) && !$this->validateApiKey($request)) {
+        // Validate API key (skip in local/testing environments or when disabled)
+        if (!app()->environment(['local', 'testing']) && config('services.extension.require_api_key', true) && !$this->validateApiKey($request)) {
             return response()->json([
                 'success' => false,
                 'error' => 'Invalid or missing API key',
@@ -190,7 +190,7 @@ class ExtensionController extends Controller
      */
     public function getAnalysisStatus(Request $request, string $asin, string $country): JsonResponse
     {
-        if (!app()->environment(['local', 'testing']) && !$this->validateApiKey($request)) {
+        if (!app()->environment(['local', 'testing']) && config('services.extension.require_api_key', true) && !$this->validateApiKey($request)) {
             return response()->json([
                 'success' => false,
                 'error' => 'Invalid or missing API key',
@@ -203,9 +203,27 @@ class ExtensionController extends Controller
 
         if (!$asinData) {
             return response()->json([
-                'success' => false,
-                'error' => 'Analysis not found',
+                'exists' => false,
+                'message' => 'No analysis found for this product',
+                'asin' => $asin,
+                'country' => $country,
             ], 404);
+        }
+
+        // Check if analysis is complete
+        if ($asinData->status !== 'completed' || is_null($asinData->fake_percentage) || is_null($asinData->grade)) {
+            return response()->json([
+                'exists' => true,
+                'status' => 'analyzing',
+                'asin' => $asin,
+                'country' => $country,
+                'progress' => [
+                    'stage' => $asinData->status ?? 'processing',
+                    'percentage' => 50, // Approximate progress
+                    'message' => 'Analyzing reviews with AI...',
+                ],
+                'estimated_completion' => now()->addMinutes(2)->toISOString(),
+            ]);
         }
 
         // Calculate review counts
@@ -213,20 +231,30 @@ class ExtensionController extends Controller
         $totalReviews = count($reviews);
         $fakeCount = round(($asinData->fake_percentage / 100) * $totalReviews);
         $genuineCount = $totalReviews - $fakeCount;
+        $ratingDifference = ($asinData->adjusted_rating ?? 0) - ($asinData->amazon_rating ?? 0);
 
         return response()->json([
+            'exists' => true,
+            'status' => 'completed',
+            'asin' => $asin,
+            'country' => $country,
             'analysis' => [
+                'fake_percentage' => (float) $asinData->fake_percentage,
                 'grade' => $asinData->grade,
-                'fake_percentage' => number_format($asinData->fake_percentage, 2),
-                'adjusted_rating' => number_format($asinData->adjusted_rating ?? 0, 1),
+                'explanation' => $asinData->explanation ?? 'Analysis completed successfully.',
+                'adjusted_rating' => (float) ($asinData->adjusted_rating ?? 0),
                 'total_reviews' => $totalReviews,
                 'fake_count' => $fakeCount,
                 'genuine_count' => $genuineCount,
-                'explanation' => $asinData->explanation ?? 'Analysis completed successfully.',
+                'confidence' => 'high', // Could be extracted from explanation or stored separately
             ],
             'product_info' => [
-                'amazon_rating' => number_format($asinData->amazon_rating ?? 0, 1),
+                'title' => $asinData->product_title,
+                'image_url' => $asinData->product_image_url,
+                'amazon_rating' => (float) ($asinData->amazon_rating ?? 0),
+                'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon,
             ],
+            'analyzed_at' => $asinData->updated_at->toISOString(),
             'redirect_url' => route('amazon.product.show', [
                 'asin' => $asin,
                 'country' => $country,

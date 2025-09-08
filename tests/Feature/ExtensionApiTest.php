@@ -411,11 +411,11 @@ class ExtensionApiTest extends TestCase
                 'redirect_url',
             ])
             ->assertJsonPath('analysis.grade', 'B')
-            ->assertJsonPath('analysis.fake_percentage', '25.50')
+            ->assertJsonPath('analysis.fake_percentage', 25.5)
             ->assertJsonPath('analysis.total_reviews', 2)
             ->assertJsonPath('analysis.fake_count', 1)
             ->assertJsonPath('analysis.genuine_count', 1)
-            ->assertJsonPath('product_info.amazon_rating', '4.2');
+            ->assertJsonPath('product_info.amazon_rating', 4.2);
     }
 
     #[Test]
@@ -427,8 +427,10 @@ class ExtensionApiTest extends TestCase
 
         $response->assertStatus(404)
             ->assertJson([
-                'success' => false,
-                'error' => 'Analysis not found',
+                'exists' => false,
+                'message' => 'No analysis found for this product',
+                'asin' => 'NONEXISTENT',
+                'country' => 'us',
             ]);
     }
 
