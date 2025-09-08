@@ -5,6 +5,7 @@ namespace App\Services\Providers;
 use App\Services\LLMProviderInterface;
 use App\Services\LoggingService;
 use App\Services\PromptGenerationService;
+use App\Services\ContextAwareChunkingService;
 use Illuminate\Support\Facades\Http;
 
 class DeepSeekProvider implements LLMProviderInterface
@@ -106,165 +107,78 @@ class DeepSeekProvider implements LLMProviderInterface
     }
 
     /**
-     * Process large review sets in chunks to avoid token limits and timeouts.
-     * For aggregate analysis, we need to combine results from multiple chunks.
+     * Process large review sets using centralized context-aware chunking.
      */
     private function analyzeReviewsInChunks(array $reviews): array
     {
-        $chunkSize = 50; // Optimal chunk size for DeepSeek with aggregate analysis
-        $chunks = array_chunk($reviews, $chunkSize);
-        $chunkResults = [];
-        $failedChunks = 0;
+        $chunkingService = app(ContextAwareChunkingService::class);
         
-        $totalChunks = count($chunks);
-        LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for DeepSeek aggregate analysis");
-        
-        foreach ($chunks as $index => $chunk) {
-            $chunkNumber = $index + 1;
-            LoggingService::log("Processing DeepSeek chunk {$chunkNumber}/{$totalChunks} with " . count($chunk) . " reviews");
-            
-            try {
-                $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
-                    $chunk,
-                    'chat',
-                    PromptGenerationService::getProviderTextLimit('deepseek')
-                );
-                
-                $endpoint = rtrim($this->baseUrl, '/').'/chat/completions';
-                $maxTokens = $this->getOptimizedMaxTokens(count($chunk));
-                
-                $response = Http::withHeaders([
-                    'Authorization' => 'Bearer '.$this->apiKey,
-                    'Content-Type'  => 'application/json',
-                    'User-Agent'    => 'ReviewAnalyzer-DeepSeek/1.0',
-                ])->timeout(120)->post($endpoint, [
-                    'model'    => $this->model,
-                    'messages' => [
-                        [
-                            'role'    => 'system',
-                            'content' => PromptGenerationService::getProviderSystemMessage('deepseek'),
-                        ],
-                        [
-                            'role'    => 'user',
-                            'content' => $promptData['user'],
-                        ],
-                    ],
-                    'temperature' => 0.0,
-                    'max_tokens'  => $maxTokens,
-                ]);
+        return $chunkingService->processWithContextAwareChunking(
+            $reviews,
+            50, // Optimal chunk size for DeepSeek
+            [$this, 'processChunkWithContext'],
+            [
+                'delay_ms' => 500, // Rate limiting delay
+                'max_failure_rate' => 0.5,
+                'provider_name' => 'DeepSeek'
+            ]
+        );
+    }
 
-                if ($response->successful()) {
-                    $result = $response->json();
-                    $chunkResult = $this->parseResponse($result, $chunk);
-                    
-                    // Store chunk results for aggregation
-                    $chunkResults[] = [
-                        'fake_percentage' => $chunkResult['fake_percentage'],
-                        'confidence' => $chunkResult['confidence'],
-                        'explanation' => $chunkResult['explanation'],
-                        'fake_examples' => $chunkResult['fake_examples'] ?? [],
-                        'key_patterns' => $chunkResult['key_patterns'] ?? [],
-                        'review_count' => count($chunk)
-                    ];
-                    
-                    LoggingService::log("DeepSeek chunk {$chunkNumber} completed: {$chunkResult['fake_percentage']}% fake");
-                } else {
-                    LoggingService::log("DeepSeek chunk {$chunkNumber} failed: " . $response->body());
-                    $failedChunks++;
-                }
-                
-                // Small delay between chunks to avoid rate limiting
-                usleep(500000); // 0.5 seconds
-                
-            } catch (\Exception $e) {
-                LoggingService::log("DeepSeek chunk {$chunkNumber} error: " . $e->getMessage());
-                $failedChunks++;
-            }
-        }
-        
-        LoggingService::log("DeepSeek chunking completed: {$totalChunks} chunks, {$failedChunks} failed");
-        
-        // Allow up to 50% chunk failures for partial results
-        if ($failedChunks > ($totalChunks / 2)) {
-            throw new \Exception("Too many DeepSeek chunks failed ({$failedChunks}/{$totalChunks})");
-        }
-        
-        if (empty($chunkResults)) {
-            throw new \Exception("No successful DeepSeek chunks to aggregate");
-        }
-        
-        // Aggregate results from all chunks
-        return $this->aggregateChunkResults($chunkResults, count($reviews));
-    }
-    
     /**
-     * Aggregate results from multiple chunks into a single analysis.
+     * Process a single chunk with global context awareness.
      */
-    private function aggregateChunkResults(array $chunkResults, int $totalReviews): array
+    public function processChunkWithContext(array $chunk, array $context): array
     {
-        $totalReviewsProcessed = array_sum(array_column($chunkResults, 'review_count'));
-        $weightedFakePercentage = 0;
-        $allExamples = [];
-        $allPatterns = [];
-        $explanations = [];
-        
-        // Calculate weighted average fake percentage
-        foreach ($chunkResults as $chunk) {
-            $weight = $chunk['review_count'] / $totalReviewsProcessed;
-            $weightedFakePercentage += $chunk['fake_percentage'] * $weight;
+        // Generate context-aware prompt
+        $promptData = PromptGenerationService::generateReviewAnalysisPrompt(
+            $chunk,
+            'chat',
+            PromptGenerationService::getProviderTextLimit('deepseek')
+        );
+
+        // Add global context to the prompt
+        $contextHeader = app(ContextAwareChunkingService::class)->generateContextHeader($context);
+        $promptData['user'] = $contextHeader . "\n\n" . $promptData['user'];
+
+        try {
+            $endpoint = rtrim($this->baseUrl, '/').'/chat/completions';
+            $maxTokens = $this->getOptimizedMaxTokens(count($chunk));
             
-            // Collect examples and patterns
-            $allExamples = array_merge($allExamples, $chunk['fake_examples']);
-            $allPatterns = array_merge($allPatterns, $chunk['key_patterns']);
-            $explanations[] = $chunk['explanation'];
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer '.$this->apiKey,
+                'Content-Type'  => 'application/json',
+                'User-Agent'    => 'ReviewAnalyzer-DeepSeek/1.0',
+            ])->timeout(120)->post($endpoint, [
+                'model'    => $this->model,
+                'messages' => [
+                    [
+                        'role'    => 'system',
+                        'content' => PromptGenerationService::getProviderSystemMessage('deepseek'),
+                    ],
+                    [
+                        'role'    => 'user',
+                        'content' => $promptData['user'],
+                    ],
+                ],
+                'temperature' => 0.0,
+                'max_tokens'  => $maxTokens,
+            ]);
+
+            if ($response->successful()) {
+                $result = $response->json();
+                return $this->parseResponse($result, $chunk);
+            } else {
+                throw new \Exception('DeepSeek API error: ' . $response->body());
+            }
+            
+        } catch (\Exception $e) {
+            LoggingService::log("DeepSeek chunk processing failed: " . $e->getMessage());
+            throw $e;
         }
-        
-        // Determine overall confidence based on chunk consistency
-        $fakePercentages = array_column($chunkResults, 'fake_percentage');
-        $standardDeviation = $this->calculateStandardDeviation($fakePercentages);
-        
-        if ($standardDeviation < 10) {
-            $confidence = 'high';
-        } elseif ($standardDeviation < 20) {
-            $confidence = 'medium';
-        } else {
-            $confidence = 'low';
-        }
-        
-        // Create aggregated explanation
-        $aggregatedExplanation = "Analysis of {$totalReviews} reviews across " . count($chunkResults) . " chunks. " .
-                               "Weighted fake percentage: " . round($weightedFakePercentage, 1) . "%. " .
-                               "Chunk consistency: {$confidence}. " .
-                               implode(' ', array_slice($explanations, 0, 2));
-        
-        LoggingService::log("DeepSeek aggregated results: {$weightedFakePercentage}% fake, confidence: {$confidence}");
-        
-        return [
-            'fake_percentage' => round($weightedFakePercentage, 1),
-            'confidence' => $confidence,
-            'explanation' => $aggregatedExplanation,
-            'fake_examples' => array_slice($allExamples, 0, 3), // Limit to 3 examples
-            'key_patterns' => array_unique(array_slice($allPatterns, 0, 5)), // Limit to 5 unique patterns
-            'analysis_provider' => $this->getProviderName() . '-Chunked',
-            'total_cost' => $this->getEstimatedCost($totalReviews)
-        ];
     }
     
-    /**
-     * Calculate standard deviation for chunk consistency measurement.
-     */
-    private function calculateStandardDeviation(array $values): float
-    {
-        $count = count($values);
-        if ($count < 2) return 0;
-        
-        $mean = array_sum($values) / $count;
-        $variance = array_sum(array_map(function($x) use ($mean) {
-            return pow($x - $mean, 2);
-        }, $values)) / $count;
-        
-        return sqrt($variance);
-    }
+    
 
     public function isAvailable(): bool
     {

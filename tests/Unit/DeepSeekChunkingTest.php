@@ -70,8 +70,9 @@ class DeepSeekChunkingTest extends TestCase
         $this->assertArrayHasKey('fake_percentage', $result);
         $this->assertArrayHasKey('confidence', $result);
         $this->assertArrayHasKey('explanation', $result);
+        $this->assertArrayHasKey('chunks_processed', $result);
         $this->assertStringContainsString('chunks', $result['explanation']);
-        $this->assertStringContainsString('Chunked', $result['analysis_provider']);
+        $this->assertGreaterThan(1, $result['chunks_processed']); // Should have processed multiple chunks
     }
 
     #[Test]
@@ -179,7 +180,7 @@ class DeepSeekChunkingTest extends TestCase
         ]);
 
         $this->expectException(\Exception::class);
-        $this->expectExceptionMessage('Too many DeepSeek chunks failed');
+        $this->expectExceptionMessage('Too many chunks failed');
 
         $this->provider->analyzeReviews($reviews);
     }
