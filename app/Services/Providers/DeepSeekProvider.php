@@ -28,10 +28,10 @@ class DeepSeekProvider implements LLMProviderInterface
 
         LoggingService::log('Sending '.count($reviews).' reviews to DeepSeek for analysis');
 
-        // DeepSeek-V3 has 64k token context window - can handle 99+ reviews without chunking
-        // With format optimization, only chunk for extremely large datasets (200+ reviews)
+        // DeepSeek has max_tokens limit of 8192, so we need to chunk for large review sets
+        // With aggregate format, chunk when we'd exceed token limits (around 80-100 reviews)
         $reviewCount = count($reviews);
-        $chunkingThreshold = 200; // Increased from 50 - DeepSeek can handle much more
+        $chunkingThreshold = 80; // Reduced to handle DeepSeek's max_tokens limit
         
         if ($reviewCount > $chunkingThreshold) {
             LoggingService::log("Extremely large review set detected ({$reviewCount} reviews > {$chunkingThreshold}), using chunking for DeepSeek");
@@ -88,29 +88,36 @@ class DeepSeekProvider implements LLMProviderInterface
 
     public function getOptimizedMaxTokens(int $reviewCount): int
     {
-        // DeepSeek-V3 needs significantly more tokens for JSON responses
-        // Each review needs ~25-30 tokens for: {"id":"R123...","score":85,"label":"fake","confidence":0.95,"explanation":"..."},
-        $baseTokens = $reviewCount * 30; // Increased from 15 to 30
-        $buffer = min(4000, $reviewCount * 15); // Much larger buffer for JSON overhead + explanations
+        // DeepSeek has a max_tokens limit of 8192
+        $maxAllowed = 8192;
         
-        // Minimum 3000 tokens even for small sets to prevent truncation
-        $minTokens = 3000;
-
-        return max($minTokens, $baseTokens + $buffer);
+        // For aggregate responses, we need much less tokens than individual scoring
+        // Aggregate JSON response is typically 500-2000 tokens regardless of review count
+        $baseTokens = min(2000, $reviewCount * 10); // Much lower base for aggregate
+        $buffer = min(1000, $reviewCount * 5); // Smaller buffer for aggregate format
+        
+        // Minimum 1500 tokens for aggregate responses
+        $minTokens = 1500;
+        
+        $calculated = max($minTokens, $baseTokens + $buffer);
+        
+        // Ensure we never exceed DeepSeek's limit
+        return min($calculated, $maxAllowed);
     }
 
     /**
      * Process large review sets in chunks to avoid token limits and timeouts.
+     * For aggregate analysis, we need to combine results from multiple chunks.
      */
     private function analyzeReviewsInChunks(array $reviews): array
     {
-        $chunkSize = 25; // Smaller chunks for DeepSeek
+        $chunkSize = 50; // Optimal chunk size for DeepSeek with aggregate analysis
         $chunks = array_chunk($reviews, $chunkSize);
-        $allResults = [];
+        $chunkResults = [];
         $failedChunks = 0;
         
         $totalChunks = count($chunks);
-        LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for DeepSeek");
+        LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for DeepSeek aggregate analysis");
         
         foreach ($chunks as $index => $chunk) {
             $chunkNumber = $index + 1;
@@ -148,11 +155,19 @@ class DeepSeekProvider implements LLMProviderInterface
 
                 if ($response->successful()) {
                     $result = $response->json();
-                    $chunkResults = $this->parseResponse($result, $chunk);
+                    $chunkResult = $this->parseResponse($result, $chunk);
                     
-                    if (isset($chunkResults['detailed_scores'])) {
-                        $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
-                    }
+                    // Store chunk results for aggregation
+                    $chunkResults[] = [
+                        'fake_percentage' => $chunkResult['fake_percentage'],
+                        'confidence' => $chunkResult['confidence'],
+                        'explanation' => $chunkResult['explanation'],
+                        'fake_examples' => $chunkResult['fake_examples'] ?? [],
+                        'key_patterns' => $chunkResult['key_patterns'] ?? [],
+                        'review_count' => count($chunk)
+                    ];
+                    
+                    LoggingService::log("DeepSeek chunk {$chunkNumber} completed: {$chunkResult['fake_percentage']}% fake");
                 } else {
                     LoggingService::log("DeepSeek chunk {$chunkNumber} failed: " . $response->body());
                     $failedChunks++;
@@ -167,18 +182,88 @@ class DeepSeekProvider implements LLMProviderInterface
             }
         }
         
-        LoggingService::log("DeepSeek chunking completed: {$totalChunks} chunks, {$failedChunks} failed, " . count($allResults) . " results");
+        LoggingService::log("DeepSeek chunking completed: {$totalChunks} chunks, {$failedChunks} failed");
         
         // Allow up to 50% chunk failures for partial results
         if ($failedChunks > ($totalChunks / 2)) {
             throw new \Exception("Too many DeepSeek chunks failed ({$failedChunks}/{$totalChunks})");
         }
         
+        if (empty($chunkResults)) {
+            throw new \Exception("No successful DeepSeek chunks to aggregate");
+        }
+        
+        // Aggregate results from all chunks
+        return $this->aggregateChunkResults($chunkResults, count($reviews));
+    }
+    
+    /**
+     * Aggregate results from multiple chunks into a single analysis.
+     */
+    private function aggregateChunkResults(array $chunkResults, int $totalReviews): array
+    {
+        $totalReviewsProcessed = array_sum(array_column($chunkResults, 'review_count'));
+        $weightedFakePercentage = 0;
+        $allExamples = [];
+        $allPatterns = [];
+        $explanations = [];
+        
+        // Calculate weighted average fake percentage
+        foreach ($chunkResults as $chunk) {
+            $weight = $chunk['review_count'] / $totalReviewsProcessed;
+            $weightedFakePercentage += $chunk['fake_percentage'] * $weight;
+            
+            // Collect examples and patterns
+            $allExamples = array_merge($allExamples, $chunk['fake_examples']);
+            $allPatterns = array_merge($allPatterns, $chunk['key_patterns']);
+            $explanations[] = $chunk['explanation'];
+        }
+        
+        // Determine overall confidence based on chunk consistency
+        $fakePercentages = array_column($chunkResults, 'fake_percentage');
+        $standardDeviation = $this->calculateStandardDeviation($fakePercentages);
+        
+        if ($standardDeviation < 10) {
+            $confidence = 'high';
+        } elseif ($standardDeviation < 20) {
+            $confidence = 'medium';
+        } else {
+            $confidence = 'low';
+        }
+        
+        // Create aggregated explanation
+        $aggregatedExplanation = "Analysis of {$totalReviews} reviews across " . count($chunkResults) . " chunks. " .
+                               "Weighted fake percentage: " . round($weightedFakePercentage, 1) . "%. " .
+                               "Chunk consistency: {$confidence}. " .
+                               implode(' ', array_slice($explanations, 0, 2));
+        
+        LoggingService::log("DeepSeek aggregated results: {$weightedFakePercentage}% fake, confidence: {$confidence}");
+        
         return [
-            'detailed_scores'   => $allResults,
-            'analysis_provider' => $this->getProviderName(),
-            'total_cost'        => $this->getEstimatedCost(count($reviews)),
+            'fake_percentage' => round($weightedFakePercentage, 1),
+            'confidence' => $confidence,
+            'explanation' => $aggregatedExplanation,
+            'fake_examples' => array_slice($allExamples, 0, 3), // Limit to 3 examples
+            'key_patterns' => array_unique(array_slice($allPatterns, 0, 5)), // Limit to 5 unique patterns
+            'analysis_provider' => $this->getProviderName() . '-Chunked',
+            'total_cost' => $this->getEstimatedCost($totalReviews)
         ];
+    }
+    
+    /**
+     * Calculate standard deviation for chunk consistency measurement.
+     */
+    private function calculateStandardDeviation(array $values): float
+    {
+        $count = count($values);
+        if ($count < 2) return 0;
+        
+        $mean = array_sum($values) / $count;
+        $variance = array_sum(array_map(function($x) use ($mean) {
+            return pow($x - $mean, 2);
+        }, $values)) / $count;
+        
+        return sqrt($variance);
     }
 
     public function isAvailable(): bool
