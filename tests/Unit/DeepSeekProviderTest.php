@@ -23,8 +23,7 @@ class DeepSeekProviderTest extends TestCase
         $this->provider = new DeepSeekProvider();
     }
 
-    // Temporarily disabled due to DeepSeek parsing issues
-    /* public function test_analyzes_reviews_successfully()
+    public function test_analyzes_reviews_successfully_with_aggregate_format()
     {
         $reviews = [
             ['id' => 1, 'text' => 'Amazing product! Fast shipping!', 'rating' => 5],
@@ -34,7 +33,7 @@ class DeepSeekProviderTest extends TestCase
         Http::fake([
             'api.deepseek.com/*' => Http::response([
                 'choices' => [
-                    ['message' => ['content' => '[{"id":"1","score":25},{"id":"2","score":75}]']],
+                    ['message' => ['content' => '{"fake_percentage": 25, "confidence": "high", "explanation": "Mixed review set with one suspicious review", "fake_examples": [{"text": "Terrible quality", "reason": "Overly negative"}], "key_patterns": ["genuine feedback", "suspicious negativity"]}']],
                 ],
             ], 200),
         ]);
@@ -42,17 +41,18 @@ class DeepSeekProviderTest extends TestCase
         $result = $this->provider->analyzeReviews($reviews);
 
         $this->assertIsArray($result);
-        $this->assertArrayHasKey('detailed_scores', $result);
+        $this->assertArrayHasKey('fake_percentage', $result);
+        $this->assertArrayHasKey('confidence', $result);
+        $this->assertArrayHasKey('explanation', $result);
         $this->assertArrayHasKey('analysis_provider', $result);
         $this->assertArrayHasKey('total_cost', $result);
-        $this->assertCount(2, $result['detailed_scores']);
-
-        $firstResult = $result['detailed_scores']['1'];
-        $this->assertEquals(25, $firstResult['score']);
-        $this->assertEquals('genuine', $firstResult['label']);
-        $this->assertArrayHasKey('confidence', $firstResult);
-        $this->assertArrayHasKey('explanation', $firstResult);
-    } */
+        
+        $this->assertEquals(25, $result['fake_percentage']);
+        $this->assertEquals('high', $result['confidence']);
+        $this->assertStringContainsString('Mixed review set', $result['explanation']);
+        $this->assertArrayHasKey('fake_examples', $result);
+        $this->assertArrayHasKey('key_patterns', $result);
+    }
 
     public function test_handles_api_errors_gracefully()
     {
@@ -85,9 +85,14 @@ class DeepSeekProviderTest extends TestCase
 
         $this->assertIsInt($tokens);
         $this->assertGreaterThan(0, $tokens);
+        $this->assertLessThanOrEqual(8192, $tokens); // Never exceed DeepSeek's limit
 
-        // Should be reasonable for small review sets (increased due to JSON response requirements)
-        $this->assertLessThan(5000, $tokens); // Increased from 500 to accommodate larger JSON responses
+        // Test with large review count
+        $largeTokens = $this->provider->getOptimizedMaxTokens(200);
+        $this->assertLessThanOrEqual(8192, $largeTokens); // Should be capped at DeepSeek limit
+        
+        // Should have reasonable minimum for aggregate responses
+        $this->assertGreaterThanOrEqual(1500, $tokens);
     }
 
     public function test_checks_availability_with_api_key()
