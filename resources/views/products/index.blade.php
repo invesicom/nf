@@ -158,6 +158,8 @@
       <a href="https://github.com/stardothosting/nullfake/blob/main/LICENSE" class="text-gray-500 hover:text-gray-700" target="_blank" rel="noopener">MIT License</a>
       <span>•</span>
       <a href="/privacy" class="text-gray-500 hover:text-gray-700">Privacy Policy</a>
+      <span>•</span>
+      <a href="/contact" class="text-gray-500 hover:text-gray-700">Contact</a>
     </div>
   </footer>
 
