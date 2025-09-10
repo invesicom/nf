@@ -83,3 +83,16 @@
 .hover\:bg-extension-dark:hover {
   background-color: #b8005f;
 }
+
+/* Mobile Menu Animation */
+.mobile-menu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+  opacity: 0;
+}
+
+.mobile-menu.open {
+  max-height: 300px; /* Adjust based on content height */
+  opacity: 1;
+}

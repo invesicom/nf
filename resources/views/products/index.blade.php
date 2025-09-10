@@ -7,7 +7,7 @@
   <meta name="description" content="Browse all Amazon products analyzed by Null Fake - Amazon Review Analysis Tool. Find authentic reviews and avoid fake products." />
   <meta name="keywords" content="amazon reviews, fake reviews, product analysis, review authenticity, amazon products" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  @vite(['resources/css/app.css'])
+  @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="bg-gray-100 text-gray-800">
 
