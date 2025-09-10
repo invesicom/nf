@@ -167,16 +167,22 @@ class ContextAwareChunkingServiceTest extends TestCase
                 'confidence' => 'high',
                 'explanation' => 'First chunk shows low fake percentage',
                 'review_count' => 5,
-                'fake_examples' => ['example1'],
-                'key_patterns' => ['pattern1']
+                'fake_examples' => [
+                    ['text' => 'Great product!', 'reason' => 'Too generic'],
+                    ['text' => 'Love it!', 'reason' => 'Very short']
+                ],
+                'key_patterns' => ['pattern1', 'short reviews']
             ],
             [
                 'fake_percentage' => 40.0,
                 'confidence' => 'medium',
                 'explanation' => 'Second chunk shows higher fake percentage',
                 'review_count' => 5,
-                'fake_examples' => ['example2'],
-                'key_patterns' => ['pattern2']
+                'fake_examples' => [
+                    ['text' => 'Great product!', 'reason' => 'Too generic'], // Duplicate
+                    ['text' => 'Amazing quality', 'reason' => 'Generic praise']
+                ],
+                'key_patterns' => ['pattern2', 'short reviews'] // Duplicate pattern
             ]
         ];
 
@@ -194,6 +200,18 @@ class ContextAwareChunkingServiceTest extends TestCase
         $this->assertStringContainsString('Analysis of 10 reviews across 2 chunks', $result['explanation']);
         $this->assertEquals(2, $result['chunks_processed']);
         $this->assertArrayHasKey('global_context', $result);
+        
+        // Test deduplication of fake_examples (should have 3 unique examples, not 4)
+        $this->assertCount(3, $result['fake_examples']);
+        $this->assertEquals('Great product!', $result['fake_examples'][0]['text']); // First occurrence kept
+        $this->assertEquals('Love it!', $result['fake_examples'][1]['text']);
+        $this->assertEquals('Amazing quality', $result['fake_examples'][2]['text']);
+        
+        // Test deduplication of key_patterns (should have 3 unique patterns, not 4)
+        $this->assertCount(3, $result['key_patterns']);
+        $this->assertContains('pattern1', $result['key_patterns']);
+        $this->assertContains('short reviews', $result['key_patterns']); // Should appear only once
+        $this->assertContains('pattern2', $result['key_patterns']);
     }
 
     public function test_it_extracts_unique_insights_avoiding_repetition()

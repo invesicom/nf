@@ -270,8 +270,8 @@ class ContextAwareChunkingService
             'fake_percentage' => round($weightedFakePercentage, 1),
             'confidence' => $confidence,
             'explanation' => $explanation,
-            'fake_examples' => array_slice(array_unique($allExamples), 0, 3),
-            'key_patterns' => array_slice(array_unique($allPatterns), 0, 5),
+            'fake_examples' => array_slice($this->deduplicateExamples($allExamples), 0, 3),
+            'key_patterns' => array_slice($this->deduplicatePatterns($allPatterns), 0, 5),
             'chunk_consistency' => $confidence,
             'chunks_processed' => count($chunkResults),
             'global_context' => $globalContext
@@ -310,6 +310,54 @@ class ContextAwareChunkingService
         }
         
         return $explanation;
+    }
+
+    /**
+     * Deduplicate fake examples based on review text content.
+     */
+    private function deduplicateExamples(array $examples): array
+    {
+        $seen = [];
+        $unique = [];
+        
+        foreach ($examples as $example) {
+            if (is_array($example)) {
+                $key = ($example['text'] ?? '') . '|' . ($example['reason'] ?? '');
+            } else {
+                $key = (string) $example;
+            }
+            
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $example;
+            }
+        }
+        
+        return $unique;
+    }
+    
+    /**
+     * Deduplicate key patterns, handling both string and array formats.
+     */
+    private function deduplicatePatterns(array $patterns): array
+    {
+        $seen = [];
+        $unique = [];
+        
+        foreach ($patterns as $pattern) {
+            if (is_array($pattern)) {
+                $key = json_encode($pattern);
+            } else {
+                $key = (string) $pattern;
+            }
+            
+            if (!isset($seen[$key])) {
+                $seen[$key] = true;
+                $unique[] = $pattern;
+            }
+        }
+        
+        return $unique;
     }
 
     /**
