@@ -58,3 +58,28 @@
 .focus\:ring-brand:focus {
   --tw-ring-color: #424da0;
 }
+
+/* Extension Button Colors */
+.bg-extension {
+  background-color: #DC0073;
+}
+
+.bg-extension-dark {
+  background-color: #b8005f;
+}
+
+.text-extension {
+  color: #DC0073;
+}
+
+.border-extension {
+  border-color: #DC0073;
+}
+
+.hover\:bg-extension:hover {
+  background-color: #DC0073;
+}
+
+.hover\:bg-extension-dark:hover {
+  background-color: #b8005f;
+}
