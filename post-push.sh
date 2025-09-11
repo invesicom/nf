@@ -2,8 +2,8 @@
 
 php_cmd="/usr/bin/php82"
 
-${php_cmd} /usr/local/bin/composer dump-autoload --no-interaction
-${php_cmd} /usr/local/bin/composer install --no-interaction --no-dev --optimize-autoloader
+${php_cmd} /usr/local/bin/composer dump-autoload 
+${php_cmd} /usr/local/bin/composer install --optimize-autoloader
 ${php_cmd} artisan config:clear
 ${php_cmd} artisan cache:clear
 ${php_cmd} artisan route:clear
