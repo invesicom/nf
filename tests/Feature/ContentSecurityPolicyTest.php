@@ -64,6 +64,11 @@ class ContentSecurityPolicyTest extends TestCase
         $this->assertStringContainsString('https://fonts.gstatic.com', $cspHeader);
         $this->assertStringContainsString('https://cdn.jsdelivr.net', $cspHeader);
         
+        // Check that CAPTCHA domains are allowed
+        $this->assertStringContainsString('https://www.google.com', $cspHeader);
+        $this->assertStringContainsString('https://js.hcaptcha.com', $cspHeader);
+        $this->assertStringContainsString('https://hcaptcha.com', $cspHeader);
+        
         // Check that images from external sources are allowed
         $this->assertStringContainsString('img-src', $cspHeader);
         $this->assertStringContainsString('https:', $cspHeader);

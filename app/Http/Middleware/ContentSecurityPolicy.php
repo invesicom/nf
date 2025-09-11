@@ -49,8 +49,8 @@ class ContentSecurityPolicy
             // Default source - only allow same origin
             "default-src 'self'",
             
-            // Scripts - allow self, inline scripts with nonce, and specific CDNs
-            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com",
+            // Scripts - allow self, inline scripts, CDNs, and CAPTCHA providers
+            "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://www.google.com https://js.hcaptcha.com",
             
             // Styles - allow self, inline styles, and CDNs for Tailwind/fonts
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
@@ -61,8 +61,8 @@ class ContentSecurityPolicy
             // Fonts - allow self and Google Fonts
             "font-src 'self' https://fonts.gstatic.com",
             
-            // Connect - allow self for AJAX requests
-            "connect-src 'self'",
+            // Connect - allow self for AJAX requests and CAPTCHA verification
+            "connect-src 'self' https://www.google.com https://hcaptcha.com",
             
             // Media - allow self
             "media-src 'self'",
@@ -75,6 +75,9 @@ class ContentSecurityPolicy
             
             // Form actions - only allow self
             "form-action 'self'",
+            
+            // Frame sources - allow CAPTCHA frames
+            "frame-src https://www.google.com https://hcaptcha.com",
             
             // Frame ancestors - deny all (prevent embedding)
             "frame-ancestors 'none'",
