@@ -85,7 +85,7 @@ class PromptGenerationService
                '{\n' .
                '  "fake_percentage": <number 0-100>,\n' .
                '  "confidence": <"high"|"medium"|"low">,\n' .
-               '  "explanation": "<overall analysis summary explaining the percentage>",\n' .
+               '  "explanation": "<comprehensive analysis summary explaining the percentage and key findings>",\n' .
                '  "fake_examples": [\n' .
                '    {\n' .
                '      "review_number": <1-based index>,\n' .
@@ -96,7 +96,8 @@ class PromptGenerationService
                '  "key_patterns": ["<pattern1>", "<pattern2>"]\n' .
                '}\n\n' .
                'Analyze all reviews to determine overall fake percentage. ' .
-               'Provide 2-3 examples of suspicious reviews if found, but focus on aggregate assessment.';
+               'Provide detailed explanation covering verification rates, rating patterns, and text analysis. ' .
+               'Include 2-3 examples of suspicious reviews if found, but focus on aggregate assessment.';
     }
 
     /**

@@ -92,13 +92,13 @@ class DeepSeekProvider implements LLMProviderInterface
         // DeepSeek has a max_tokens limit of 8192
         $maxAllowed = 8192;
         
-        // For aggregate responses, we need much less tokens than individual scoring
-        // Aggregate JSON response is typically 500-2000 tokens regardless of review count
-        $baseTokens = min(2000, $reviewCount * 10); // Much lower base for aggregate
-        $buffer = min(1000, $reviewCount * 5); // Smaller buffer for aggregate format
+        // For aggregate responses with detailed explanations, we need more tokens
+        // Especially for chunked analysis where explanations need to be comprehensive
+        $baseTokens = min(3000, $reviewCount * 15); // Increased base for detailed explanations
+        $buffer = min(2000, $reviewCount * 8); // Larger buffer for complex patterns
         
-        // Minimum 1500 tokens for aggregate responses
-        $minTokens = 1500;
+        // Minimum 2500 tokens for aggregate responses with detailed explanations
+        $minTokens = 2500;
         
         $calculated = max($minTokens, $baseTokens + $buffer);
         

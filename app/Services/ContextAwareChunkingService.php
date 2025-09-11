@@ -306,7 +306,12 @@ class ContextAwareChunkingService
         // Add unique insights from chunks (avoid repetition)
         $uniqueInsights = $this->extractUniqueInsights($explanations);
         if (!empty($uniqueInsights)) {
-            $explanation .= $uniqueInsights[0];
+            $insight = $uniqueInsights[0];
+            // Ensure the insight ends with proper punctuation
+            if (!str_ends_with($insight, '.') && !str_ends_with($insight, '!') && !str_ends_with($insight, '?')) {
+                $insight .= '.';
+            }
+            $explanation .= $insight;
         }
         
         return $explanation;
