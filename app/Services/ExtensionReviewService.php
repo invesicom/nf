@@ -32,8 +32,8 @@ class ExtensionReviewService
 
         // Prepare data for AsinData record
         $updateData = [
-            'product_title' => $productInfo['title'] ?? null,
-            'product_description' => $productInfo['description'] ?? null,
+            'product_title' => isset($productInfo['title']) ? $this->sanitizeHtml($productInfo['title']) : null,
+            'product_description' => isset($productInfo['description']) ? $this->sanitizeHtml($productInfo['description']) : null,
             'product_image_url' => $productInfo['image_url'] ?? null,
             'amazon_rating' => $productInfo['amazon_rating'] ?? null,
             'reviews' => json_encode($transformedReviews),
@@ -82,9 +82,9 @@ class ExtensionReviewService
         foreach ($extensionReviews as $review) {
             $transformedReviews[] = [
                 'id' => $review['review_id'],
-                'author' => $review['author'],
-                'title' => $review['title'],
-                'content' => $review['content'],
+                'author' => $this->sanitizeHtml($review['author']),
+                'title' => $this->sanitizeHtml($review['title']),
+                'content' => $this->sanitizeHtml($review['content']),
                 'rating' => $review['rating'],
                 'date' => $review['date'],
                 'verified_purchase' => $review['verified_purchase'],
@@ -202,5 +202,26 @@ class ExtensionReviewService
             'eg' => 'amazon.eg',
             'be' => 'amazon.com.be',
         ];
+    }
+
+    /**
+     * Sanitize HTML content to prevent XSS attacks.
+     * 
+     * @param string $content The content to sanitize
+     * @return string The sanitized content
+     */
+    private function sanitizeHtml(string $content): string
+    {
+        // Strip all HTML tags to prevent XSS
+        $sanitized = strip_tags($content);
+        
+        // Decode HTML entities to prevent double encoding
+        $sanitized = html_entity_decode($sanitized, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        // Re-encode special characters to prevent XSS
+        $sanitized = htmlspecialchars($sanitized, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        
+        // Trim whitespace
+        return trim($sanitized);
     }
 }

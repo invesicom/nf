@@ -35,6 +35,11 @@ Route::prefix('analysis')->name('api.analysis.')
 // Chrome Extension API endpoints - use API key authentication
 Route::prefix('extension')->name('api.extension.')
     ->group(function () {
-        Route::post('/submit-reviews', [App\Http\Controllers\ExtensionController::class, 'submitReviews'])->name('submit');
+        // Review submission with rate limiting to prevent abuse
+        Route::post('/submit-reviews', [App\Http\Controllers\ExtensionController::class, 'submitReviews'])
+            ->middleware(['throttle:60,1']) // 60 requests per minute per IP
+            ->name('submit');
+        
+        // Status endpoint without rate limiting for frequent polling
         Route::get('/analysis/{asin}/{country}', [App\Http\Controllers\ExtensionController::class, 'getAnalysisStatus'])->name('status');
     });
