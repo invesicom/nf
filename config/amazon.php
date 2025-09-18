@@ -57,7 +57,6 @@ return [
         'max_concurrent_jobs'  => env('BRIGHTDATA_MAX_CONCURRENT', 90), // Stop creating jobs at 90 running
         'auto_cancel_enabled'  => env('BRIGHTDATA_AUTO_CANCEL', true), // Enable automatic job cancellation
         'stale_job_threshold'  => env('BRIGHTDATA_STALE_THRESHOLD', 60), // Jobs older than 60 minutes are stale
-        'max_reviews'          => env('BRIGHTDATA_MAX_REVIEWS', 200), // Maximum reviews to process per ASIN
     ],
 
     /*
