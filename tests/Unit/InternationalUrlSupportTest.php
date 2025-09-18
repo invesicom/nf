@@ -69,7 +69,7 @@ class InternationalUrlSupportTest extends TestCase
     {
         $service = new BrightDataScraperService();
         $reflection = new \ReflectionClass($service);
-        $buildUrlMethod = $reflection->getMethod('buildAmazonUrl');
+        $buildUrlMethod = $reflection->getMethod('buildLimitedReviewUrls');
         $buildUrlMethod->setAccessible(true);
 
         $testCases = [
@@ -85,8 +85,9 @@ class InternationalUrlSupportTest extends TestCase
         ];
 
         foreach ($testCases as [$asin, $country, $expectedUrl]) {
-            $builtUrl = $buildUrlMethod->invoke($service, $asin, $country);
-            $this->assertEquals($expectedUrl, $builtUrl, "Failed to build correct URL for {$country}");
+            $urls = $buildUrlMethod->invoke($service, $asin, $country);
+            // The first URL should be the product page
+            $this->assertEquals($expectedUrl, $urls[0], "Failed to build correct product URL for {$country}");
         }
     }
 
@@ -110,13 +111,15 @@ class InternationalUrlSupportTest extends TestCase
 
         $service = new BrightDataScraperService();
         $reflection = new \ReflectionClass($service);
-        $buildUrlMethod = $reflection->getMethod('buildAmazonUrl');
+        $buildUrlMethod = $reflection->getMethod('buildLimitedReviewUrls');
         $buildUrlMethod->setAccessible(true);
 
         foreach ($supportedCountries as $country) {
-            $url = $buildUrlMethod->invoke($service, 'B0TEST1234', $country);
-            $this->assertStringContainsString('amazon.', $url, "Should build valid Amazon URL for country: {$country}");
-            $this->assertStringContainsString('B0TEST1234', $url, "Should include ASIN in URL for country: {$country}");
+            $urls = $buildUrlMethod->invoke($service, 'B0TEST1234', $country);
+            // Check the first URL (product page)
+            $productUrl = $urls[0];
+            $this->assertStringContainsString('amazon.', $productUrl, "Should build valid Amazon URL for country: {$country}");
+            $this->assertStringContainsString('B0TEST1234', $productUrl, "Should include ASIN in URL for country: {$country}");
         }
     }
 }

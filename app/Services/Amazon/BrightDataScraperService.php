@@ -79,16 +79,16 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         ]);
 
         try {
-            // Construct Amazon product URL
-            $productUrl = $this->buildAmazonUrl($asin, $country);
+            // Construct Amazon review URLs with pagination limits to control costs
+            $reviewUrls = $this->buildLimitedReviewUrls($asin, $country);
 
-            // Trigger BrightData scraping job
-            $jobId = $this->triggerScrapingJob([$productUrl]);
+            // Trigger BrightData scraping job with limited URLs
+            $jobId = $this->triggerScrapingJob($reviewUrls);
 
             if (!$jobId) {
                 LoggingService::log('Failed to trigger BrightData scraping job', [
                     'asin' => $asin,
-                    'url'  => $productUrl,
+                    'urls' => $reviewUrls,
                 ]);
 
                 return [
@@ -276,14 +276,15 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     }
 
     /**
-     * Build Amazon product URL for the given ASIN and country.
+     * Build limited Amazon review URLs to control BrightData scraping costs.
+     * Returns an array of specific page URLs instead of letting BrightData scrape all pages.
      */
-    private function buildAmazonUrl(string $asin, string $country): string
+    private function buildLimitedReviewUrls(string $asin, string $country): array
     {
         $domains = [
             'us' => 'amazon.com',
-            'gb' => 'amazon.co.uk',  // Fixed: use 'gb' to match ReviewService
-            'uk' => 'amazon.co.uk',  // Keep 'uk' for backward compatibility
+            'gb' => 'amazon.co.uk',
+            'uk' => 'amazon.co.uk',
             'ca' => 'amazon.ca',
             'de' => 'amazon.de',
             'fr' => 'amazon.fr',
@@ -291,12 +292,10 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'es' => 'amazon.es',
             'jp' => 'amazon.co.jp',
             'au' => 'amazon.com.au',
-            // Additional countries for expanded support
-            'mx' => 'amazon.com.mx',  // Mexico
-            'in' => 'amazon.in',      // India
-            'sg' => 'amazon.sg',      // Singapore
-            'br' => 'amazon.com.br',  // Brazil
-            // Already supported by ReviewService
+            'mx' => 'amazon.com.mx',
+            'in' => 'amazon.in',
+            'sg' => 'amazon.sg',
+            'br' => 'amazon.com.br',
             'nl' => 'amazon.nl',
             'tr' => 'amazon.com.tr',
             'ae' => 'amazon.ae',
@@ -308,9 +307,35 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         ];
 
         $domain = $domains[$country] ?? $domains['us'];
+        
+        // Calculate maximum pages to scrape based on review limit
+        $maxReviews = config('amazon.brightdata.max_reviews', 200);
+        $reviewsPerPage = 15; // Conservative estimate for Amazon reviews per page
+        $maxPages = max(1, ceil($maxReviews / $reviewsPerPage));
+        
+        // Generate URLs for specific pages to limit BrightData scraping
+        $urls = [];
+        
+        // Always include the main product page for product data
+        $urls[] = "https://www.{$domain}/dp/{$asin}/";
+        
+        // Add specific review pages up to the limit
+        for ($page = 1; $page <= $maxPages; $page++) {
+            $urls[] = "https://www.{$domain}/product-reviews/{$asin}/?pageNumber={$page}";
+        }
+        
+        LoggingService::log('BrightData URLs built with review limits', [
+            'asin' => $asin,
+            'country' => $country,
+            'max_reviews_config' => $maxReviews,
+            'pages_to_scrape' => $maxPages,
+            'total_urls' => count($urls),
+            'urls' => $urls,
+        ]);
 
-        return "https://www.{$domain}/dp/{$asin}/";
+        return $urls;
     }
+
 
     /**
      * Trigger a BrightData scraping job.

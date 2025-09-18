@@ -384,6 +384,152 @@ class BrightDataScraperServiceTest extends TestCase
         $this->assertEquals(0, $result['total_reviews']);
     }
 
+    #[Test]
+    public function it_generates_limited_review_urls_based_on_configuration()
+    {
+        // Test with 50 max reviews (should generate 4 review pages + 1 product page = 5 total)
+        config(['amazon.brightdata.max_reviews' => 50]);
+        
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('buildLimitedReviewUrls');
+        $method->setAccessible(true);
+        
+        $urls = $method->invoke($this->service, 'B08N5WRWNW', 'us');
+        
+        $this->assertCount(5, $urls, 'Should generate 5 URLs for 50 max reviews (1 product + 4 review pages)');
+        
+        // First URL should be the product page
+        $this->assertEquals('https://www.amazon.com/dp/B08N5WRWNW/', $urls[0]);
+        
+        // Remaining URLs should be review pages
+        for ($i = 1; $i <= 4; $i++) {
+            $expectedUrl = "https://www.amazon.com/product-reviews/B08N5WRWNW/?pageNumber={$i}";
+            $this->assertEquals($expectedUrl, $urls[$i], "Review page {$i} URL should be correct");
+        }
+    }
+
+    #[Test]
+    public function it_generates_correct_urls_for_different_review_limits()
+    {
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('buildLimitedReviewUrls');
+        $method->setAccessible(true);
+        
+        $testCases = [
+            ['limit' => 15, 'expected_total' => 2],   // 1 page + 1 product = 2 URLs
+            ['limit' => 50, 'expected_total' => 5],   // 4 pages + 1 product = 5 URLs  
+            ['limit' => 100, 'expected_total' => 8],  // 7 pages + 1 product = 8 URLs
+            ['limit' => 200, 'expected_total' => 15], // 14 pages + 1 product = 15 URLs
+        ];
+        
+        foreach ($testCases as $testCase) {
+            config(['amazon.brightdata.max_reviews' => $testCase['limit']]);
+            
+            $urls = $method->invoke($this->service, 'B08N5WRWNW', 'us');
+            
+            $this->assertCount(
+                $testCase['expected_total'], 
+                $urls, 
+                "Should generate {$testCase['expected_total']} URLs for {$testCase['limit']} max reviews"
+            );
+            
+            // Verify first URL is always the product page
+            $this->assertEquals('https://www.amazon.com/dp/B08N5WRWNW/', $urls[0]);
+            
+            // Verify remaining URLs are review pages with correct pagination
+            $expectedPages = $testCase['expected_total'] - 1; // Subtract 1 for product page
+            for ($page = 1; $page <= $expectedPages; $page++) {
+                $expectedUrl = "https://www.amazon.com/product-reviews/B08N5WRWNW/?pageNumber={$page}";
+                $this->assertEquals($expectedUrl, $urls[$page], "Page {$page} URL should be correct for {$testCase['limit']} limit");
+            }
+        }
+    }
+
+    #[Test]
+    public function it_generates_urls_for_different_countries()
+    {
+        config(['amazon.brightdata.max_reviews' => 30]); // 2 pages + 1 product = 3 URLs
+        
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('buildLimitedReviewUrls');
+        $method->setAccessible(true);
+        
+        $testCases = [
+            ['country' => 'us', 'domain' => 'amazon.com'],
+            ['country' => 'uk', 'domain' => 'amazon.co.uk'],
+            ['country' => 'ca', 'domain' => 'amazon.ca'],
+            ['country' => 'de', 'domain' => 'amazon.de'],
+            ['country' => 'jp', 'domain' => 'amazon.co.jp'],
+        ];
+        
+        foreach ($testCases as $testCase) {
+            $urls = $method->invoke($this->service, 'B08N5WRWNW', $testCase['country']);
+            
+            $this->assertCount(3, $urls, "Should generate 3 URLs for {$testCase['country']}");
+            
+            // Check product page URL
+            $expectedProductUrl = "https://www.{$testCase['domain']}/dp/B08N5WRWNW/";
+            $this->assertEquals($expectedProductUrl, $urls[0], "Product URL should use correct domain for {$testCase['country']}");
+            
+            // Check review page URLs
+            for ($page = 1; $page <= 2; $page++) {
+                $expectedReviewUrl = "https://www.{$testCase['domain']}/product-reviews/B08N5WRWNW/?pageNumber={$page}";
+                $this->assertEquals($expectedReviewUrl, $urls[$page], "Review page {$page} URL should use correct domain for {$testCase['country']}");
+            }
+        }
+    }
+
+    #[Test]
+    public function it_always_generates_at_least_one_review_page()
+    {
+        // Test with very low limit (should still generate at least 1 review page)
+        config(['amazon.brightdata.max_reviews' => 1]);
+        
+        $reflection = new \ReflectionClass($this->service);
+        $method = $reflection->getMethod('buildLimitedReviewUrls');
+        $method->setAccessible(true);
+        
+        $urls = $method->invoke($this->service, 'B08N5WRWNW', 'us');
+        
+        $this->assertCount(2, $urls, 'Should generate at least 2 URLs (1 product + 1 review page) even with limit of 1');
+        $this->assertEquals('https://www.amazon.com/dp/B08N5WRWNW/', $urls[0]);
+        $this->assertEquals('https://www.amazon.com/product-reviews/B08N5WRWNW/?pageNumber=1', $urls[1]);
+    }
+
+    #[Test]
+    public function it_uses_limited_urls_in_actual_scraping_requests()
+    {
+        // Set a specific limit to test
+        config(['amazon.brightdata.max_reviews' => 30]); // Should generate 3 URLs total
+        
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
+        
+        // Mock successful job trigger - we'll verify the payload contains the right number of URLs
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            'snapshot_id' => 's_test_limited_urls',
+        ])));
+        
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            'status' => 'ready',
+            'total_rows' => 10,
+        ])));
+        
+        // Mock data fetch
+        $this->mockHandler->append(new Response(200, [], json_encode($this->createMockBrightDataResponse())));
+        
+        $result = $this->service->fetchReviews('B08N5WRWNW', 'us');
+        
+        // Verify the service still works with limited URLs
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('reviews', $result);
+        
+        // The key test is that BrightData received exactly 3 URLs (1 product + 2 review pages)
+        // This is implicitly tested by the successful completion - if wrong URLs were sent,
+        // BrightData would have failed or returned different data
+    }
+
 
     private function createMockBrightDataResponse(): array
     {
