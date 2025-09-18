@@ -658,6 +658,10 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         $totalReviews = 0;
         $productImageUrl = '';
         $description = '';
+        
+        // Get review limit from configuration
+        $maxReviews = config('amazon.brightdata.max_reviews', 200);
+        $reviewsProcessed = 0;
 
         foreach ($results as $item) {
             // Extract product-level data from first item
@@ -673,6 +677,17 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
             // Transform review data - BrightData provides very rich data
             if (!empty($item['review_text']) && !empty($item['review_id'])) {
+                // Apply review cap to prevent excessive billing
+                if ($reviewsProcessed >= $maxReviews) {
+                    LoggingService::log('BrightData review cap reached', [
+                        'asin'            => $asin,
+                        'max_reviews'     => $maxReviews,
+                        'reviews_capped'  => count($results) - $reviewsProcessed,
+                        'total_items'     => count($results),
+                    ]);
+                    break;
+                }
+
                 $review = [
                     'id'        => $item['review_id'],
                     'rating'    => $item['rating'] ?? 0,
@@ -706,6 +721,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 }
 
                 $reviews[] = $review;
+                $reviewsProcessed++;
             }
         }
 
@@ -715,6 +731,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'reviews_extracted'       => count($reviews),
             'product_name'            => $productName,
             'total_reviews_on_amazon' => $totalReviews,
+            'max_reviews_limit'       => $maxReviews,
+            'reviews_processed'       => $reviewsProcessed,
+            'limit_reached'           => $reviewsProcessed >= $maxReviews,
         ]);
 
         return [

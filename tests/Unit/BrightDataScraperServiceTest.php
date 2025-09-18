@@ -473,4 +473,311 @@ class BrightDataScraperServiceTest extends TestCase
             ],
         ];
     }
+
+    #[Test]
+    public function it_applies_review_cap_during_transformation()
+    {
+        // Set a low review cap for testing
+        config(['amazon.brightdata.max_reviews' => 2]);
+
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            // Return empty array to indicate no running jobs
+        ])));
+
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
+
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 5])));
+
+        // Mock data with 5 reviews but expect only 2 due to cap
+        $mockData = [
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R1',
+                'review_text' => 'First review',
+                'rating' => 5,
+                'review_header' => 'Great product',
+                'author_name' => 'John Doe',
+                'author_id' => 'A1',
+                'review_posted_date' => '2023-01-01',
+                'review_country' => 'United States',
+                'helpful_count' => 10,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-01T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R2',
+                'review_text' => 'Second review',
+                'rating' => 4,
+                'review_header' => 'Good product',
+                'author_name' => 'Jane Smith',
+                'author_id' => 'A2',
+                'review_posted_date' => '2023-01-02',
+                'review_country' => 'United States',
+                'helpful_count' => 5,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-02T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R3',
+                'review_text' => 'Third review - should be capped',
+                'rating' => 3,
+                'review_header' => 'OK product',
+                'author_name' => 'Bob Wilson',
+                'author_id' => 'A3',
+                'review_posted_date' => '2023-01-03',
+                'review_country' => 'United States',
+                'helpful_count' => 2,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-03T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R4',
+                'review_text' => 'Fourth review - should be capped',
+                'rating' => 2,
+                'review_header' => 'Poor product',
+                'author_name' => 'Alice Brown',
+                'author_id' => 'A4',
+                'review_posted_date' => '2023-01-04',
+                'review_country' => 'United States',
+                'helpful_count' => 1,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-04T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R5',
+                'review_text' => 'Fifth review - should be capped',
+                'rating' => 1,
+                'review_header' => 'Terrible product',
+                'author_name' => 'Charlie Davis',
+                'author_id' => 'A5',
+                'review_posted_date' => '2023-01-05',
+                'review_country' => 'United States',
+                'helpful_count' => 0,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-05T00:00:00Z',
+            ],
+        ];
+
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
+
+        $result = $this->service->fetchReviews('B0123456789', 'us');
+
+        // Verify only 2 reviews are returned due to cap
+        $this->assertCount(2, $result['reviews']);
+        $this->assertEquals('R1', $result['reviews'][0]['id']);
+        $this->assertEquals('R2', $result['reviews'][1]['id']);
+        $this->assertEquals('Test Product', $result['product_name']);
+        $this->assertEquals(100, $result['total_reviews']);
+    }
+
+    #[Test]
+    public function it_respects_different_review_cap_values()
+    {
+        // Test with cap of 1
+        config(['amazon.brightdata.max_reviews' => 1]);
+
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            // Return empty array to indicate no running jobs
+        ])));
+
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 3])));
+
+        $mockData = [
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R1',
+                'review_text' => 'First review',
+                'rating' => 5,
+                'review_header' => 'Great product',
+                'author_name' => 'John Doe',
+                'author_id' => 'A1',
+                'review_posted_date' => '2023-01-01',
+                'review_country' => 'United States',
+                'helpful_count' => 10,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-01T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R2',
+                'review_text' => 'Second review - should be capped',
+                'rating' => 4,
+                'review_header' => 'Good product',
+                'author_name' => 'Jane Smith',
+                'author_id' => 'A2',
+                'review_posted_date' => '2023-01-02',
+                'review_country' => 'United States',
+                'helpful_count' => 5,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-02T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R3',
+                'review_text' => 'Third review - should be capped',
+                'rating' => 3,
+                'review_header' => 'OK product',
+                'author_name' => 'Bob Wilson',
+                'author_id' => 'A3',
+                'review_posted_date' => '2023-01-03',
+                'review_country' => 'United States',
+                'helpful_count' => 2,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-03T00:00:00Z',
+            ],
+        ];
+
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
+
+        $result = $this->service->fetchReviews('B0123456789', 'us');
+
+        // Verify only 1 review is returned
+        $this->assertCount(1, $result['reviews']);
+        $this->assertEquals('R1', $result['reviews'][0]['id']);
+    }
+
+    #[Test]
+    public function it_uses_default_review_cap_when_not_configured()
+    {
+        // Don't set any config, should use default of 200
+        // Mock concurrent job check (getJobsByStatus call)
+        $this->mockHandler->append(new Response(200, [], json_encode([
+            // Return empty array to indicate no running jobs
+        ])));
+
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 3])));
+
+        $mockData = [
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R1',
+                'review_text' => 'First review',
+                'rating' => 5,
+                'review_header' => 'Great product',
+                'author_name' => 'John Doe',
+                'author_id' => 'A1',
+                'review_posted_date' => '2023-01-01',
+                'review_country' => 'United States',
+                'helpful_count' => 10,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-01T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R2',
+                'review_text' => 'Second review',
+                'rating' => 4,
+                'review_header' => 'Good product',
+                'author_name' => 'Jane Smith',
+                'author_id' => 'A2',
+                'review_posted_date' => '2023-01-02',
+                'review_country' => 'United States',
+                'helpful_count' => 5,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-02T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R3',
+                'review_text' => 'Third review',
+                'rating' => 3,
+                'review_header' => 'OK product',
+                'author_name' => 'Bob Wilson',
+                'author_id' => 'A3',
+                'review_posted_date' => '2023-01-03',
+                'review_country' => 'United States',
+                'helpful_count' => 2,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-03T00:00:00Z',
+            ],
+        ];
+
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
+
+        $result = $this->service->fetchReviews('B0123456789', 'us');
+
+        // All 3 reviews should be returned since we're under the default cap of 200
+        $this->assertCount(3, $result['reviews']);
+        $this->assertEquals('R1', $result['reviews'][0]['id']);
+        $this->assertEquals('R2', $result['reviews'][1]['id']);
+        $this->assertEquals('R3', $result['reviews'][2]['id']);
+    }
 }
