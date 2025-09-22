@@ -79,16 +79,23 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         ]);
 
         try {
-            // Construct Amazon product URL
-            $productUrl = $this->buildAmazonUrl($asin, $country);
+            // Build limited URLs to control BrightData scraping scope and reduce billing
+            $urls = $this->buildLimitedReviewUrls($asin, $country);
 
-            // Trigger BrightData scraping job
-            $jobId = $this->triggerScrapingJob([$productUrl]);
+            LoggingService::log('BrightData cost control - limiting URLs sent', [
+                'asin'        => $asin,
+                'urls_count'  => count($urls),
+                'max_reviews' => config('amazon.brightdata.max_reviews', 200),
+                'cost_saving' => 'Sending specific page URLs instead of unlimited product URL',
+            ]);
+
+            // Trigger BrightData scraping job with limited URLs
+            $jobId = $this->triggerScrapingJob($urls);
 
             if (!$jobId) {
                 LoggingService::log('Failed to trigger BrightData scraping job', [
                     'asin' => $asin,
-                    'url'  => $productUrl,
+                    'urls' => $urls,
                 ]);
 
                 return [
@@ -276,9 +283,43 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     }
 
     /**
-     * Build Amazon product URL for the given ASIN and country.
+     * Build limited review URLs to control BrightData scraping scope and reduce costs.
+     * This sends specific review page URLs instead of the unlimited product URL.
      */
-    private function buildAmazonUrl(string $asin, string $country): string
+    private function buildLimitedReviewUrls(string $asin, string $country): array
+    {
+        $maxReviews = config('amazon.brightdata.max_reviews', 200);
+        $reviewsPerPage = 15; // Conservative estimate for Amazon reviews per page
+        $maxPages = max(1, ceil($maxReviews / $reviewsPerPage));
+        
+        $domain = $this->getDomainForCountry($country);
+        $urls = [];
+        
+        // Always include the main product page for product metadata
+        $urls[] = "https://www.{$domain}/dp/{$asin}/";
+        
+        // Add specific review pages to limit scraping scope
+        for ($page = 1; $page <= $maxPages; $page++) {
+            $urls[] = "https://www.{$domain}/product-reviews/{$asin}/?pageNumber={$page}";
+        }
+        
+        LoggingService::log('BrightData URL generation for cost control', [
+            'asin'              => $asin,
+            'country'           => $country,
+            'max_reviews'       => $maxReviews,
+            'reviews_per_page'  => $reviewsPerPage,
+            'max_pages'         => $maxPages,
+            'total_urls'        => count($urls),
+            'cost_benefit'      => "Limited to {$maxPages} review pages instead of unlimited scraping",
+        ]);
+        
+        return $urls;
+    }
+
+    /**
+     * Get domain for country (extracted for reuse).
+     */
+    private function getDomainForCountry(string $country): string
     {
         $domains = [
             'us' => 'amazon.com',
@@ -307,8 +348,15 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'be' => 'amazon.be',
         ];
 
-        $domain = $domains[$country] ?? $domains['us'];
+        return $domains[$country] ?? $domains['us'];
+    }
 
+    /**
+     * Build Amazon product URL for the given ASIN and country.
+     */
+    private function buildAmazonUrl(string $asin, string $country): string
+    {
+        $domain = $this->getDomainForCountry($country);
         return "https://www.{$domain}/dp/{$asin}/";
     }
 
@@ -649,6 +697,8 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
     /**
      * Transform BrightData results to our internal format.
+     * Note: Cost control is now handled by limiting URLs sent to BrightData,
+     * not by post-processing results after they've already been scraped and billed.
      */
     private function transformBrightDataResults(array $results, string $asin): array
     {
@@ -658,10 +708,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         $totalReviews = 0;
         $productImageUrl = '';
         $description = '';
-        
-        // Get review limit from configuration
-        $maxReviews = config('amazon.brightdata.max_reviews', 200);
-        $reviewsProcessed = 0;
 
         foreach ($results as $item) {
             // Extract product-level data from first item
@@ -677,16 +723,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
             // Transform review data - BrightData provides very rich data
             if (!empty($item['review_text']) && !empty($item['review_id'])) {
-                // Apply review cap to prevent excessive billing
-                if ($reviewsProcessed >= $maxReviews) {
-                    LoggingService::log('BrightData review cap reached', [
-                        'asin'            => $asin,
-                        'max_reviews'     => $maxReviews,
-                        'reviews_capped'  => count($results) - $reviewsProcessed,
-                        'total_items'     => count($results),
-                    ]);
-                    break;
-                }
 
                 $review = [
                     'id'        => $item['review_id'],
@@ -721,7 +757,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 }
 
                 $reviews[] = $review;
-                $reviewsProcessed++;
             }
         }
 
@@ -731,9 +766,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'reviews_extracted'       => count($reviews),
             'product_name'            => $productName,
             'total_reviews_on_amazon' => $totalReviews,
-            'max_reviews_limit'       => $maxReviews,
-            'reviews_processed'       => $reviewsProcessed,
-            'limit_reached'           => $reviewsProcessed >= $maxReviews,
+            'cost_control_method'     => 'URL limiting (not post-processing)',
         ]);
 
         return [

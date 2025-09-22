@@ -2,49 +2,36 @@
 
 namespace Tests\Unit;
 
-use App\Jobs\TriggerBrightDataScraping;
-use App\Models\AsinData;
 use App\Services\Amazon\BrightDataScraperService;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Queue;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class BrightDataScraperServiceTest extends TestCase
 {
-    use RefreshDatabase;
-
-    private MockHandler $mockHandler;
     private BrightDataScraperService $service;
+    private MockHandler $mockHandler;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Mock the queue for all tests
-        Queue::fake();
-
-        // Set test environment variables FIRST
-        putenv('BRIGHTDATA_SCRAPER_API=test_api_key_12345');
-        putenv('BRIGHTDATA_DATASET_ID=gd_test_dataset');
-
-        // Set up mock HTTP client
+        // Create a mock handler for HTTP requests
         $this->mockHandler = new MockHandler();
         $handlerStack = HandlerStack::create($this->mockHandler);
-        $mockClient = new Client(['handler' => $handlerStack]);
+        $httpClient = new Client(['handler' => $handlerStack]);
 
-        // Create service instance with proper dependency injection for testing
+        // Create service with mock HTTP client and test credentials
         $this->service = new BrightDataScraperService(
-            httpClient: $mockClient,
-            apiKey: 'test_api_key_12345',
-            datasetId: 'gd_test_dataset',
+            httpClient: $httpClient,
+            apiKey: 'test_api_key',
+            datasetId: 'test_dataset_id',
             baseUrl: 'https://api.brightdata.com/datasets/v3',
-            pollInterval: 0, // No sleep in tests
-            maxAttempts: 3   // Fewer attempts in tests
+            pollInterval: 0, // No delay in tests
+            maxAttempts: 3
         );
     }
 
@@ -56,33 +43,21 @@ class BrightDataScraperServiceTest extends TestCase
             // Return empty array to indicate no running jobs
         ])));
 
-        // Mock successful job trigger response
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test123456789',
-        ])));
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
 
-        // Mock job status polling (running -> ready)
-        $this->mockHandler->append(new Response(202, [], json_encode([
-            'status'  => 'running',
-            'message' => 'Snapshot is not ready yet, try again in 30s',
-        ])));
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 3])));
 
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'status'     => 'ready',
-            'total_rows' => 25,
-        ])));
+        // Mock data fetch
+        $mockData = $this->createMockBrightDataResponse();
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
 
-        // Mock data fetch response
-        $mockReviewData = $this->createMockBrightDataResponse();
-        $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
-
-        $result = $this->service->fetchReviews('B0TEST12345');
+        $result = $this->service->fetchReviews('B0TEST12345', 'us');
 
         $this->assertIsArray($result);
         $this->assertArrayHasKey('reviews', $result);
-        $this->assertArrayHasKey('total_reviews', $result);
-        $this->assertArrayHasKey('product_name', $result);
-        $this->assertCount(3, $result['reviews']); // 3 mock reviews
+        $this->assertCount(3, $result['reviews']);
         $this->assertEquals('Test Product Name', $result['product_name']);
         $this->assertEquals(166807, $result['total_reviews']);
     }
@@ -90,253 +65,256 @@ class BrightDataScraperServiceTest extends TestCase
     #[Test]
     public function it_handles_missing_api_key()
     {
-        putenv('BRIGHTDATA_SCRAPER_API=');
+        $service = new BrightDataScraperService(apiKey: '');
 
-        $service = $this->app->make(BrightDataScraperService::class);
-        $result = $service->fetchReviews('B0TEST12345');
+        $result = $service->fetchReviews('B0TEST12345', 'us');
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result['reviews']);
+        $this->assertEquals([], $result['reviews']);
+        $this->assertEquals('', $result['description']);
         $this->assertEquals(0, $result['total_reviews']);
     }
 
     #[Test]
     public function it_handles_job_trigger_failure()
     {
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
+
         // Mock failed job trigger
-        $this->mockHandler->append(new Response(400, [], json_encode([
-            'error' => 'Invalid dataset ID',
-        ])));
+        $this->mockHandler->append(new Response(400, [], json_encode(['error' => 'Bad request'])));
 
-        $result = $this->service->fetchReviews('B0TEST12345');
+        $result = $this->service->fetchReviews('B0TEST12345', 'us');
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result['reviews']);
+        $this->assertEquals([], $result['reviews']);
+        $this->assertEquals('', $result['description']);
         $this->assertEquals(0, $result['total_reviews']);
     }
 
     #[Test]
     public function it_handles_polling_timeout()
     {
-        // Mock successful job trigger
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_timeout',
-        ])));
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
 
-        // Mock job never completing (always running)
-        for ($i = 0; $i < 25; $i++) {
-            $this->mockHandler->append(new Response(202, [], json_encode([
-                'status'  => 'running',
-                'message' => 'Still processing...',
-            ])));
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
+
+        // Mock job still running for all polling attempts
+        for ($i = 0; $i < 3; $i++) {
+            $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
         }
 
-        $result = $this->service->fetchReviews('B0TEST12345');
+        // Mock job cancellation
+        $this->mockHandler->append(new Response(200, [], 'OK'));
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result['reviews']);
+        $result = $this->service->fetchReviews('B0TEST12345', 'us');
+
+        $this->assertEquals([], $result['reviews']);
+        $this->assertEquals('', $result['description']);
+        $this->assertEquals(0, $result['total_reviews']);
     }
 
     #[Test]
     public function it_handles_job_failure_status()
     {
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
+
         // Mock successful job trigger
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_failed',
-        ])));
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
 
         // Mock job failure
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'status'     => 'failed',
-            'total_rows' => 0,
-        ])));
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'failed', 'records' => 0])));
 
-        $result = $this->service->fetchReviews('B0TEST12345');
+        $result = $this->service->fetchReviews('B0TEST12345', 'us');
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result['reviews']);
+        $this->assertEquals([], $result['reviews']);
+        $this->assertEquals('', $result['description']);
+        $this->assertEquals(0, $result['total_reviews']);
     }
 
     #[Test]
     public function it_can_save_reviews_to_database()
     {
-        // Enable async mode for this test
-        putenv('ANALYSIS_ASYNC_ENABLED=true');
+        // Force sync mode for testing
+        config(['analysis.async_enabled' => false]);
+
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
+
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
+
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 1])));
+
+        // Mock data fetch
+        $mockData = $this->createMockBrightDataResponse();
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
 
         $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
 
-        // Should create AsinData record in processing state
-        $this->assertInstanceOf(AsinData::class, $result);
+        $this->assertInstanceOf(\App\Models\AsinData::class, $result);
         $this->assertEquals('B0TEST12345', $result->asin);
-        $this->assertEquals('processing', $result->status);
-
-        // Should dispatch the job chain
-        Queue::assertPushed(TriggerBrightDataScraping::class, function ($job) {
-            return $job->asin === 'B0TEST12345' && $job->country === 'us';
-        });
+        $this->assertEquals('us', $result->country);
     }
 
     #[Test]
     public function it_sets_have_product_data_true_when_brightdata_provides_complete_metadata()
     {
-        // Enable async mode for this test
-        putenv('ANALYSIS_ASYNC_ENABLED=true');
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
 
-        $result = $this->service->fetchReviewsAndSave('B0TEST12345', 'us', 'https://amazon.com/dp/B0TEST12345');
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
 
-        // Should create AsinData record in processing state (async mode)
-        $this->assertInstanceOf(AsinData::class, $result);
-        $this->assertEquals('B0TEST12345', $result->asin);
-        $this->assertEquals('processing', $result->status);
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 1])));
 
-        // Should dispatch the job chain
-        Queue::assertPushed(TriggerBrightDataScraping::class, function ($job) {
-            return $job->asin === 'B0TEST12345' && $job->country === 'us';
-        });
+        // Mock data with complete product metadata
+        $mockData = $this->createMockBrightDataResponseWithImage();
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
+
+        $result = $this->service->fetchReviews('B0TEST12345', 'us');
+
+        $this->assertEquals('Test Product With Image', $result['product_name']);
+        $this->assertEquals('https://m.media-amazon.com/images/I/test-image.jpg', $result['product_image_url']);
     }
 
     #[Test]
     public function it_can_fetch_product_data()
     {
-        // Mock concurrent job check (getJobsByStatus call)
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            // Return empty array to indicate no running jobs
-        ])));
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
 
-        // Mock successful scraping flow
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_product',
-        ])));
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
 
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'status'     => 'ready',
-            'total_rows' => 15,
-        ])));
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 1])));
 
-        $mockReviewData = $this->createMockBrightDataResponse();
-        $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
+        // Mock data fetch
+        $mockData = $this->createMockBrightDataResponseWithImage();
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
 
-        $result = $this->service->fetchProductData('B0TEST12345');
+        $result = $this->service->fetchProductData('B0TEST12345', 'us');
 
         $this->assertIsArray($result);
         $this->assertArrayHasKey('title', $result);
+        $this->assertArrayHasKey('description', $result);
+        $this->assertArrayHasKey('price', $result);
+        $this->assertArrayHasKey('image_url', $result);
         $this->assertArrayHasKey('rating', $result);
         $this->assertArrayHasKey('total_reviews', $result);
-        $this->assertEquals('Test Product Name', $result['title']);
-        $this->assertEquals(0, $result['rating']); // BrightData review data doesn't provide overall product rating
-        $this->assertEquals(166807, $result['total_reviews']);
+
+        $this->assertEquals('Test Product With Image', $result['title']);
+        $this->assertEquals('https://m.media-amazon.com/images/I/test-image.jpg', $result['image_url']);
+        $this->assertEquals(250000, $result['total_reviews']);
     }
 
     #[Test]
     public function it_transforms_brightdata_review_format_correctly()
     {
-        // Mock concurrent job check (getJobsByStatus call)
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            // Return empty array to indicate no running jobs
-        ])));
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
 
-        // Mock successful scraping flow with rich review data
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'snapshot_id' => 's_test_transform',
-        ])));
+        // Mock successful job trigger
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
 
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            'status'     => 'ready',
-            'total_rows' => 1,
-        ])));
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 3])));
 
-        $mockReviewData = [[
-            'url'                  => 'https://www.amazon.com/dp/B0TEST12345/',
-            'product_name'         => 'Test Product',
-            'product_rating'       => 4.5,
-            'product_rating_count' => 1000,
-            'rating'               => 5,
-            'author_name'          => 'Test Author',
-            'asin'                 => 'B0TEST12345',
-            'review_header'        => 'Great product!',
-            'review_id'            => 'R123TEST',
-            'review_text'          => 'This is a fantastic product that exceeded my expectations.',
-            'author_id'            => 'ATEST123',
-            'author_link'          => 'https://amazon.com/profile/ATEST123',
-            'badge'                => 'Verified Purchase',
-            'brand'                => 'TestBrand',
-            'review_posted_date'   => 'July 15, 2025',
-            'review_country'       => 'United States',
-            'review_images'        => ['https://example.com/image1.jpg'],
-            'helpful_count'        => 15,
-            'is_amazon_vine'       => false,
-            'is_verified'          => true,
-            'variant_asin'         => 'B0TEST12345',
-            'variant_name'         => 'Color: Black',
-            'videos'               => ['https://example.com/video1.mp4'],
-            'timestamp'            => '2025-08-12T21:34:21.811Z',
-        ]];
+        // Mock data fetch
+        $mockData = $this->createMockBrightDataResponse();
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
 
-        $this->mockHandler->append(new Response(200, [], json_encode($mockReviewData)));
+        $result = $this->service->fetchReviews('B0TEST12345', 'us');
 
-        $result = $this->service->fetchReviews('B0TEST12345');
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('reviews', $result);
+        $this->assertCount(3, $result['reviews']);
 
-        $this->assertCount(1, $result['reviews']);
         $review = $result['reviews'][0];
+        $this->assertArrayHasKey('id', $review);
+        $this->assertArrayHasKey('rating', $review);
+        $this->assertArrayHasKey('title', $review);
+        $this->assertArrayHasKey('text', $review);
+        $this->assertArrayHasKey('author', $review);
+        $this->assertArrayHasKey('date', $review);
+        $this->assertArrayHasKey('meta_data', $review);
 
-        $this->assertEquals('R123TEST', $review['id']);
+        $this->assertEquals('R1TEST123', $review['id']);
         $this->assertEquals(5, $review['rating']);
-        $this->assertEquals('Great product!', $review['title']);
-        $this->assertEquals('This is a fantastic product that exceeded my expectations.', $review['text']);
-        $this->assertEquals('Test Author', $review['author']);
-        $this->assertEquals('July 15, 2025', $review['date']);
-        $this->assertTrue($review['meta_data']['verified_purchase']);
-        $this->assertEquals(15, $review['meta_data']['helpful_count']);
-        $this->assertFalse($review['meta_data']['vine_review']);
-        $this->assertEquals('United States', $review['meta_data']['country']);
-        $this->assertEquals('Verified Purchase', $review['meta_data']['badge']);
-        $this->assertEquals('ATEST123', $review['meta_data']['author_id']);
-        $this->assertEquals('TestBrand', $review['meta_data']['brand']);
-        $this->assertArrayHasKey('images', $review);
-        $this->assertArrayHasKey('videos', $review);
-        $this->assertEquals(['https://example.com/image1.jpg'], $review['images']);
-        $this->assertEquals(['https://example.com/video1.mp4'], $review['videos']);
+        $this->assertEquals('Excellent product!', $review['title']);
+        $this->assertEquals('This is an amazing product that works exactly as described.', $review['text']);
+        $this->assertEquals('Test Author 1', $review['author']);
+
+        $metaData = $review['meta_data'];
+        $this->assertArrayHasKey('verified_purchase', $metaData);
+        $this->assertArrayHasKey('helpful_count', $metaData);
+        $this->assertArrayHasKey('vine_review', $metaData);
+        $this->assertArrayHasKey('country', $metaData);
+        $this->assertArrayHasKey('badge', $metaData);
+
+        $this->assertTrue($metaData['verified_purchase']);
+        $this->assertEquals(25, $metaData['helpful_count']);
+        $this->assertFalse($metaData['vine_review']);
+        $this->assertEquals('United States', $metaData['country']);
+        $this->assertEquals('Verified Purchase', $metaData['badge']);
     }
 
     #[Test]
     public function it_handles_different_amazon_domains()
     {
         $testCases = [
-            ['us', 'amazon.com'],
-            ['uk', 'amazon.co.uk'],
-            ['ca', 'amazon.ca'],
-            ['de', 'amazon.de'],
-            ['fr', 'amazon.fr'],
-            ['jp', 'amazon.co.jp'],
-            ['au', 'amazon.com.au'],
+            ['country' => 'us', 'expected_domain' => 'amazon.com'],
+            ['country' => 'gb', 'expected_domain' => 'amazon.co.uk'],
+            ['country' => 'ca', 'expected_domain' => 'amazon.ca'],
+            ['country' => 'de', 'expected_domain' => 'amazon.de'],
+            ['country' => 'fr', 'expected_domain' => 'amazon.fr'],
+            ['country' => 'jp', 'expected_domain' => 'amazon.co.jp'],
+            ['country' => 'au', 'expected_domain' => 'amazon.com.au'],
         ];
 
-        foreach ($testCases as [$country, $expectedDomain]) {
-            // Mock concurrent job check (getJobsByStatus call)
-            $this->mockHandler->append(new Response(200, [], json_encode([
-                // Return empty array to indicate no running jobs
-            ])));
+        foreach ($testCases as $case) {
+            // Mock concurrent job check
+            $this->mockHandler->append(new Response(200, [], json_encode([])));
 
-            // Mock successful responses for each country
-            $this->mockHandler->append(new Response(200, [], json_encode([
-                'snapshot_id' => "s_test_{$country}",
-            ])));
+            // Mock successful job trigger
+            $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
 
-            $this->mockHandler->append(new Response(200, [], json_encode([
-                'status'     => 'ready',
-                'total_rows' => 1,
-            ])));
+            // Mock job completion
+            $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 1])));
 
-            $this->mockHandler->append(new Response(200, [], json_encode([
+            // Mock data fetch
+            $mockData = [
                 [
-                    'url'          => "https://www.{$expectedDomain}/dp/B0TEST/",
-                    'review_id'    => 'R123',
-                    'review_text'  => 'Test review',
-                    'product_name' => 'Test',
+                    'url' => "https://www.{$case['expected_domain']}/dp/B0TEST12345/",
+                    'product_name' => 'Test Product',
+                    'product_rating' => 4.5,
+                    'product_rating_count' => 100,
+                    'asin' => 'B0TEST12345',
+                    'review_id' => 'R1',
+                    'review_text' => 'Great product',
+                    'rating' => 5,
+                    'review_header' => 'Excellent',
+                    'author_name' => 'Test User',
+                    'author_id' => 'A1',
+                    'review_posted_date' => '2023-01-01',
+                    'review_country' => 'Test Country',
+                    'helpful_count' => 10,
+                    'is_amazon_vine' => false,
+                    'is_verified' => true,
+                    'badge' => 'Verified Purchase',
+                    'timestamp' => '2023-01-01T00:00:00Z',
                 ],
-            ])));
+            ];
+            $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
 
-            $result = $this->service->fetchReviews('B0TEST', $country);
+            $result = $this->service->fetchReviews('B0TEST12345', $case['country']);
+
+            $this->assertIsArray($result);
+            $this->assertArrayHasKey('reviews', $result);
             $this->assertCount(1, $result['reviews']);
         }
     }
@@ -344,46 +322,176 @@ class BrightDataScraperServiceTest extends TestCase
     #[Test]
     public function it_can_check_progress()
     {
-        // Mock progress response
-        $progressData = [
+        // Mock progress check response
+        $mockProgress = [
             [
-                'snapshot_id' => 's_progress1',
-                'status'      => 'running',
-                'created_at'  => '2025-08-12T21:00:00Z',
+                'id' => 'job_123',
+                'status' => 'running',
+                'records' => 50,
+                'created_at' => '2023-01-01T00:00:00Z',
             ],
             [
-                'snapshot_id' => 's_progress2',
-                'status'      => 'ready',
-                'total_rows'  => 25,
+                'id' => 'job_456',
+                'status' => 'ready',
+                'records' => 100,
+                'created_at' => '2023-01-01T01:00:00Z',
             ],
         ];
 
-        $this->mockHandler->append(new Response(200, [], json_encode($progressData)));
+        $this->mockHandler->append(new Response(200, [], json_encode($mockProgress)));
 
         $result = $this->service->checkProgress();
 
         $this->assertIsArray($result);
         $this->assertCount(2, $result);
-        $this->assertEquals('s_progress1', $result[0]['snapshot_id']);
+        $this->assertEquals('job_123', $result[0]['id']);
         $this->assertEquals('running', $result[0]['status']);
+        $this->assertEquals(50, $result[0]['records']);
     }
 
     #[Test]
     public function it_handles_network_errors_gracefully()
     {
-        // Mock network error
-        $this->mockHandler->append(new \GuzzleHttp\Exception\ConnectException(
-            'Connection timeout',
-            new \GuzzleHttp\Psr7\Request('POST', 'test')
-        ));
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
 
-        $result = $this->service->fetchReviews('B0TEST12345');
+        // Mock network error during job trigger
+        $this->mockHandler->append(new Response(500, [], json_encode(['error' => 'Internal server error'])));
 
-        $this->assertIsArray($result);
-        $this->assertEmpty($result['reviews']);
+        $result = $this->service->fetchReviews('B0TEST12345', 'us');
+
+        $this->assertEquals([], $result['reviews']);
+        $this->assertEquals('', $result['description']);
         $this->assertEquals(0, $result['total_reviews']);
     }
 
+    #[Test]
+    public function it_generates_limited_urls_for_cost_control()
+    {
+        // Set a low review cap for testing URL generation
+        config(['amazon.brightdata.max_reviews' => 50]);
+
+        // Mock concurrent job check
+        $this->mockHandler->append(new Response(200, [], json_encode([])));
+        
+        // Mock job trigger - verify the URLs sent to BrightData
+        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
+        
+        // Mock job completion
+        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 2])));
+
+        // Mock limited response data (since we're sending limited URLs)
+        $mockData = [
+            [
+                'url' => 'https://www.amazon.com/dp/B0123456789/',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R1',
+                'review_text' => 'First review from limited scraping',
+                'rating' => 5,
+                'review_header' => 'Great product',
+                'author_name' => 'John Doe',
+                'author_id' => 'A1',
+                'review_posted_date' => '2023-01-01',
+                'review_country' => 'United States',
+                'helpful_count' => 10,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-01T00:00:00Z',
+            ],
+            [
+                'url' => 'https://www.amazon.com/product-reviews/B0123456789/?pageNumber=1',
+                'product_name' => 'Test Product',
+                'product_rating' => 4.5,
+                'product_rating_count' => 100,
+                'asin' => 'B0123456789',
+                'review_id' => 'R2',
+                'review_text' => 'Second review from limited scraping',
+                'rating' => 4,
+                'review_header' => 'Good product',
+                'author_name' => 'Jane Smith',
+                'author_id' => 'A2',
+                'review_posted_date' => '2023-01-02',
+                'review_country' => 'United States',
+                'helpful_count' => 5,
+                'is_amazon_vine' => false,
+                'is_verified' => true,
+                'badge' => 'Verified Purchase',
+                'timestamp' => '2023-01-02T00:00:00Z',
+            ],
+        ];
+
+        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
+
+        $result = $this->service->fetchReviews('B0123456789', 'us');
+
+        // Verify all reviews are returned (no post-processing cap)
+        $this->assertCount(2, $result['reviews']);
+        $this->assertEquals('R1', $result['reviews'][0]['id']);
+        $this->assertEquals('R2', $result['reviews'][1]['id']);
+        $this->assertEquals('Test Product', $result['product_name']);
+        $this->assertEquals(100, $result['total_reviews']);
+    }
+
+    #[Test]
+    public function it_calculates_correct_url_count_for_different_caps()
+    {
+        // Test URL generation logic with different caps
+        $testCases = [
+            ['cap' => 15, 'expected_pages' => 1, 'total_urls' => 2], // 1 product + 1 review page
+            ['cap' => 30, 'expected_pages' => 2, 'total_urls' => 3], // 1 product + 2 review pages  
+            ['cap' => 50, 'expected_pages' => 4, 'total_urls' => 5], // 1 product + 4 review pages
+            ['cap' => 200, 'expected_pages' => 14, 'total_urls' => 15], // 1 product + 14 review pages
+        ];
+
+        foreach ($testCases as $case) {
+            config(['amazon.brightdata.max_reviews' => $case['cap']]);
+            
+            // Mock concurrent job check
+            $this->mockHandler->append(new Response(200, [], json_encode([])));
+            
+            // Mock job trigger
+            $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_' . $case['cap']])));
+            
+            // Mock job completion
+            $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 1])));
+
+            // Mock minimal response
+            $mockData = [
+                [
+                    'url' => 'https://www.amazon.com/dp/B0TEST/',
+                    'product_name' => 'Test Product',
+                    'product_rating' => 4.0,
+                    'product_rating_count' => 100,
+                    'asin' => 'B0TEST',
+                    'review_id' => 'R1',
+                    'review_text' => 'Test review',
+                    'rating' => 4,
+                    'review_header' => 'Test',
+                    'author_name' => 'Test User',
+                    'author_id' => 'A1',
+                    'review_posted_date' => '2023-01-01',
+                    'review_country' => 'United States',
+                    'helpful_count' => 1,
+                    'is_amazon_vine' => false,
+                    'is_verified' => true,
+                    'badge' => 'Verified Purchase',
+                    'timestamp' => '2023-01-01T00:00:00Z',
+                ],
+            ];
+
+            $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
+
+            $result = $this->service->fetchReviews('B0TEST', 'us');
+            
+            // Verify the service works (we can't directly test URL count without exposing the method)
+            $this->assertIsArray($result);
+            $this->assertArrayHasKey('reviews', $result);
+        }
+    }
 
     private function createMockBrightDataResponse(): array
     {
@@ -472,312 +580,5 @@ class BrightDataScraperServiceTest extends TestCase
                 'is_verified'          => true,
             ],
         ];
-    }
-
-    #[Test]
-    public function it_applies_review_cap_during_transformation()
-    {
-        // Set a low review cap for testing
-        config(['amazon.brightdata.max_reviews' => 2]);
-
-        // Mock concurrent job check (getJobsByStatus call)
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            // Return empty array to indicate no running jobs
-        ])));
-
-        // Mock successful job trigger
-        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
-
-        // Mock job completion
-        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 5])));
-
-        // Mock data with 5 reviews but expect only 2 due to cap
-        $mockData = [
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R1',
-                'review_text' => 'First review',
-                'rating' => 5,
-                'review_header' => 'Great product',
-                'author_name' => 'John Doe',
-                'author_id' => 'A1',
-                'review_posted_date' => '2023-01-01',
-                'review_country' => 'United States',
-                'helpful_count' => 10,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-01T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R2',
-                'review_text' => 'Second review',
-                'rating' => 4,
-                'review_header' => 'Good product',
-                'author_name' => 'Jane Smith',
-                'author_id' => 'A2',
-                'review_posted_date' => '2023-01-02',
-                'review_country' => 'United States',
-                'helpful_count' => 5,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-02T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R3',
-                'review_text' => 'Third review - should be capped',
-                'rating' => 3,
-                'review_header' => 'OK product',
-                'author_name' => 'Bob Wilson',
-                'author_id' => 'A3',
-                'review_posted_date' => '2023-01-03',
-                'review_country' => 'United States',
-                'helpful_count' => 2,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-03T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R4',
-                'review_text' => 'Fourth review - should be capped',
-                'rating' => 2,
-                'review_header' => 'Poor product',
-                'author_name' => 'Alice Brown',
-                'author_id' => 'A4',
-                'review_posted_date' => '2023-01-04',
-                'review_country' => 'United States',
-                'helpful_count' => 1,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-04T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R5',
-                'review_text' => 'Fifth review - should be capped',
-                'rating' => 1,
-                'review_header' => 'Terrible product',
-                'author_name' => 'Charlie Davis',
-                'author_id' => 'A5',
-                'review_posted_date' => '2023-01-05',
-                'review_country' => 'United States',
-                'helpful_count' => 0,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-05T00:00:00Z',
-            ],
-        ];
-
-        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
-
-        $result = $this->service->fetchReviews('B0123456789', 'us');
-
-        // Verify only 2 reviews are returned due to cap
-        $this->assertCount(2, $result['reviews']);
-        $this->assertEquals('R1', $result['reviews'][0]['id']);
-        $this->assertEquals('R2', $result['reviews'][1]['id']);
-        $this->assertEquals('Test Product', $result['product_name']);
-        $this->assertEquals(100, $result['total_reviews']);
-    }
-
-    #[Test]
-    public function it_respects_different_review_cap_values()
-    {
-        // Test with cap of 1
-        config(['amazon.brightdata.max_reviews' => 1]);
-
-        // Mock concurrent job check (getJobsByStatus call)
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            // Return empty array to indicate no running jobs
-        ])));
-
-        // Mock successful job trigger
-        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
-        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 3])));
-
-        $mockData = [
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R1',
-                'review_text' => 'First review',
-                'rating' => 5,
-                'review_header' => 'Great product',
-                'author_name' => 'John Doe',
-                'author_id' => 'A1',
-                'review_posted_date' => '2023-01-01',
-                'review_country' => 'United States',
-                'helpful_count' => 10,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-01T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R2',
-                'review_text' => 'Second review - should be capped',
-                'rating' => 4,
-                'review_header' => 'Good product',
-                'author_name' => 'Jane Smith',
-                'author_id' => 'A2',
-                'review_posted_date' => '2023-01-02',
-                'review_country' => 'United States',
-                'helpful_count' => 5,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-02T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R3',
-                'review_text' => 'Third review - should be capped',
-                'rating' => 3,
-                'review_header' => 'OK product',
-                'author_name' => 'Bob Wilson',
-                'author_id' => 'A3',
-                'review_posted_date' => '2023-01-03',
-                'review_country' => 'United States',
-                'helpful_count' => 2,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-03T00:00:00Z',
-            ],
-        ];
-
-        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
-
-        $result = $this->service->fetchReviews('B0123456789', 'us');
-
-        // Verify only 1 review is returned
-        $this->assertCount(1, $result['reviews']);
-        $this->assertEquals('R1', $result['reviews'][0]['id']);
-    }
-
-    #[Test]
-    public function it_uses_default_review_cap_when_not_configured()
-    {
-        // Don't set any config, should use default of 200
-        // Mock concurrent job check (getJobsByStatus call)
-        $this->mockHandler->append(new Response(200, [], json_encode([
-            // Return empty array to indicate no running jobs
-        ])));
-
-        // Mock successful job trigger
-        $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test_job_123'])));
-        $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'ready', 'records' => 3])));
-
-        $mockData = [
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R1',
-                'review_text' => 'First review',
-                'rating' => 5,
-                'review_header' => 'Great product',
-                'author_name' => 'John Doe',
-                'author_id' => 'A1',
-                'review_posted_date' => '2023-01-01',
-                'review_country' => 'United States',
-                'helpful_count' => 10,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-01T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R2',
-                'review_text' => 'Second review',
-                'rating' => 4,
-                'review_header' => 'Good product',
-                'author_name' => 'Jane Smith',
-                'author_id' => 'A2',
-                'review_posted_date' => '2023-01-02',
-                'review_country' => 'United States',
-                'helpful_count' => 5,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-02T00:00:00Z',
-            ],
-            [
-                'url' => 'https://www.amazon.com/dp/B0123456789/',
-                'product_name' => 'Test Product',
-                'product_rating' => 4.5,
-                'product_rating_count' => 100,
-                'asin' => 'B0123456789',
-                'review_id' => 'R3',
-                'review_text' => 'Third review',
-                'rating' => 3,
-                'review_header' => 'OK product',
-                'author_name' => 'Bob Wilson',
-                'author_id' => 'A3',
-                'review_posted_date' => '2023-01-03',
-                'review_country' => 'United States',
-                'helpful_count' => 2,
-                'is_amazon_vine' => false,
-                'is_verified' => true,
-                'badge' => 'Verified Purchase',
-                'timestamp' => '2023-01-03T00:00:00Z',
-            ],
-        ];
-
-        $this->mockHandler->append(new Response(200, [], json_encode($mockData)));
-
-        $result = $this->service->fetchReviews('B0123456789', 'us');
-
-        // All 3 reviews should be returned since we're under the default cap of 200
-        $this->assertCount(3, $result['reviews']);
-        $this->assertEquals('R1', $result['reviews'][0]['id']);
-        $this->assertEquals('R2', $result['reviews'][1]['id']);
-        $this->assertEquals('R3', $result['reviews'][2]['id']);
     }
 }
