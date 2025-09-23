@@ -331,21 +331,32 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 return ['url' => $url];
             }, $urls);
 
-            LoggingService::log('Triggering BrightData scraping job', [
-                'urls_count' => count($urls),
-                'dataset_id' => $this->datasetId,
-                'payload'    => $payload,
+            // Get review limit from environment variable
+            $maxReviews = (int) env('BRIGHTDATA_MAX_REVIEWS', 200);
+
+            LoggingService::log('Triggering BrightData scraping job with review limit', [
+                'urls_count'  => count($urls),
+                'dataset_id'  => $this->datasetId,
+                'max_reviews' => $maxReviews,
+                'payload'     => $payload,
             ]);
+
+            $queryParams = [
+                'dataset_id'     => $this->datasetId,
+                'include_errors' => 'true',
+            ];
+
+            // Add limit_multiple_results parameter for cost control
+            if ($maxReviews > 0) {
+                $queryParams['limit_multiple_results'] = $maxReviews;
+            }
 
             $response = $this->httpClient->post("{$this->baseUrl}/trigger", [
                 'headers' => [
                     'Authorization' => "Bearer {$this->apiKey}",
                     'Content-Type'  => 'application/json',
                 ],
-                'query' => [
-                    'dataset_id'     => $this->datasetId,
-                    'include_errors' => 'true',  // Include errors as per API docs
-                ],
+                'query' => $queryParams,
                 'json' => $payload,
             ]);
 
