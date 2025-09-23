@@ -439,12 +439,12 @@ class BrightDataScraperServiceTest extends TestCase
     #[Test]
     public function it_calculates_correct_url_count_for_different_caps()
     {
-        // Test URL generation logic with different caps
+        // Test URL generation logic with different caps (updated for 150 reviews per page)
         $testCases = [
-            ['cap' => 15, 'expected_pages' => 1, 'total_urls' => 2], // 1 product + 1 review page
-            ['cap' => 30, 'expected_pages' => 2, 'total_urls' => 3], // 1 product + 2 review pages  
-            ['cap' => 50, 'expected_pages' => 4, 'total_urls' => 5], // 1 product + 4 review pages
-            ['cap' => 200, 'expected_pages' => 14, 'total_urls' => 15], // 1 product + 14 review pages
+            ['cap' => 50, 'expected_pages' => 1, 'total_urls' => 2], // 1 product + 1 review page (50 ÷ 150 = 1)
+            ['cap' => 150, 'expected_pages' => 1, 'total_urls' => 2], // 1 product + 1 review page (150 ÷ 150 = 1)
+            ['cap' => 200, 'expected_pages' => 2, 'total_urls' => 3], // 1 product + 2 review pages (200 ÷ 150 = 2)
+            ['cap' => 500, 'expected_pages' => 4, 'total_urls' => 5], // 1 product + 4 review pages (500 ÷ 150 = 4)
         ];
 
         foreach ($testCases as $case) {
