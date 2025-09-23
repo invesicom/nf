@@ -158,8 +158,7 @@ class ReviewAnalysisServiceIntegrationTest extends TestCase
     public function it_handles_products_with_no_reviews_gracefully()
     {
         // Create an AsinData record with no reviews (simulates products without reviews)
-        $asinData = AsinData::create([
-            'asin'    => 'B0TEST12345',
+        $asinData = AsinData::factory()->create([
             'country' => 'us',
             'reviews' => json_encode([]), // Empty reviews array
             'status'  => 'pending_analysis',

@@ -130,7 +130,6 @@ class ProductAnalysisPolicyTest extends TestCase
     public function it_completes_analysis_for_products_without_reviews()
     {
         $product = AsinData::factory()->create([
-            'asin'            => 'B0TEST12345',
             'reviews'         => [],
             'status'          => 'pending_analysis',
             'fake_percentage' => null,
