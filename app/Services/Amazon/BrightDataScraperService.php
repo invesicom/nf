@@ -79,24 +79,16 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         ]);
 
         try {
-            // Use single product URL with API parameters to limit reviews (BrightData recommended approach)
+            // Construct Amazon product URL
             $productUrl = $this->buildAmazonUrl($asin, $country);
-            $maxReviews = config('amazon.brightdata.max_reviews', 200);
 
-            LoggingService::log('BrightData cost control - using API parameters to limit reviews', [
-                'asin'        => $asin,
-                'product_url' => $productUrl,
-                'max_reviews' => $maxReviews,
-                'cost_saving' => 'Using BrightData API parameters instead of multiple URLs',
-            ]);
-
-            // Trigger BrightData scraping job with review limit parameters
-            $jobId = $this->triggerScrapingJobWithLimits($productUrl, $maxReviews);
+            // Trigger BrightData scraping job
+            $jobId = $this->triggerScrapingJob([$productUrl]);
 
             if (!$jobId) {
                 LoggingService::log('Failed to trigger BrightData scraping job', [
-                    'asin'        => $asin,
-                    'product_url' => $productUrl,
+                    'asin' => $asin,
+                    'url'  => $productUrl,
                 ]);
 
                 return [
@@ -284,43 +276,9 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     }
 
     /**
-     * Build limited review URLs to control BrightData scraping scope and reduce costs.
-     * This sends specific review page URLs instead of the unlimited product URL.
+     * Build Amazon product URL for the given ASIN and country.
      */
-    private function buildLimitedReviewUrls(string $asin, string $country): array
-    {
-        $maxReviews = config('amazon.brightdata.max_reviews', 200);
-        $reviewsPerPage = 150; // Updated based on real data: Amazon has ~140-150 reviews per page
-        $maxPages = max(1, ceil($maxReviews / $reviewsPerPage));
-        
-        $domain = $this->getDomainForCountry($country);
-        $urls = [];
-        
-        // Always include the main product page for product metadata
-        $urls[] = "https://www.{$domain}/dp/{$asin}/";
-        
-        // Add specific review pages to limit scraping scope
-        for ($page = 1; $page <= $maxPages; $page++) {
-            $urls[] = "https://www.{$domain}/product-reviews/{$asin}/?pageNumber={$page}";
-        }
-        
-        LoggingService::log('BrightData URL generation for cost control', [
-            'asin'              => $asin,
-            'country'           => $country,
-            'max_reviews'       => $maxReviews,
-            'reviews_per_page'  => $reviewsPerPage,
-            'max_pages'         => $maxPages,
-            'total_urls'        => count($urls),
-            'cost_benefit'      => "Limited to {$maxPages} review pages instead of unlimited scraping",
-        ]);
-        
-        return $urls;
-    }
-
-    /**
-     * Get domain for country (extracted for reuse).
-     */
-    private function getDomainForCountry(string $country): string
+    private function buildAmazonUrl(string $asin, string $country): string
     {
         $domains = [
             'us' => 'amazon.com',
@@ -349,130 +307,13 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'be' => 'amazon.be',
         ];
 
-        return $domains[$country] ?? $domains['us'];
-    }
+        $domain = $domains[$country] ?? $domains['us'];
 
-    /**
-     * Build Amazon product URL for the given ASIN and country.
-     */
-    private function buildAmazonUrl(string $asin, string $country): string
-    {
-        $domain = $this->getDomainForCountry($country);
         return "https://www.{$domain}/dp/{$asin}/";
     }
 
     /**
-     * Trigger a BrightData scraping job with review limits (BrightData recommended approach).
-     */
-    private function triggerScrapingJobWithLimits(string $productUrl, int $maxReviews): ?string
-    {
-        // Check if we're approaching the concurrent job limit
-        if (!$this->canCreateNewJob()) {
-            LoggingService::log('BrightData job creation blocked - too many concurrent jobs', [
-                'product_url' => $productUrl,
-                'max_reviews' => $maxReviews,
-                'reason'      => 'Approaching concurrent job limit',
-            ]);
-            return null;
-        }
-
-        try {
-            // Use single product URL - try different parameter names for review limits
-            $payload = [
-                [
-                    'url' => $productUrl,
-                    // Try various parameter names that BrightData might accept
-                    // 'max_reviews' => $maxReviews, // REJECTED by BrightData API
-                    // 'limit' => $maxReviews,
-                    // 'review_limit' => $maxReviews,
-                    // 'max_results' => $maxReviews,
-                ]
-            ];
-
-            LoggingService::log('Triggering BrightData scraping job with review limits', [
-                'product_url' => $productUrl,
-                'max_reviews' => $maxReviews,
-                'dataset_id'  => $this->datasetId,
-                'payload'     => $payload,
-            ]);
-
-            $response = $this->httpClient->post("{$this->baseUrl}/trigger", [
-                'headers' => [
-                    'Authorization' => "Bearer {$this->apiKey}",
-                    'Content-Type'  => 'application/json',
-                ],
-                'query' => [
-                    'dataset_id'     => $this->datasetId,
-                    'include_errors' => 'true',
-                    // 'max_reviews' => $maxReviews, // REJECTED by BrightData API
-                ],
-                'json' => $payload,
-            ]);
-
-            $statusCode = $response->getStatusCode();
-            $body = $response->getBody()->getContents();
-
-            if ($statusCode !== 200) {
-                LoggingService::log('BrightData job trigger failed', [
-                    'product_url'   => $productUrl,
-                    'max_reviews'   => $maxReviews,
-                    'status_code'   => $statusCode,
-                    'response_body' => substr($body, 0, 500),
-                ]);
-
-                app(AlertManager::class)->recordFailure(
-                    'BrightData',
-                    'JOB_TRIGGER_FAILED',
-                    "HTTP {$statusCode}: " . substr($body, 0, 200),
-                    ['product_url' => $productUrl, 'max_reviews' => $maxReviews]
-                );
-
-                return null;
-            }
-
-            $responseData = json_decode($body, true);
-            $jobId = $responseData['snapshot_id'] ?? null;
-
-            if (!$jobId) {
-                LoggingService::log('BrightData job trigger succeeded but no job ID returned', [
-                    'product_url'   => $productUrl,
-                    'max_reviews'   => $maxReviews,
-                    'response_body' => $body,
-                ]);
-                return null;
-            }
-
-            LoggingService::log('BrightData job triggered successfully with review limits', [
-                'job_id'      => $jobId,
-                'product_url' => $productUrl,
-                'max_reviews' => $maxReviews,
-                'response'    => $responseData,
-            ]);
-
-            return $jobId;
-
-        } catch (RequestException $e) {
-            LoggingService::log('BrightData job trigger request failed', [
-                'product_url' => $productUrl,
-                'max_reviews' => $maxReviews,
-                'error'       => $e->getMessage(),
-                'code'        => $e->getCode(),
-            ]);
-
-            app(AlertManager::class)->recordFailure(
-                'BrightData',
-                'API_ERROR',
-                $e->getMessage(),
-                ['product_url' => $productUrl, 'max_reviews' => $maxReviews],
-                $e
-            );
-
-            return null;
-        }
-    }
-
-    /**
-     * Trigger a BrightData scraping job (legacy method - kept for compatibility).
+     * Trigger a BrightData scraping job.
      */
     private function triggerScrapingJob(array $urls): ?string
     {
@@ -808,8 +649,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
     /**
      * Transform BrightData results to our internal format.
-     * Note: Cost control is now handled by limiting URLs sent to BrightData,
-     * not by post-processing results after they've already been scraped and billed.
      */
     private function transformBrightDataResults(array $results, string $asin): array
     {
@@ -834,7 +673,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
             // Transform review data - BrightData provides very rich data
             if (!empty($item['review_text']) && !empty($item['review_id'])) {
-
                 $review = [
                     'id'        => $item['review_id'],
                     'rating'    => $item['rating'] ?? 0,
@@ -877,7 +715,6 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             'reviews_extracted'       => count($reviews),
             'product_name'            => $productName,
             'total_reviews_on_amazon' => $totalReviews,
-            'cost_control_method'     => 'BrightData API parameters (recommended approach)',
         ]);
 
         return [
