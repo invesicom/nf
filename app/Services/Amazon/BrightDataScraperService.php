@@ -377,11 +377,15 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         }
 
         try {
-            // Use single product URL with review limit parameters
+            // Use single product URL - try different parameter names for review limits
             $payload = [
                 [
-                    'url'         => $productUrl,
-                    'max_reviews' => $maxReviews, // BrightData API parameter to limit reviews
+                    'url' => $productUrl,
+                    // Try various parameter names that BrightData might accept
+                    // 'max_reviews' => $maxReviews, // REJECTED by BrightData API
+                    // 'limit' => $maxReviews,
+                    // 'review_limit' => $maxReviews,
+                    // 'max_results' => $maxReviews,
                 ]
             ];
 
@@ -400,7 +404,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 'query' => [
                     'dataset_id'     => $this->datasetId,
                     'include_errors' => 'true',
-                    'max_reviews'    => $maxReviews, // Also try as query parameter
+                    // 'max_reviews' => $maxReviews, // REJECTED by BrightData API
                 ],
                 'json' => $payload,
             ]);
