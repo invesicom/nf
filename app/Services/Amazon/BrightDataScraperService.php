@@ -505,7 +505,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
                 // Unknown status - continue polling
                 $attempt++;
-                sleep($pollInterval);
+                sleep($this->pollInterval);
             } catch (RequestException $e) {
                 LoggingService::log('BrightData polling request failed', [
                     'job_id'  => $jobId,
@@ -527,7 +527,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 );
 
                 $attempt++;
-                sleep($pollInterval);
+                sleep($this->pollInterval);
             }
         }
 
