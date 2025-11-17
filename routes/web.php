@@ -18,7 +18,10 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/', function () {
-    return view('home');
+    $seoService = app(\App\Services\SEOService::class);
+    $seoData = $seoService->generateHomeSEOData();
+    
+    return view('home', compact('seoData'));
 })->name('home');
 
 Route::get('/privacy', function () {
@@ -43,10 +46,9 @@ Route::prefix('newsletter')->name('newsletter.')->group(function () {
 
 // SEO and sitemap routes
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.main');
-Route::get('/sitemap-index.xml', [SitemapController::class, 'sitemapIndex'])->name('sitemap.index');
-Route::get('/sitemap-products-{page}.xml', [SitemapController::class, 'products'])
-    ->name('sitemap.products')
-    ->where('page', '[0-9]+');
+Route::get('/sitemap-static.xml', [SitemapController::class, 'static'])->name('sitemap.static');
+Route::get('/sitemap-products.xml', [SitemapController::class, 'products'])->name('sitemap.products');
+Route::get('/sitemap-analysis.xml', [SitemapController::class, 'analysis'])->name('sitemap.analysis');
 
 // Dynamic robots.txt
 Route::get('/robots.txt', function () {

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AsinData;
 use App\Services\LoggingService;
+use App\Services\SEOService;
 use Illuminate\Http\Request;
 
 class AmazonProductController extends Controller
@@ -148,17 +149,18 @@ class AmazonProductController extends Controller
             'grade'            => $asinData->grade,
         ]);
 
-        // Generate SEO data
-        $seoData = $this->generateSeoData($asinData);
+        // Generate comprehensive SEO data using the new SEOService
+        $seoService = app(SEOService::class);
+        $seoData = $seoService->generateProductSEOData($asinData);
 
         // Display the full product analysis
         return response()
             ->view('amazon.product-show', [
                 'asinData'         => $asinData,
                 'amazon_url'       => $this->buildAmazonUrl($asinData->asin, $asinData->country ?? 'us'),
-                'meta_title'       => $this->generateMetaTitle($asinData),
-                'meta_description' => $this->generateMetaDescription($asinData),
-                'canonical_url'    => $asinData->seo_url,
+                'meta_title'       => $seoData['meta_title'],
+                'meta_description' => $seoData['meta_description'],
+                'canonical_url'    => $seoData['canonical_url'],
                 'seo_data'         => $seoData,
             ])
             ->header('Cache-Control', 'public, max-age=900') // 15 minutes cache

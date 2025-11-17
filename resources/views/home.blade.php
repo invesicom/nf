@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>Null Fake - Amazon Review Analysis</title>
-  <meta name="description" content="Null Fake is an AI-powered tool that analyzes Amazon product reviews for authenticity across 14+ countries. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product from US, Canada, Germany, France, UK, Japan, Mexico, Brazil, India, Singapore and more. Built for global shoppers and sellers." />
-  <meta name="keywords" content="Amazon review analysis, fake review detector, AI review analysis, Amazon authenticity checker, product review trust, Amazon international, Amazon US, Amazon Canada, Amazon Germany, Amazon France, Amazon UK, Amazon Japan, Amazon Mexico, Amazon Brazil, Amazon India, Amazon Singapore, review analyzer, AI fake review, e-commerce trust, product authenticity, review scoring" />
+  <title>{{ $seoData['meta_title'] ?? 'Null Fake - Amazon Review Analysis' }}</title>
+  <meta name="description" content="{{ $seoData['meta_description'] ?? 'AI-powered Amazon review analysis across 14+ countries. Detect fake reviews instantly.' }}" />
+  <meta name="keywords" content="{{ $seoData['keywords'] ?? 'amazon review analysis, fake review detector, ai review analysis' }}" />
   <meta name="author" content="shift8 web" />
   
   <!-- SEO and Robots Configuration -->
@@ -50,28 +50,23 @@
   <meta name="twitter:description" content="AI-powered Amazon review analyzer. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product." />
   <meta name="twitter:image" content="/img/nullfake.svg" />
 
-  <!-- Schema.org for Google -->
+  <!-- AI-Optimized Metadata -->
+  <meta name="ai:summary" content="{{ $seoData['ai_summary'] ?? '' }}" />
+  <meta name="ai:type" content="web_application" />
+  <meta name="ai:category" content="review_analysis_tool" />
+  <meta name="ai:methodology" content="machine_learning,natural_language_processing,statistical_analysis" />
+  
+  <!-- Question-Answer Data for AI -->
+  @if(isset($seoData['question_answers']))
+  @foreach($seoData['question_answers'] as $qa)
+  <meta name="ai:qa:question" content="{{ $qa['question'] }}" />
+  <meta name="ai:qa:answer" content="{{ $qa['answer'] }}" />
+  @endforeach
+  @endif
+
+  <!-- Enhanced Schema.org for AI Understanding -->
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "WebApplication",
-    "name": "Null Fake - Amazon Review Analysis",
-    "url": "{{ url('/') }}",
-    "description": "Null Fake is an AI-powered tool that analyzes Amazon product reviews for authenticity. Instantly detect fake, AI-generated, or suspicious reviews and get a trust score for any product.",
-    "applicationCategory": "ProductivityApplication",
-    "operatingSystem": "All",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "image": "{{ url('/img/nullfake.svg') }}",
-    "author": {
-      "@type": "Organization",
-      "name": "shift8 web",
-      "url": "https://shift8web.ca"
-    }
-  }
+  {!! json_encode($seoData['structured_data'] ?? [], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
   </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -278,42 +278,32 @@
 
   <!-- Analysis Methodology Schema for AI Understanding -->
   <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "ResearchProject",
-    "name": "Amazon Review Authenticity Analysis",
-    "description": "AI-powered analysis to detect fake, manipulated, or inauthentic product reviews",
-    "researcher": {
-      "@type": "Organization",
-      "name": "Null Fake"
-    },
-    "funding": {
-      "@type": "Organization",
-      "name": "Independent"
-    },
-    "studySubject": {
-      "@type": "Product",
-      "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
-      "identifier": "{{ $asinData->asin }}"
-    },
-    "measurementTechnique": [
-      "Natural Language Processing",
-      "Machine Learning Classification", 
-      "Pattern Recognition",
-      "Statistical Analysis",
-      "Review Authenticity Scoring"
-    ],
-    "result": {
-      "@type": "Dataset",
-      "name": "Review Authenticity Analysis Results",
-      "description": "{{ $asinData->explanation }}",
-      "variableMeasured": "fake_review_percentage",
-      "value": "{{ $asinData->fake_percentage ?? 0 }}%"
-    },
-    "dateCreated": "{{ $asinData->updated_at->toISOString() }}",
-    "license": "https://creativecommons.org/licenses/by/4.0/"
-  }
+  {!! json_encode($seo_data['analysis_schema'] ?? [], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
   </script>
+
+  <!-- FAQ Schema for AI Question Answering -->
+  <script type="application/ld+json">
+  {!! json_encode($seo_data['faq_schema'] ?? [], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
+  </script>
+
+  <!-- HowTo Schema for Process Understanding -->
+  <script type="application/ld+json">
+  {!! json_encode($seo_data['how_to_schema'] ?? [], JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT) !!}
+  </script>
+
+  <!-- AI-Optimized Metadata for Enhanced Understanding -->
+  <meta name="ai:summary" content="{{ $seo_data['ai_summary'] ?? '' }}" />
+  <meta name="ai:confidence" content="{{ $seo_data['confidence_score'] ?? 0 }}" />
+  <meta name="ai:methodology" content="machine_learning,natural_language_processing,statistical_analysis" />
+  <meta name="ai:data_freshness" content="{{ $seo_data['data_freshness'] ?? '' }}" />
+  
+  <!-- Question-Answer Structured Data for AI -->
+  @if(isset($seo_data['question_answers']))
+  @foreach($seo_data['question_answers'] as $qa)
+  <meta name="ai:qa:question" content="{{ $qa['question'] }}" />
+  <meta name="ai:qa:answer" content="{{ $qa['answer'] }}" />
+  @endforeach
+  @endif
 </head>
 
 <body class="bg-gray-50 min-h-screen">
