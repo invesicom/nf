@@ -189,8 +189,9 @@ class ExtensionController extends Controller
             ], 404);
         }
 
-        // Check if analysis is complete
-        if ($asinData->status !== 'completed' || is_null($asinData->fake_percentage) || is_null($asinData->grade)) {
+        // Check if analysis is complete AND page is ready to display
+        // Use the same logic as AmazonProductController to ensure consistency
+        if (!$asinData->isAnalyzed()) {
             return response()->json([
                 'exists' => true,
                 'status' => 'analyzing',

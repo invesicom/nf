@@ -32,10 +32,14 @@ class AmazonProductController extends Controller
                 'asin'    => $asin,
             ]);
 
-            return view('amazon.product-not-found', [
-                'asin'       => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin, $country),
-            ]);
+            return response()
+                ->view('amazon.product-not-found', [
+                    'asin'       => $asin,
+                    'amazon_url' => $this->buildAmazonUrl($asin, $country),
+                ])
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
 
         // Check if the product has been fully analyzed
@@ -46,11 +50,15 @@ class AmazonProductController extends Controller
                 'has_openai_result' => !empty($asinData->openai_result),
             ]);
 
-            return view('amazon.product-not-found', [
-                'asin'       => $asin,
-                'amazon_url' => "https://www.amazon.com/dp/{$asin}",
-                'message'    => 'This product analysis is still in progress. Please try again in a few moments.',
-            ]);
+            return response()
+                ->view('amazon.product-not-found', [
+                    'asin'       => $asin,
+                    'amazon_url' => "https://www.amazon.com/dp/{$asin}",
+                    'message'    => 'This product analysis is still in progress. Please try again in a few moments.',
+                ])
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
 
         // If product has a title/slug, redirect to SEO-friendly URL
@@ -96,10 +104,14 @@ class AmazonProductController extends Controller
                 'slug'    => $slug,
             ]);
 
-            return view('amazon.product-not-found', [
-                'asin'       => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin, $country),
-            ]);
+            return response()
+                ->view('amazon.product-not-found', [
+                    'asin'       => $asin,
+                    'amazon_url' => $this->buildAmazonUrl($asin, $country),
+                ])
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
 
         // Check if the product has been fully analyzed
@@ -111,11 +123,15 @@ class AmazonProductController extends Controller
                 'has_openai_result' => !empty($asinData->openai_result),
             ]);
 
-            return view('amazon.product-not-found', [
-                'asin'       => $asin,
-                'amazon_url' => "https://www.amazon.com/dp/{$asin}",
-                'message'    => 'This product analysis is still in progress. Please try again in a few moments.',
-            ]);
+            return response()
+                ->view('amazon.product-not-found', [
+                    'asin'       => $asin,
+                    'amazon_url' => "https://www.amazon.com/dp/{$asin}",
+                    'message'    => 'This product analysis is still in progress. Please try again in a few moments.',
+                ])
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
         }
 
         // Verify the slug matches the current product title

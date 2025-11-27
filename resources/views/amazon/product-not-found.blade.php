@@ -6,6 +6,9 @@
   <title>Product Not Found - {{ $asin }} | Null Fake</title>
   <meta name="description" content="The Amazon product {{ $asin }} has not been analyzed yet. Analyze it now on Null Fake." />
   <meta name="robots" content="noindex, nofollow" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   
   <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -43,7 +46,7 @@
       </div>
 
       <div class="mt-8 p-4 bg-brand bg-opacity-5 rounded-lg">
-        <p class="text-sm text-brand-dark">
+        <p class="text-sm text-white">
           <strong>Want to analyze this product?</strong> 
           Copy the Amazon URL and paste it on our home page to get started.
         </p>
