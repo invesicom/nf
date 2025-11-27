@@ -654,7 +654,7 @@ class SEOService
      */
     private function formatExplanationForAI(string $explanation): string
     {
-        // Clean up the explanation for AI/meta tag use
+        // Clean up the explanation for AI/meta tag use - convert paragraph breaks to spaces
         $formatted = str_replace(["\n\n", "\n"], [' ', ' '], $explanation);
         $formatted = preg_replace('/\s+/', ' ', $formatted); // Normalize whitespace
         $formatted = trim($formatted);

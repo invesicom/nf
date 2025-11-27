@@ -238,35 +238,35 @@ class MetricsCalculationService
     }
 
     /**
-     * Generate explanation text for the analysis.
+     * Generate explanation text for the analysis with proper paragraph breaks.
      */
     private function generateExplanation(int $totalReviews, int $fakeCount, float $fakePercentage): string
     {
-        $explanation = "Analysis of {$totalReviews} reviews found {$fakeCount} potentially fake reviews (".round($fakePercentage, 1).'%). ';
+        $paragraph1 = "Analysis of {$totalReviews} reviews found {$fakeCount} potentially fake reviews (".round($fakePercentage, 1).'%). ';
 
         if ($fakePercentage <= 15) {
-            $explanation .= 'This product demonstrates excellent review authenticity with very low fake review activity. ';
-            $explanation .= 'The majority of reviews show genuine customer experiences with specific details and balanced perspectives. ';
-            $explanation .= 'This indicates a trustworthy product with authentic customer feedback.';
+            $paragraph1 .= 'This product demonstrates excellent review authenticity with very low fake review activity.';
+            $paragraph2 = 'The majority of reviews show genuine customer experiences with specific details and balanced perspectives. This indicates a trustworthy product with authentic customer feedback.';
+            $paragraph3 = 'Review patterns suggest legitimate customer engagement with minimal artificial manipulation. The authenticity indicators align with genuine product experiences.';
         } elseif ($fakePercentage <= 30) {
-            $explanation .= 'This product shows good review authenticity with low fake review activity. ';
-            $explanation .= 'Most customer feedback appears genuine with specific product experiences and realistic expectations. ';
-            $explanation .= 'Minor concerns may exist but overall review quality is reliable for purchase decisions.';
+            $paragraph1 .= 'This product shows good review authenticity with low fake review activity.';
+            $paragraph2 = 'Most customer feedback appears genuine with specific product experiences and realistic expectations. Minor concerns may exist but overall review quality is reliable for purchase decisions.';
+            $paragraph3 = 'The review distribution and language patterns suggest predominantly authentic customer feedback with minimal artificial influence.';
         } elseif ($fakePercentage <= 50) {
-            $explanation .= 'This product has moderate fake review concerns requiring careful evaluation. ';
-            $explanation .= 'Mixed signals in review authenticity suggest some artificial inflation of ratings. ';
-            $explanation .= 'Genuine reviews are present but exercise caution and focus on verified purchase reviews when making decisions.';
+            $paragraph1 .= 'This product has moderate fake review concerns requiring careful evaluation.';
+            $paragraph2 = 'Mixed signals in review authenticity suggest some artificial inflation of ratings. Genuine reviews are present but exercise caution and focus on verified purchase reviews when making decisions.';
+            $paragraph3 = 'The analysis reveals a combination of authentic customer experiences alongside potentially manipulated content that may influence overall ratings.';
         } elseif ($fakePercentage <= 70) {
-            $explanation .= 'This product shows high fake review activity with significant authenticity concerns. ';
-            $explanation .= 'Many reviews exhibit patterns consistent with artificial generation or incentivized feedback. ';
-            $explanation .= 'Genuine customer experiences may be overshadowed by promotional content. Proceed with caution.';
+            $paragraph1 .= 'This product shows high fake review activity with significant authenticity concerns.';
+            $paragraph2 = 'Many reviews exhibit patterns consistent with artificial generation or incentivized feedback. Genuine customer experiences may be overshadowed by promotional content.';
+            $paragraph3 = 'The prevalence of suspicious review patterns suggests coordinated efforts to artificially enhance product ratings. Proceed with caution when evaluating customer feedback.';
         } else {
-            $explanation .= 'This product has very high fake review activity with most reviews appearing artificially generated. ';
-            $explanation .= 'Extensive patterns of promotional language, generic praise, and suspicious timing suggest coordinated fake review campaigns. ';
-            $explanation .= 'Authentic customer feedback is minimal. Consider alternative products with more reliable review profiles.';
+            $paragraph1 .= 'This product has very high fake review activity with most reviews appearing artificially generated.';
+            $paragraph2 = 'Extensive patterns of promotional language, generic praise, and suspicious timing suggest coordinated fake review campaigns. Authentic customer feedback is minimal.';
+            $paragraph3 = 'The overwhelming presence of artificial reviews makes it difficult to assess genuine product quality. Consider alternative products with more reliable review profiles.';
         }
 
-        return $explanation;
+        return $paragraph1 . "\n\n" . $paragraph2 . "\n\n" . $paragraph3;
     }
 
     /**

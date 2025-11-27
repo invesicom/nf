@@ -96,11 +96,12 @@ class PromptGenerationService
                '  "key_patterns": ["<pattern1>", "<pattern2>"],\n' .
                '  "product_insights": "<2-3 sentence analysis of what this product appears to be based on genuine reviews, avoiding direct copying of product descriptions>"\n' .
                '}\n\n' .
-               'CRITICAL: Create a comprehensive 3-4 paragraph explanation that includes:\n' .
-               '1. Overall assessment with verification rates and rating distribution analysis\n' .
-               '2. Specific examples of language patterns found (quote 1-2 brief snippets)\n' .
-               '3. Analysis of review authenticity indicators (timing, specificity, emotional tone)\n' .
-               '4. Summary of key concerns or positive indicators found\n\n' .
+               'CRITICAL: Create a comprehensive explanation with 3-4 distinct paragraphs separated by double line breaks (\\n\\n):\n' .
+               'PARAGRAPH 1: Overall assessment with verification rates and rating distribution analysis\n' .
+               'PARAGRAPH 2: Specific examples of language patterns found (quote 1-2 brief snippets)\n' .
+               'PARAGRAPH 3: Analysis of review authenticity indicators (timing, specificity, emotional tone)\n' .
+               'PARAGRAPH 4: Summary of key concerns or positive indicators found\n\n' .
+               'IMPORTANT: Separate each paragraph with double line breaks (\\n\\n) for proper formatting.\n\n' .
                'For product_insights: Analyze genuine reviews to describe what this product actually is and its key characteristics, ' .
                'written in your own words for SEO purposes. Focus on real user experiences rather than marketing descriptions.';
     }

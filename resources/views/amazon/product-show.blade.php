@@ -403,7 +403,15 @@
       <div class="mb-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-3">Analysis Summary</h3>
         <div class="bg-gray-50 p-4 rounded-lg">
-          <p class="text-gray-700">{{ $asinData->explanation }}</p>
+          <div class="text-gray-700 space-y-4">
+            @if($asinData->explanation)
+              @foreach(explode("\n\n", $asinData->explanation) as $paragraph)
+                @if(trim($paragraph))
+                  <p>{{ trim($paragraph) }}</p>
+                @endif
+              @endforeach
+            @endif
+          </div>
         </div>
       </div>
 
