@@ -24,3 +24,7 @@ sync_prod.sh
 
 #Ignore cursor AI rules
 .cursor/rules/codacy.mdc
+
+# Ignore GitHub workflows and Codacy configuration
+.github/workflows
+.codacy
