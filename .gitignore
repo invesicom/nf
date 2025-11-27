@@ -20,3 +20,7 @@ yarn-error.log
 /.vscode
 .cursorrules
 sync_prod.sh
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc

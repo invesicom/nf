@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessProductAnalysis;
+use App\Models\AnalysisSession;
 use App\Models\AsinData;
 use App\Services\ExtensionReviewService;
 use App\Services\LoggingService;
@@ -95,85 +97,19 @@ class ExtensionController extends Controller
                 'extension_version' => $data['extension_version'],
             ]);
 
-            // Process the extension data
-            $asinData = $this->extensionService->processExtensionData($data);
+            // Check if async processing is enabled (disabled in testing environment)
+            $asyncEnabled = !app()->environment('testing') && (
+                config('analysis.async_enabled') ??
+                filter_var(env('ANALYSIS_ASYNC_ENABLED'), FILTER_VALIDATE_BOOLEAN) ??
+                (env('APP_ENV') === 'production')
+            );
 
-            // Perform analysis
-            $asinData = $this->analysisService->analyzeWithLLM($asinData);
-            $metrics = $this->analysisService->calculateFinalMetrics($asinData);
-            
-            // Get updated model with final metrics
-            $asinData = $asinData->fresh();
-
-            // Check if analysis actually succeeded
-            if (is_null($asinData->fake_percentage) || is_null($asinData->grade)) {
-                LoggingService::log('Chrome extension analysis failed - no valid results', [
-                    'asin' => $data['asin'],
-                    'fake_percentage' => $asinData->fake_percentage,
-                    'grade' => $asinData->grade,
-                    'status' => $asinData->status,
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'error' => 'Analysis failed - unable to process reviews',
-                    'error_details' => 'All LLM providers failed or returned invalid results. Please try again later.',
-                    'asin' => $data['asin'],
-                    'country' => $data['country'],
-                    'processed_reviews' => count($asinData->getReviewsArray()),
-                    'retry_suggested' => true,
-                ], 500);
+            if ($asyncEnabled) {
+                return $this->handleAsyncAnalysis($data);
             }
 
-            // Build response with detailed analysis results (matching front-end display)
-            $reviewsAnalyzed = count($asinData->getReviewsArray());
-            $fakeReviewCount = round(($asinData->fake_percentage / 100) * $reviewsAnalyzed);
-            $genuineReviewCount = $reviewsAnalyzed - $fakeReviewCount;
-            $ratingDifference = ($asinData->adjusted_rating ?? 0) - ($asinData->amazon_rating ?? 0);
-            
-            $response = [
-                'success' => true,
-                'asin' => $data['asin'],
-                'country' => $data['country'],
-                'analysis_id' => $asinData->id,
-                'processed_reviews' => $reviewsAnalyzed,
-                'analysis_complete' => true,
-                'results' => [
-                    'fake_percentage' => $asinData->fake_percentage ?? 0,
-                    'grade' => $asinData->grade,
-                    'explanation' => $asinData->explanation,
-                    'amazon_rating' => $asinData->amazon_rating ?? 0,
-                    'adjusted_rating' => $asinData->adjusted_rating ?? 0,
-                    'rating_difference' => round($ratingDifference, 2),
-                ],
-                'statistics' => [
-                    'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon ?? null,
-                    'reviews_analyzed' => $reviewsAnalyzed,
-                    'genuine_reviews' => $genuineReviewCount,
-                    'fake_reviews' => $fakeReviewCount,
-                ],
-                'product_info' => [
-                    'title' => $asinData->product_title,
-                    'description' => $asinData->product_description,
-                    'image_url' => $asinData->product_image_url,
-                ],
-                'view_url' => route('amazon.product.show', [
-                    'asin' => $data['asin'],
-                    'country' => $data['country'],
-                ]),
-                'redirect_url' => route('amazon.product.show', [
-                    'asin' => $data['asin'],
-                    'country' => $data['country'],
-                ]),
-            ];
-
-            LoggingService::log('Chrome extension analysis completed', [
-                'asin' => $data['asin'],
-                'fake_percentage' => $asinData->fake_percentage,
-                'grade' => $asinData->grade,
-            ]);
-
-            return response()->json($response);
+            // Synchronous processing (existing behavior)
+            return $this->handleSyncAnalysis($data);
 
         } catch (\Exception $e) {
             LoggingService::handleException($e, 'Chrome extension data processing failed');
@@ -183,6 +119,49 @@ class ExtensionController extends Controller
                 'error' => 'Failed to process review data: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Get progress for extension analysis session.
+     */
+    public function getExtensionProgress(Request $request, string $sessionId): JsonResponse
+    {
+        if (!app()->environment(['local', 'testing']) && config('services.extension.require_api_key', true) && !$this->validateApiKey($request)) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Invalid or missing API key',
+            ], 401);
+        }
+
+        $session = AnalysisSession::find($sessionId);
+
+        if (!$session) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Analysis session not found',
+            ], 404);
+        }
+
+        $response = [
+            'success'             => true,
+            'status'              => $session->status,
+            'current_step'        => $session->current_step,
+            'total_steps'         => $session->total_steps,
+            'progress_percentage' => $session->progress_percentage,
+            'current_message'     => $session->current_message,
+            'asin'                => $session->asin,
+        ];
+
+        if ($session->isCompleted()) {
+            $response['result'] = $session->result;
+            $response['redirect_url'] = $session->result['redirect_url'] ?? null;
+            $response['analysis_complete'] = true;
+        } elseif ($session->isFailed()) {
+            $response['error'] = $session->error_message;
+            $response['analysis_complete'] = false;
+        }
+
+        return response()->json($response);
     }
 
     /**
@@ -276,5 +255,141 @@ class ExtensionController extends Controller
         }
 
         return hash_equals($validApiKey, $apiKey ?? '');
+    }
+
+    /**
+     * Handle async analysis using queue jobs.
+     */
+    private function handleAsyncAnalysis(array $data): JsonResponse
+    {
+        // Process the extension data first
+        $asinData = $this->extensionService->processExtensionData($data);
+
+        // Create analysis session for progress tracking
+        $session = AnalysisSession::create([
+            'user_session'    => 'extension_' . $data['asin'] . '_' . $data['country'],
+            'asin'            => $data['asin'],
+            'product_url'     => $data['product_url'],
+            'status'          => 'pending',
+            'total_steps'     => 3, // Extension analysis has fewer steps
+            'current_message' => 'Processing extension data...',
+        ]);
+
+        // Update session to processing and dispatch job
+        $session->markAsProcessing();
+        $session->updateProgress(1, 33.3, 'Analyzing reviews with AI...');
+
+        // Create a special job payload for extension data
+        ProcessProductAnalysis::dispatch($session->id, $data['product_url'])
+            ->onConnection('database');
+
+        LoggingService::log('Chrome extension async analysis started', [
+            'asin' => $data['asin'],
+            'country' => $data['country'],
+            'session_id' => $session->id,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'asin' => $data['asin'],
+            'country' => $data['country'],
+            'analysis_id' => $asinData->id,
+            'session_id' => $session->id,
+            'status' => 'processing',
+            'message' => 'Analysis started - use session_id to track progress',
+            'progress' => [
+                'percentage' => 33.3,
+                'message' => 'Analyzing reviews with AI...',
+                'stage' => 'processing',
+            ],
+            'progress_url' => route('extension.progress', ['sessionId' => $session->id]),
+            'estimated_completion' => now()->addMinutes(2)->toISOString(),
+        ]);
+    }
+
+    /**
+     * Handle synchronous analysis (existing behavior).
+     */
+    private function handleSyncAnalysis(array $data): JsonResponse
+    {
+        // Process the extension data
+        $asinData = $this->extensionService->processExtensionData($data);
+
+        // Perform analysis
+        $asinData = $this->analysisService->analyzeWithLLM($asinData);
+        $metrics = $this->analysisService->calculateFinalMetrics($asinData);
+        
+        // Get updated model with final metrics
+        $asinData = $asinData->fresh();
+
+        // Check if analysis actually succeeded
+        if (is_null($asinData->fake_percentage) || is_null($asinData->grade)) {
+            LoggingService::log('Chrome extension analysis failed - no valid results', [
+                'asin' => $data['asin'],
+                'fake_percentage' => $asinData->fake_percentage,
+                'grade' => $asinData->grade,
+                'status' => $asinData->status,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'error' => 'Analysis failed - unable to process reviews',
+                'error_details' => 'All LLM providers failed or returned invalid results. Please try again later.',
+                'asin' => $data['asin'],
+                'country' => $data['country'],
+                'processed_reviews' => count($asinData->getReviewsArray()),
+                'retry_suggested' => true,
+            ], 500);
+        }
+
+        // Build response with detailed analysis results (matching front-end display)
+        $reviewsAnalyzed = count($asinData->getReviewsArray());
+        $fakeReviewCount = round(($asinData->fake_percentage / 100) * $reviewsAnalyzed);
+        $genuineReviewCount = $reviewsAnalyzed - $fakeReviewCount;
+        $ratingDifference = ($asinData->adjusted_rating ?? 0) - ($asinData->amazon_rating ?? 0);
+        
+        $response = [
+            'success' => true,
+            'asin' => $data['asin'],
+            'country' => $data['country'],
+            'analysis_id' => $asinData->id,
+            'processed_reviews' => $reviewsAnalyzed,
+            'analysis_complete' => true,
+            'results' => [
+                'fake_percentage' => $asinData->fake_percentage ?? 0,
+                'grade' => $asinData->grade,
+                'explanation' => $asinData->explanation,
+                'amazon_rating' => $asinData->amazon_rating ?? 0,
+                'adjusted_rating' => $asinData->adjusted_rating ?? 0,
+                'rating_difference' => round($ratingDifference, 2),
+            ],
+            'statistics' => [
+                'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon ?? null,
+                'reviews_analyzed' => $reviewsAnalyzed,
+                'genuine_reviews' => $genuineReviewCount,
+                'fake_reviews' => $fakeReviewCount,
+            ],
+            'product_info' => [
+                'title' => $asinData->product_title,
+                'description' => $asinData->product_description,
+                'image_url' => $asinData->product_image_url,
+            ],
+            'view_url' => route('amazon.product.show', [
+                'asin' => $data['asin'],
+                'country' => $data['country'],
+            ]),
+            'redirect_url' => route('amazon.product.show', [
+                'asin' => $data['asin'],
+                'country' => $data['country'],
+            ]),
+        ];
+
+        LoggingService::log('Chrome extension analysis completed', [
+            'asin' => $data['asin'],
+            'fake_percentage' => $asinData->fake_percentage,
+            'grade' => $asinData->grade,
+        ]);
+
+        return response()->json($response);
     }
 }

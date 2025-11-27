@@ -42,4 +42,7 @@ Route::prefix('extension')->name('api.extension.')
         
         // Status endpoint without rate limiting for frequent polling
         Route::get('/analysis/{asin}/{country}', [App\Http\Controllers\ExtensionController::class, 'getAnalysisStatus'])->name('status');
+        
+        // Progress endpoint for async analysis tracking
+        Route::get('/progress/{sessionId}', [App\Http\Controllers\ExtensionController::class, 'getExtensionProgress'])->name('progress');
     });
