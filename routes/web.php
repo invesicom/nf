@@ -44,11 +44,43 @@ Route::prefix('newsletter')->name('newsletter.')->group(function () {
     Route::get('/test-connection', [NewsletterController::class, 'testConnection'])->name('test');
 });
 
-// SEO and sitemap routes
-Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.main');
-Route::get('/sitemap-static.xml', [SitemapController::class, 'static'])->name('sitemap.static');
-Route::get('/sitemap-products.xml', [SitemapController::class, 'products'])->name('sitemap.products');
-Route::get('/sitemap-analysis.xml', [SitemapController::class, 'analysis'])->name('sitemap.analysis');
+// SEO and sitemap routes (without session/cookie middleware for proper caching)
+Route::get('/sitemap.xml', [SitemapController::class, 'index'])
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('sitemap.main');
+Route::get('/sitemap-static.xml', [SitemapController::class, 'static'])
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('sitemap.static');
+Route::get('/sitemap-products.xml', [SitemapController::class, 'products'])
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('sitemap.products');
+Route::get('/sitemap-analysis.xml', [SitemapController::class, 'analysis'])
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('sitemap.analysis');
 
 // Dynamic robots.txt
 Route::get('/robots.txt', function () {

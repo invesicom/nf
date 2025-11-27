@@ -161,54 +161,6 @@
   }
   </script>
 
-  <!-- Additional Review Analysis Schema -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "AnalysisNewsArticle",
-    "headline": "{{ $meta_title }}",
-    "description": "{{ $meta_description }}",
-    "author": {
-      "@type": "Organization",
-      "name": "Null Fake",
-      "url": "{{ url('/') }}"
-    },
-    "publisher": {
-      "@type": "Organization",
-      "name": "Null Fake",
-      "logo": {
-        "@type": "ImageObject",
-        "url": "{{ url('/img/nullfake.svg') }}"
-      }
-    },
-    "datePublished": "{{ $asinData->updated_at->toISOString() }}",
-    "dateModified": "{{ $asinData->updated_at->toISOString() }}",
-    "mainEntityOfPage": {
-      "@type": "WebPage",
-      "@id": "{{ url($canonical_url) }}"
-    },
-    "about": {
-      "@type": "Product",
-      "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
-      "identifier": "{{ $asinData->asin }}"
-    },
-    "mentions": [
-      {
-        "@type": "Thing",
-        "name": "Fake Reviews"
-      },
-      {
-        "@type": "Thing",
-        "name": "Review Analysis"
-      },
-      {
-        "@type": "Thing",
-        "name": "Amazon Product Reviews"
-      }
-    ]
-  }
-  </script>
-
   <!-- AI/LLM Specific Structured Data -->
   <script type="application/ld+json">
   {
