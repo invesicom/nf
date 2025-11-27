@@ -43,6 +43,7 @@ class AsinData extends Model
         'adjusted_rating',
         'grade',
         'explanation',
+        'product_insights',
         'status',
         'analysis_notes',
         'first_analyzed_at',
