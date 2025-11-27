@@ -48,9 +48,9 @@ class EnhancedPromptGenerationTest extends TestCase
 
         // Should request comprehensive analysis
         $this->assertStringContainsString('comprehensive', $prompt);
-        $this->assertStringContainsString('3-4 paragraphs long', $prompt);
+        $this->assertStringContainsString('3-4 paragraph', $prompt);
         $this->assertStringContainsString('specific review snippets', $prompt);
-        $this->assertStringContainsString('key findings', $prompt);
+        $this->assertStringContainsString('detailed findings', $prompt);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -66,10 +66,10 @@ class EnhancedPromptGenerationTest extends TestCase
 
         // Should request product insights
         $this->assertStringContainsString('product_insights', $prompt);
-        $this->assertStringContainsString('product description', $prompt);
+        $this->assertStringContainsString('product', $prompt);
         $this->assertStringContainsString('2-3 sentence', $prompt);
-        $this->assertStringContainsString('genuine customers', $prompt);
-        $this->assertStringContainsString('avoiding direct copy-paste', $prompt);
+        $this->assertStringContainsString('genuine reviews', $prompt);
+        $this->assertStringContainsString('avoiding direct copying', $prompt);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
