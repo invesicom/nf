@@ -70,7 +70,7 @@ class MetricsCalculationService
                       is_null($asinData->grade);
 
         if ($needsUpdate) {
-            $asinData->update([
+            $updateData = [
                 'fake_percentage'   => $fakePercentage,
                 'grade'             => $grade,
                 'explanation'       => $explanation,
@@ -79,7 +79,14 @@ class MetricsCalculationService
                 'status'            => 'completed',
                 'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
                 'last_analyzed_at'  => now(),
-            ]);
+            ];
+            
+            // Add product insights if available from aggregate data
+            if (!empty($aggregateData) && !empty($aggregateData['product_insights'])) {
+                $updateData['product_insights'] = $aggregateData['product_insights'];
+            }
+            
+            $asinData->update($updateData);
         }
 
         return [

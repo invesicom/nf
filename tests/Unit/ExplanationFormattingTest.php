@@ -132,7 +132,7 @@ class ExplanationFormattingTest extends TestCase
         $response->assertStatus(200);
         
         // Should properly escape HTML entities
-        $response->assertSee('&lt;script&gt; &amp; &quot;quotes&quot; &amp; &#039;apostrophes&#039;');
-        $response->assertSee('more &amp; symbols');
+        $response->assertSee('<script> & "quotes" & \'apostrophes\'');
+        $response->assertSee('more & symbols');
     }
 }
