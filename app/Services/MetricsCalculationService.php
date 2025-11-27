@@ -39,9 +39,9 @@ class MetricsCalculationService
             $averageRating = $this->calculateAverageRating($reviews);
             $adjustedRating = $this->calculateAdjustedRatingFromPercentage($averageRating, $fakePercentage);
             
-            // Use LLM's explanation or generate fallback
+            // Use LLM's enhanced explanation and add product insights
             $grade = $this->gradeService->calculateGrade($fakePercentage);
-            $explanation = $aggregateData['explanation'] ?? $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
+            $explanation = $this->buildEnhancedExplanation($aggregateData, $totalReviews, $fakeCount, $fakePercentage);
         } else {
             // Legacy individual scoring format
             $detailedScores = $this->extractDetailedScores($openaiResult);
@@ -245,17 +245,49 @@ class MetricsCalculationService
         $explanation = "Analysis of {$totalReviews} reviews found {$fakeCount} potentially fake reviews (".round($fakePercentage, 1).'%). ';
 
         if ($fakePercentage <= 15) {
-            $explanation .= 'This product has very low fake review activity and appears highly trustworthy.';
+            $explanation .= 'This product demonstrates excellent review authenticity with very low fake review activity. ';
+            $explanation .= 'The majority of reviews show genuine customer experiences with specific details and balanced perspectives. ';
+            $explanation .= 'This indicates a trustworthy product with authentic customer feedback.';
         } elseif ($fakePercentage <= 30) {
-            $explanation .= 'This product has low fake review activity with mostly genuine customer feedback.';
+            $explanation .= 'This product shows good review authenticity with low fake review activity. ';
+            $explanation .= 'Most customer feedback appears genuine with specific product experiences and realistic expectations. ';
+            $explanation .= 'Minor concerns may exist but overall review quality is reliable for purchase decisions.';
         } elseif ($fakePercentage <= 50) {
-            $explanation .= 'This product has moderate fake review concerns. Exercise caution when evaluating reviews.';
+            $explanation .= 'This product has moderate fake review concerns requiring careful evaluation. ';
+            $explanation .= 'Mixed signals in review authenticity suggest some artificial inflation of ratings. ';
+            $explanation .= 'Genuine reviews are present but exercise caution and focus on verified purchase reviews when making decisions.';
         } elseif ($fakePercentage <= 70) {
-            $explanation .= 'This product has high fake review activity. Many reviews may not be from genuine customers.';
+            $explanation .= 'This product shows high fake review activity with significant authenticity concerns. ';
+            $explanation .= 'Many reviews exhibit patterns consistent with artificial generation or incentivized feedback. ';
+            $explanation .= 'Genuine customer experiences may be overshadowed by promotional content. Proceed with caution.';
         } else {
-            $explanation .= 'This product has very high fake review activity. Most reviews appear to be artificially generated.';
+            $explanation .= 'This product has very high fake review activity with most reviews appearing artificially generated. ';
+            $explanation .= 'Extensive patterns of promotional language, generic praise, and suspicious timing suggest coordinated fake review campaigns. ';
+            $explanation .= 'Authentic customer feedback is minimal. Consider alternative products with more reliable review profiles.';
         }
 
+        return $explanation;
+    }
+
+    /**
+     * Build enhanced explanation using LLM analysis and product insights.
+     */
+    private function buildEnhancedExplanation(array $aggregateData, int $totalReviews, int $fakeCount, float $fakePercentage): string
+    {
+        // Start with LLM's detailed explanation if available
+        $explanation = $aggregateData['explanation'] ?? $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
+        
+        // Add product insights if available (for SEO enhancement)
+        if (!empty($aggregateData['product_insights'])) {
+            $explanation .= "\n\nProduct Analysis: " . $aggregateData['product_insights'];
+        }
+        
+        // Add key patterns summary if available
+        if (!empty($aggregateData['key_patterns']) && is_array($aggregateData['key_patterns'])) {
+            $patterns = implode(', ', array_slice($aggregateData['key_patterns'], 0, 3)); // Limit to 3 patterns
+            $explanation .= "\n\nKey patterns identified in the review analysis include: " . $patterns . ".";
+        }
+        
         return $explanation;
     }
 }

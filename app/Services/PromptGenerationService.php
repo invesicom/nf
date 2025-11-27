@@ -85,7 +85,7 @@ class PromptGenerationService
                '{\n' .
                '  "fake_percentage": <number 0-100>,\n' .
                '  "confidence": <"high"|"medium"|"low">,\n' .
-               '  "explanation": "<comprehensive analysis summary explaining the percentage and key findings>",\n' .
+               '  "explanation": "<comprehensive 3-4 paragraph analysis summary with specific review snippets and detailed findings>",\n' .
                '  "fake_examples": [\n' .
                '    {\n' .
                '      "review_number": <1-based index>,\n' .
@@ -93,11 +93,16 @@ class PromptGenerationService
                '      "reason": "<why this seems fake>"\n' .
                '    }\n' .
                '  ],\n' .
-               '  "key_patterns": ["<pattern1>", "<pattern2>"]\n' .
+               '  "key_patterns": ["<pattern1>", "<pattern2>"],\n' .
+               '  "product_insights": "<2-3 sentence analysis of what this product appears to be based on genuine reviews, avoiding direct copying of product descriptions>"\n' .
                '}\n\n' .
-               'Analyze all reviews to determine overall fake percentage. ' .
-               'Provide detailed explanation covering verification rates, rating patterns, and text analysis. ' .
-               'Include 2-3 examples of suspicious reviews if found, but focus on aggregate assessment.';
+               'CRITICAL: Create a comprehensive 3-4 paragraph explanation that includes:\n' .
+               '1. Overall assessment with verification rates and rating distribution analysis\n' .
+               '2. Specific examples of language patterns found (quote 1-2 brief snippets)\n' .
+               '3. Analysis of review authenticity indicators (timing, specificity, emotional tone)\n' .
+               '4. Summary of key concerns or positive indicators found\n\n' .
+               'For product_insights: Analyze genuine reviews to describe what this product actually is and its key characteristics, ' .
+               'written in your own words for SEO purposes. Focus on real user experiences rather than marketing descriptions.';
     }
 
     /**

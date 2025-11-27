@@ -96,7 +96,8 @@ class SEOServiceTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'fake_percentage' => 30,
-            'grade' => 'C'
+            'grade' => 'C',
+            'explanation' => null // Force fallback to basic summary
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);

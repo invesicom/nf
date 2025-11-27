@@ -90,7 +90,7 @@ class SEOService
     }
 
     /**
-     * Generate AI-optimized description
+     * Generate AI-optimized description using enhanced analysis content
      */
     private function generateOptimizedDescription(AsinData $asinData): string
     {
@@ -100,8 +100,17 @@ class SEOService
         $reviewCount = count($asinData->getReviewsArray());
         $adjustedRating = $asinData->adjusted_rating ?? 0;
 
+        // Try to extract product insights from enhanced explanation
+        $productInsights = $this->extractProductInsights($asinData);
+        
         $description = "AI-powered analysis of {$productTitle} reveals {$fakePercentage}% fake reviews out of {$reviewCount} analyzed. ";
         $description .= "Authenticity grade: {$grade}. Adjusted rating: {$adjustedRating}/5 stars after removing suspicious reviews. ";
+        
+        // Add product insights if available for SEO enhancement
+        if ($productInsights) {
+            $description .= $productInsights . " ";
+        }
+        
         $description .= "Comprehensive review authenticity analysis using machine learning and natural language processing. ";
         $description .= "Get the real story behind Amazon product reviews with detailed fake review detection and trust scoring.";
 
@@ -109,10 +118,20 @@ class SEOService
     }
 
     /**
-     * Generate AI-focused summary for better understanding
+     * Generate AI-focused summary using enhanced analysis content
      */
     private function generateAISummary(AsinData $asinData): string
     {
+        // Use the enhanced explanation if available
+        if (!empty($asinData->explanation)) {
+            // Clean and format the explanation for AI consumption
+            $enhancedSummary = $this->formatExplanationForAI($asinData->explanation);
+            if (strlen($enhancedSummary) > 100) {
+                return $enhancedSummary;
+            }
+        }
+
+        // Fallback to basic summary
         $summary = "This analysis examines the authenticity of Amazon product reviews using advanced AI techniques. ";
         $summary .= "Key findings: {$asinData->fake_percentage}% of reviews identified as potentially fake or manipulated. ";
         $summary .= "Overall authenticity grade: {$asinData->grade}. ";
@@ -274,15 +293,15 @@ class SEOService
     }
 
     /**
-     * Generate product schema for structured data
+     * Generate product schema for structured data with enhanced content
      */
     private function generateProductSchema(AsinData $asinData): array
     {
-        return [
+        $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Product',
             'name' => $asinData->product_title ?? 'Amazon Product',
-            'description' => $this->generateReviewSummary($asinData),
+            'description' => $this->generateEnhancedProductDescription($asinData),
             'image' => $asinData->product_image_url,
             'sku' => $asinData->asin,
             'gtin' => $asinData->asin,
@@ -313,6 +332,28 @@ class SEOService
                 ]
             ]
         ];
+
+        // Add enhanced analysis as a review for better AI understanding
+        if (!empty($asinData->explanation)) {
+            $schema['review'] = [
+                '@type' => 'Review',
+                'reviewRating' => [
+                    '@type' => 'Rating',
+                    'ratingValue' => $this->gradeToNumericRating($asinData->grade ?? 'N/A'),
+                    'bestRating' => 5,
+                    'worstRating' => 1
+                ],
+                'author' => [
+                    '@type' => 'Organization',
+                    'name' => 'Null Fake - AI Review Analysis'
+                ],
+                'reviewBody' => $this->formatExplanationForAI($asinData->explanation),
+                'datePublished' => $asinData->updated_at->toISOString(),
+                'headline' => 'AI-Powered Fake Review Analysis - Grade ' . ($asinData->grade ?? 'N/A')
+            ];
+        }
+
+        return $schema;
     }
 
     /**
@@ -502,13 +543,24 @@ class SEOService
     }
 
     /**
-     * Generate review summary for meta description
+     * Generate review summary for meta description using enhanced analysis
      */
     private function generateReviewSummary(AsinData $asinData): string
     {
         $reviewCount = count($asinData->getReviewsArray());
         $fakePercentage = $asinData->fake_percentage ?? 0;
         $grade = $asinData->grade ?? 'N/A';
+
+        // Use the enhanced explanation if available, otherwise fallback to basic summary
+        if (!empty($asinData->explanation)) {
+            // Extract first sentence from enhanced explanation for meta description
+            $sentences = explode('.', $asinData->explanation);
+            $firstSentence = trim($sentences[0] ?? '');
+            
+            if (strlen($firstSentence) > 20 && strlen($firstSentence) < 150) {
+                return $firstSentence . ". Grade {$grade} authenticity analysis with AI-powered detection.";
+            }
+        }
 
         return "Analysis of {$reviewCount} reviews shows {$fakePercentage}% fake reviews. Authenticity grade: {$grade}. AI-powered detection helps identify genuine customer feedback.";
     }
@@ -572,5 +624,87 @@ class SEOService
                 'name' => 'Null Fake'
             ]
         ];
+    }
+
+    /**
+     * Extract product insights from enhanced explanation for SEO.
+     */
+    private function extractProductInsights(AsinData $asinData): ?string
+    {
+        if (empty($asinData->explanation)) {
+            return null;
+        }
+
+        // Look for "Product Analysis:" section in enhanced explanation
+        if (strpos($asinData->explanation, 'Product Analysis:') !== false) {
+            $parts = explode('Product Analysis:', $asinData->explanation);
+            if (count($parts) > 1) {
+                $insights = trim(explode("\n", $parts[1])[0]); // Get first line after "Product Analysis:"
+                if (strlen($insights) > 20 && strlen($insights) < 200) {
+                    return $insights;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Format explanation content for AI consumption.
+     */
+    private function formatExplanationForAI(string $explanation): string
+    {
+        // Clean up the explanation for AI/meta tag use
+        $formatted = str_replace(["\n\n", "\n"], [' ', ' '], $explanation);
+        $formatted = preg_replace('/\s+/', ' ', $formatted); // Normalize whitespace
+        $formatted = trim($formatted);
+        
+        // Limit length for meta descriptions (150-160 chars is optimal)
+        if (strlen($formatted) > 300) {
+            $sentences = explode('.', $formatted);
+            $result = '';
+            foreach ($sentences as $sentence) {
+                $sentence = trim($sentence);
+                if (strlen($result . $sentence . '. ') <= 280) {
+                    $result .= $sentence . '. ';
+                } else {
+                    break;
+                }
+            }
+            return trim($result);
+        }
+        
+        return $formatted;
+    }
+
+    /**
+     * Generate enhanced product description combining review analysis and product insights.
+     */
+    private function generateEnhancedProductDescription(AsinData $asinData): string
+    {
+        $baseDescription = $this->generateReviewSummary($asinData);
+        $productInsights = $this->extractProductInsights($asinData);
+        
+        if ($productInsights) {
+            return $baseDescription . ' ' . $productInsights;
+        }
+        
+        return $baseDescription;
+    }
+
+    /**
+     * Convert letter grade to numeric rating for structured data.
+     */
+    private function gradeToNumericRating(string $grade): int
+    {
+        return match ($grade) {
+            'A' => 5,
+            'B' => 4,
+            'C' => 3,
+            'D' => 2,
+            'F' => 1,
+            'U' => 0,
+            default => 3
+        };
     }
 }
