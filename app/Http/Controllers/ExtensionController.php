@@ -182,6 +182,7 @@ class ExtensionController extends Controller
 
         if (!$asinData) {
             return response()->json([
+                'success' => false,
                 'exists' => false,
                 'message' => 'No analysis found for this product',
                 'asin' => $asin,
@@ -193,16 +194,20 @@ class ExtensionController extends Controller
         // Use the same logic as AmazonProductController to ensure consistency
         if (!$asinData->isAnalyzed()) {
             return response()->json([
+                'success' => true,
                 'exists' => true,
-                'status' => 'analyzing',
-                'asin' => $asin,
-                'country' => $country,
-                'progress' => [
-                    'stage' => $asinData->status ?? 'processing',
-                    'percentage' => 50, // Approximate progress
-                    'message' => 'Analyzing reviews with AI...',
+                'data' => [
+                    'asin' => $asin,
+                    'country' => $country,
+                    'status' => $asinData->status ?? 'processing',
+                    'analysis_complete' => false, // CRITICAL: Extension checks this field
+                    'progress' => [
+                        'stage' => $asinData->status ?? 'processing',
+                        'percentage' => 50, // Approximate progress
+                        'message' => 'Analyzing reviews with AI...',
+                    ],
+                    'estimated_completion' => now()->addMinutes(2)->toISOString(),
                 ],
-                'estimated_completion' => now()->addMinutes(2)->toISOString(),
             ]);
         }
 
@@ -213,32 +218,50 @@ class ExtensionController extends Controller
         $genuineCount = $totalReviews - $fakeCount;
         $ratingDifference = ($asinData->adjusted_rating ?? 0) - ($asinData->amazon_rating ?? 0);
 
-        return response()->json([
-            'exists' => true,
-            'status' => 'completed',
-            'asin' => $asin,
-            'country' => $country,
-            'analysis' => [
-                'fake_percentage' => (float) $asinData->fake_percentage,
-                'grade' => $asinData->grade,
-                'explanation' => $asinData->explanation ?? 'Analysis completed successfully.',
-                'adjusted_rating' => (float) ($asinData->adjusted_rating ?? 0),
-                'total_reviews' => $totalReviews,
-                'fake_count' => $fakeCount,
-                'genuine_count' => $genuineCount,
-                'confidence' => 'high', // Could be extracted from explanation or stored separately
-            ],
-            'product_info' => [
-                'title' => $asinData->product_title,
-                'image_url' => $asinData->product_image_url,
-                'amazon_rating' => (float) ($asinData->amazon_rating ?? 0),
-                'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon,
-            ],
-            'analyzed_at' => $asinData->updated_at->toISOString(),
-            'redirect_url' => route('amazon.product.show', [
+        // Build the product URL with slug for better SEO
+        $productSlug = $asinData->product_title ? \Illuminate\Support\Str::slug($asinData->product_title) : null;
+        $redirectUrl = $productSlug 
+            ? route('amazon.product.show.slug', [
+                'country' => $country,
+                'asin' => $asin,
+                'slug' => $productSlug,
+            ])
+            : route('amazon.product.show', [
                 'asin' => $asin,
                 'country' => $country,
-            ]),
+            ]);
+
+        return response()->json([
+            'success' => true, // CRITICAL: Extension checks this field
+            'exists' => true,
+            'data' => [
+                'asin' => $asin,
+                'country' => $country,
+                'status' => 'completed',
+                'analysis_complete' => true, // CRITICAL: Extension checks this field
+                'redirect_url' => $redirectUrl,
+                'view_url' => $redirectUrl, // Fallback field
+                'url' => $redirectUrl, // Fallback field
+                'analysis' => [
+                    'fake_percentage' => (float) $asinData->fake_percentage,
+                    'grade' => $asinData->grade,
+                    'explanation' => $asinData->explanation ?? 'Analysis completed successfully.',
+                    'adjusted_rating' => (float) ($asinData->adjusted_rating ?? 0),
+                    'total_reviews' => $totalReviews,
+                    'fake_count' => $fakeCount,
+                    'genuine_count' => $genuineCount,
+                    'confidence' => 'high', // Could be extracted from explanation or stored separately
+                ],
+                'product_info' => [
+                    'title' => $asinData->product_title,
+                    'image_url' => $asinData->product_image_url,
+                    'amazon_rating' => (float) ($asinData->amazon_rating ?? 0),
+                    'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon,
+                ],
+                'analyzed_at' => $asinData->updated_at->toISOString(),
+                'created_at' => $asinData->created_at->toISOString(),
+                'updated_at' => $asinData->updated_at->toISOString(),
+            ],
         ]);
     }
 

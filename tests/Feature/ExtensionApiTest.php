@@ -395,27 +395,117 @@ class ExtensionApiTest extends TestCase
         ]);
 
         $response->assertStatus(200)
-            ->assertJsonStructure([
-                'analysis' => [
-                    'grade',
-                    'fake_percentage',
-                    'adjusted_rating',
-                    'total_reviews',
-                    'fake_count',
-                    'genuine_count',
-                    'explanation',
+            ->assertJson([
+                'success' => true,
+                'exists' => true,
+                'data' => [
+                    'asin' => 'B0FFVTPRQY',
+                    'country' => 'ca',
+                    'status' => 'completed',
+                    'analysis_complete' => true, // CRITICAL field for Chrome extension
                 ],
-                'product_info' => [
-                    'amazon_rating',
-                ],
-                'redirect_url',
             ])
-            ->assertJsonPath('analysis.grade', 'B')
-            ->assertJsonPath('analysis.fake_percentage', 25.5)
-            ->assertJsonPath('analysis.total_reviews', 2)
-            ->assertJsonPath('analysis.fake_count', 1)
-            ->assertJsonPath('analysis.genuine_count', 1)
-            ->assertJsonPath('product_info.amazon_rating', 4.2);
+            ->assertJsonStructure([
+                'success',
+                'exists',
+                'data' => [
+                    'asin',
+                    'country',
+                    'status',
+                    'analysis_complete',
+                    'redirect_url',
+                    'view_url',
+                    'url',
+                    'analysis' => [
+                        'grade',
+                        'fake_percentage',
+                        'adjusted_rating',
+                        'total_reviews',
+                        'fake_count',
+                        'genuine_count',
+                        'explanation',
+                        'confidence',
+                    ],
+                    'product_info' => [
+                        'title',
+                        'image_url',
+                        'amazon_rating',
+                        'total_reviews_on_amazon',
+                    ],
+                    'analyzed_at',
+                    'created_at',
+                    'updated_at',
+                ],
+            ])
+            ->assertJsonPath('data.analysis.grade', 'B')
+            ->assertJsonPath('data.analysis.fake_percentage', 25.5)
+            ->assertJsonPath('data.analysis.total_reviews', 2)
+            ->assertJsonPath('data.analysis.fake_count', 1)
+            ->assertJsonPath('data.analysis.genuine_count', 1)
+            ->assertJsonPath('data.product_info.amazon_rating', 4.2);
+
+        // Verify the critical fields that Chrome extension checks
+        $responseData = $response->json();
+        $this->assertTrue($responseData['success']);
+        $this->assertTrue($responseData['exists']);
+        $this->assertTrue($responseData['data']['analysis_complete']);
+        $this->assertEquals('completed', $responseData['data']['status']);
+        $this->assertNotEmpty($responseData['data']['redirect_url']);
+        $this->assertNotEmpty($responseData['data']['view_url']);
+        $this->assertNotEmpty($responseData['data']['url']);
+    }
+
+    #[Test]
+    public function it_returns_in_progress_status_for_incomplete_analysis()
+    {
+        // Create analysis data that's not yet complete (missing required fields)
+        $asinData = AsinData::create([
+            'asin' => 'B0INCOMPLETE',
+            'country' => 'us',
+            'status' => 'processing',
+            'fake_percentage' => null, // Missing - makes isAnalyzed() return false
+            'grade' => null, // Missing - makes isAnalyzed() return false
+            'reviews' => json_encode([['id' => 1, 'text' => 'Sample review']]),
+        ]);
+
+        $response = $this->getJson('/api/extension/analysis/B0INCOMPLETE/us', [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'exists' => true,
+                'data' => [
+                    'asin' => 'B0INCOMPLETE',
+                    'country' => 'us',
+                    'status' => 'processing',
+                    'analysis_complete' => false, // CRITICAL: Should be false during processing
+                ],
+            ])
+            ->assertJsonStructure([
+                'success',
+                'exists',
+                'data' => [
+                    'asin',
+                    'country',
+                    'status',
+                    'analysis_complete',
+                    'progress' => [
+                        'stage',
+                        'percentage',
+                        'message',
+                    ],
+                    'estimated_completion',
+                ],
+            ]);
+
+        // Verify the critical fields that Chrome extension checks for in-progress state
+        $responseData = $response->json();
+        $this->assertTrue($responseData['success']);
+        $this->assertTrue($responseData['exists']);
+        $this->assertFalse($responseData['data']['analysis_complete']); // Should be false
+        $this->assertEquals('processing', $responseData['data']['status']);
     }
 
     #[Test]
@@ -427,6 +517,7 @@ class ExtensionApiTest extends TestCase
 
         $response->assertStatus(404)
             ->assertJson([
+                'success' => false,
                 'exists' => false,
                 'message' => 'No analysis found for this product',
                 'asin' => 'NONEXISTENT',
