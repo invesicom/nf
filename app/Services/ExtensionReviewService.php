@@ -187,6 +187,7 @@ class ExtensionReviewService
             'fr' => 'amazon.fr',
             'it' => 'amazon.it',
             'es' => 'amazon.es',
+            'ie' => 'amazon.ie',
             'jp' => 'amazon.co.jp',
             'au' => 'amazon.com.au',
             'mx' => 'amazon.com.mx',
@@ -200,7 +201,7 @@ class ExtensionReviewService
             'se' => 'amazon.se',
             'pl' => 'amazon.pl',
             'eg' => 'amazon.eg',
-            'be' => 'amazon.com.be',
+            'be' => 'amazon.be',
         ];
     }
 

@@ -255,6 +255,7 @@ class AmazonProductController extends Controller
             'fr' => 'amazon.fr',
             'it' => 'amazon.it',
             'es' => 'amazon.es',
+            'ie' => 'amazon.ie',
             'jp' => 'amazon.co.jp',
             'au' => 'amazon.com.au',
             'mx' => 'amazon.com.mx',

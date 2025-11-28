@@ -29,6 +29,7 @@ class InternationalUrlSupportTest extends TestCase
             'https://www.amazon.co.uk/Vax-Smartwash-Pet-Design/dp/B0BHF3NKLK/'                   => 'B0BHF3NKLK',
             'https://www.amazon.fr/-/en/Bluetooth-Earphones-Wireless/dp/B0FCS5ZRB4'              => 'B0FCS5ZRB4',
             'https://www.amazon.in/Daikin-Inverter-Display-Technology-MTKL50U/dp/B0BK1KS6ZD/'    => 'B0BK1KS6ZD',
+            'https://www.amazon.ie/Celestron-11069-Computerised-Schmidt-Cassegrain/dp/B000GUFOC8' => 'B000GUFOC8',
             'https://www.amazon.co.jp/-/en/Bagasin-Shockproof-Laptop/dp/B0BLNHG168'              => 'B0BLNHG168',
             'https://www.amazon.com.mx/SAMSUNG-Galaxy-Negro-Onyx/dp/B0CQ84BYDC/'                 => 'B0CQ84BYDC',
             'https://www.amazon.com.br/Controle-Dualshock-PlayStation-4-Preto/dp/B07FN1MZBH/'    => 'B07FN1MZBH',
@@ -50,6 +51,7 @@ class InternationalUrlSupportTest extends TestCase
             'https://www.amazon.co.uk/some-product/dp/B0BHF3NKLK/'  => 'gb',
             'https://www.amazon.fr/some-product/dp/B0FCS5ZRB4'      => 'fr',
             'https://www.amazon.in/some-product/dp/B0BK1KS6ZD/'     => 'in',
+            'https://www.amazon.ie/some-product/dp/B000GUFOC8/'     => 'ie',
             'https://www.amazon.co.jp/some-product/dp/B0BLNHG168'   => 'jp',
             'https://www.amazon.com.mx/some-product/dp/B0CQ84BYDC/' => 'mx',
             'https://www.amazon.com.br/some-product/dp/B07FN1MZBH/' => 'br',
@@ -78,6 +80,7 @@ class InternationalUrlSupportTest extends TestCase
             ['B0BHF3NKLK', 'gb', 'https://www.amazon.co.uk/dp/B0BHF3NKLK/'],
             ['B0FCS5ZRB4', 'fr', 'https://www.amazon.fr/dp/B0FCS5ZRB4/'],
             ['B0BK1KS6ZD', 'in', 'https://www.amazon.in/dp/B0BK1KS6ZD/'],
+            ['B000GUFOC8', 'ie', 'https://www.amazon.ie/dp/B000GUFOC8/'],
             ['B0BLNHG168', 'jp', 'https://www.amazon.co.jp/dp/B0BLNHG168/'],
             ['B0CQ84BYDC', 'mx', 'https://www.amazon.com.mx/dp/B0CQ84BYDC/'],
             ['B07FN1MZBH', 'br', 'https://www.amazon.com.br/dp/B07FN1MZBH/'],
@@ -104,7 +107,7 @@ class InternationalUrlSupportTest extends TestCase
     public function it_supports_all_documented_countries()
     {
         $supportedCountries = [
-            'us', 'gb', 'ca', 'de', 'fr', 'it', 'es', 'jp', 'au',
+            'us', 'gb', 'ca', 'de', 'fr', 'it', 'es', 'ie', 'jp', 'au',
             'mx', 'in', 'sg', 'br', 'nl', 'tr', 'ae', 'sa', 'se', 'pl', 'eg', 'be',
         ];
 

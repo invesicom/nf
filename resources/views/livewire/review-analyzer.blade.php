@@ -597,7 +597,7 @@ async function validateAmazonUrl() {
     }
     
     // Validate Amazon domain first - support international domains
-    const amazonDomainPattern = /^https?:\/\/(?:www\.)?amazon\.(com|co\.uk|ca|de|fr|it|es|in|co\.jp|com\.mx|com\.br|sg|com\.au|nl|com\.tr|ae|sa|se|pl|eg|be)\//i;
+    const amazonDomainPattern = /^https?:\/\/(?:www\.)?amazon\.(com|co\.uk|ca|de|fr|it|es|ie|in|co\.jp|com\.mx|com\.br|sg|com\.au|nl|com\.tr|ae|sa|se|pl|eg|be)\//i;
     if (!amazonDomainPattern.test(url)) {
         showValidationStatus('❌ Please use a valid Amazon product URL from a supported country.', 'error');
         if (analyzeButton) analyzeButton.disabled = true;

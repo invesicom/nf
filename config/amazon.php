@@ -99,6 +99,7 @@ return [
         'fr' => ['domain' => 'amazon.fr', 'name' => 'France'],
         'it' => ['domain' => 'amazon.it', 'name' => 'Italy'],
         'es' => ['domain' => 'amazon.es', 'name' => 'Spain'],
+        'ie' => ['domain' => 'amazon.ie', 'name' => 'Ireland'],
         'jp' => ['domain' => 'amazon.co.jp', 'name' => 'Japan'],
         'au' => ['domain' => 'amazon.com.au', 'name' => 'Australia'],
         'mx' => ['domain' => 'amazon.com.mx', 'name' => 'Mexico'],

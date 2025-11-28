@@ -379,4 +379,12 @@ class SitemapController extends Controller
         
         return (int) round($trustScore);
     }
+
+    /**
+     * Clear sitemap cache (placeholder for compatibility)
+     */
+    public static function clearCache(): void
+    {
+        // Sitemaps are generated dynamically, no cache to clear
+    }
 }

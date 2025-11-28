@@ -63,6 +63,7 @@ class AmazonUrlService
             'amazon.fr'     => 'fr',
             'amazon.it'     => 'it',
             'amazon.es'     => 'es',
+            'amazon.ie'     => 'ie',
             'amazon.co.jp'  => 'jp',
             'amazon.in'     => 'in',
             'amazon.sg'     => 'sg',

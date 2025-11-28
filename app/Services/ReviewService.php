@@ -58,6 +58,7 @@ class ReviewService
             'amazon.fr'       => 'fr',
             'amazon.it'       => 'it',
             'amazon.es'       => 'es',
+            'amazon.ie'       => 'ie',
             'amazon.in'       => 'in',
             'amazon.nl'       => 'nl',
             'amazon.sg'       => 'sg',
