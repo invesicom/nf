@@ -48,6 +48,7 @@ Read our [blog post about how nullfake works](https://shift8web.ca/from-fakespot
 - [Management Commands](#management-commands)
   - [LLM Management](#llm-management)
   - [Data Processing](#data-processing)
+  - [Price Analysis](#price-analysis)
   - [Session Management](#session-management)
   - [Queue Processing](#queue-processing)
 - [Usage](#usage)
@@ -462,6 +463,7 @@ Null Fake supports Amazon product analysis from the following countries:
 - **Configurable Thresholds**: Adjustable fake review detection sensitivity (default: 85+ score)
 - **Comprehensive Scoring**: Heuristic analysis combined with LLM evaluation
 - **Grade System**: Letter grades (A-F) with detailed explanations
+- **Price Analysis**: AI-powered price assessment including MSRP comparison, market positioning, and deal indicators
 
 ### User Experience
 - **Real-time Progress**: Job-based processing with live progress updates
@@ -475,7 +477,7 @@ Null Fake supports Amazon product analysis from the following countries:
 - **Database Caching**: Fast repeat lookups with 30-day cache validity
 - **Comprehensive Alerting**: Pushover notifications for API errors and system issues
 - **Command Line Tools**: Management commands for data processing and system maintenance
-- **Test Coverage**: Extensive test suite with 530+ tests covering all major functionality
+- **Test Coverage**: Extensive test suite with 660+ tests covering all major functionality
 
 ## Data Collection Methods
 
@@ -642,6 +644,10 @@ The `asin_data` table stores:
 - `openai_result` - JSON of full AI analysis with detailed scores
 - `total_reviews_on_amazon` - Total review count reported by Amazon
 - `have_product_data` - Boolean indicating complete product metadata
+- `price` - Current Amazon price (decimal)
+- `currency` - Currency code (USD, CAD, GBP, etc.)
+- `price_analysis` - JSON of AI price analysis results
+- `price_analysis_status` - Status (pending/processing/completed/failed)
 
 The model calculates:
 - `fake_percentage` - Percentage of reviews flagged as potentially fake (score ≥ 85)
@@ -722,6 +728,31 @@ ANALYSIS_ASYNC_ENABLED=false
 - Clean zero-review products: `php artisan products:cleanup-zero-reviews`
 - Backfill total review counts: `php artisan backfill:total-review-counts`
 
+### Price Analysis
+Run AI-powered price analysis on products:
+
+```bash
+# Analyze products from the last N days (default: 1 day)
+php artisan analyze:prices --days=7
+
+# Analyze a specific ASIN
+php artisan analyze:prices --asin=B08N5WRWNW
+
+# Preview what would be processed (dry run)
+php artisan analyze:prices --days=7 --dry-run
+
+# Force re-analysis of already analyzed products
+php artisan analyze:prices --days=7 --force
+
+# Limit number of products to process
+php artisan analyze:prices --days=30 --limit=100
+
+# Adjust delay between API calls (default: 100ms)
+php artisan analyze:prices --days=7 --delay=200
+```
+
+**Note**: Price analysis is automatically queued when new products are analyzed. The console command is for batch processing existing products.
+
 ### Session Management
 - Check Amazon sessions: `php artisan amazon:cookie-sessions`
 - Test scraping functionality: `php artisan test:amazon-scraping`
@@ -729,8 +760,26 @@ ANALYSIS_ASYNC_ENABLED=false
 - Debug proxy connections: `php artisan debug:amazon-scraping`
 
 ### Queue Processing
-- Start queue worker: `php artisan queue:work --queue=analysis`
-- Restart workers: `php artisan queue:restart`
+```bash
+# Start main analysis queue worker
+php artisan queue:work --queue=analysis
+
+# Start price analysis queue worker
+php artisan queue:work --queue=price-analysis
+
+# Start worker for all queues (recommended for production)
+php artisan queue:work --queue=analysis,product-scraping,price-analysis,default
+
+# Restart workers (after code deployment)
+php artisan queue:restart
+```
+
+**Production Supervisor Configuration:**
+```ini
+[program:nullfake-queue]
+command=/usr/bin/php artisan queue:work database --queue=analysis,product-scraping,price-analysis,default --sleep=3 --tries=3 --timeout=300
+numprocs=4
+```
 
 ## Usage
 

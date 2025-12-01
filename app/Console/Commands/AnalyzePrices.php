@@ -9,7 +9,7 @@ use Illuminate\Console\Command;
 /**
  * Console command for batch processing price analysis on existing products.
  *
- * Supports both direct processing and queue-based batch processing.
+ * Supports concurrent processing for faster batch analysis.
  */
 class AnalyzePrices extends Command
 {
@@ -25,7 +25,7 @@ class AnalyzePrices extends Command
                             {--force : Re-analyze even if price analysis already exists}
                             {--dry-run : Show what would be processed without actually processing}
                             {--limit= : Maximum number of products to process}
-                            {--delay=100 : Delay between API calls in milliseconds (default: 100ms)}';
+                            {--concurrent=5 : Number of concurrent API requests (default: 5)}';
 
     /**
      * The console command description.
@@ -94,16 +94,18 @@ class AnalyzePrices extends Command
     }
 
     /**
-     * Process the products with price analysis.
+     * Process the products with price analysis using concurrent HTTP requests.
      */
     private function processProducts($products, PriceAnalysisService $priceService): int
     {
-        $delay = (int) $this->option('delay');
+        $concurrent = max(1, min(10, (int) $this->option('concurrent'))); // Cap at 10
         $total = $products->count();
 
-        // Estimate time: ~3-5s per API call + delay
-        $estimatedSeconds = $total * (($delay / 1000) + 4);
-        $this->info("Estimated time: " . gmdate('H:i:s', (int) $estimatedSeconds));
+        // Estimate time: ~4s per batch of concurrent requests
+        $batches = ceil($total / $concurrent);
+        $estimatedSeconds = $batches * 5; // ~5s per batch including overhead
+        $this->info("Processing {$total} products with {$concurrent} concurrent requests");
+        $this->info("Estimated time: " . gmdate('H:i:s', (int) $estimatedSeconds) . " ({$batches} batches)");
         $this->newLine();
 
         $progressBar = $this->output->createProgressBar($total);
@@ -112,20 +114,32 @@ class AnalyzePrices extends Command
         $success = 0;
         $failed = 0;
 
-        foreach ($products as $product) {
-            $result = $this->analyzeProduct($product, $priceService);
-            $result ? $success++ : $failed++;
-            $progressBar->advance();
+        // Process in chunks for concurrent execution
+        $chunks = $products->chunk($concurrent);
 
-            if ($delay > 0) {
-                usleep($delay * 1000); // Convert ms to microseconds
+        foreach ($chunks as $chunk) {
+            $results = $priceService->analyzeBatchConcurrently($chunk->all());
+
+            foreach ($results as $productId => $result) {
+                if ($result['success']) {
+                    $success++;
+                } else {
+                    $failed++;
+                    // Log failure but don't stop processing
+                    $product = $chunk->firstWhere('id', $productId);
+                    if ($product) {
+                        $this->newLine();
+                        $this->error("Failed: {$product->asin} - {$result['error']}");
+                    }
+                }
+                $progressBar->advance();
             }
         }
 
         $progressBar->finish();
         $this->displayResults($success, $failed);
 
-        return $failed > 0 ? Command::FAILURE : Command::SUCCESS;
+        return Command::SUCCESS; // Don't fail command for individual product failures
     }
 
     /**

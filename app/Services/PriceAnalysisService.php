@@ -381,5 +381,194 @@ PROMPT;
     {
         return $this->provider;
     }
+
+    /**
+     * Analyze multiple products concurrently using HTTP pool.
+     *
+     * @param array $products Array of AsinData models
+     * @return array Results keyed by product ID with 'success' and 'error' keys
+     */
+    public function analyzeBatchConcurrently(array $products): array
+    {
+        if (empty($products)) {
+            return [];
+        }
+
+        $productPrompts = $this->prepareProductPrompts($products);
+
+        if (empty($productPrompts)) {
+            return [];
+        }
+
+        $responses = $this->executeConcurrentRequests($productPrompts);
+
+        return $this->processResponses($responses, $productPrompts);
+    }
+
+    /**
+     * Prepare prompts for all products in batch.
+     */
+    private function prepareProductPrompts(array $products): array
+    {
+        $productPrompts = [];
+
+        foreach ($products as $product) {
+            if (empty($product->product_title)) {
+                continue;
+            }
+            $product->update(['price_analysis_status' => 'processing']);
+            $productPrompts[$product->id] = [
+                'product' => $product,
+                'prompt'  => $this->buildPriceAnalysisPrompt($product),
+            ];
+        }
+
+        return $productPrompts;
+    }
+
+    /**
+     * Process responses from concurrent requests.
+     */
+    private function processResponses(array $responses, array $productPrompts): array
+    {
+        $results = [];
+
+        foreach ($responses as $productId => $response) {
+            $product = $productPrompts[$productId]['product'];
+            $results[$productId] = $this->processSingleResponse($response, $product);
+        }
+
+        return $results;
+    }
+
+    /**
+     * Process a single response and update the product.
+     */
+    private function processSingleResponse($response, AsinData $product): array
+    {
+        try {
+            if ($response instanceof \Exception) {
+                throw $response;
+            }
+
+            if (!$response->successful()) {
+                throw new \Exception('API request failed: ' . $response->status());
+            }
+
+            $content = $this->extractResponseContent($response);
+            $analysisData = $this->parseResponse($content);
+
+            $product->update([
+                'price_analysis'        => $analysisData,
+                'price_analysis_status' => 'completed',
+                'price_analyzed_at'     => now(),
+            ]);
+
+            return ['success' => true, 'error' => null];
+
+        } catch (\Exception $e) {
+            $product->update(['price_analysis_status' => 'failed']);
+
+            LoggingService::log('Price analysis failed in batch', [
+                'asin'  => $product->asin,
+                'error' => $e->getMessage(),
+            ]);
+
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Execute concurrent HTTP requests using Laravel's HTTP pool.
+     */
+    private function executeConcurrentRequests(array $productPrompts): array
+    {
+        if ($this->provider === 'ollama') {
+            return $this->executeOllamaConcurrent($productPrompts);
+        }
+
+        return $this->executeChatCompletionsConcurrent($productPrompts);
+    }
+
+    /**
+     * Execute concurrent requests for OpenAI/DeepSeek API.
+     */
+    private function executeChatCompletionsConcurrent(array $productPrompts): array
+    {
+        $endpoint = $this->baseUrl;
+        if (!str_ends_with($endpoint, '/chat/completions')) {
+            $endpoint = rtrim($endpoint, '/') . '/chat/completions';
+        }
+
+        $headers = ['Content-Type' => 'application/json'];
+        if (!empty($this->apiKey)) {
+            $headers['Authorization'] = 'Bearer ' . $this->apiKey;
+        }
+
+        $responses = Http::pool(function ($pool) use ($productPrompts, $endpoint, $headers) {
+            foreach ($productPrompts as $productId => $data) {
+                $pool->as($productId)
+                    ->withHeaders($headers)
+                    ->timeout(60)
+                    ->post($endpoint, [
+                        'model'       => $this->model,
+                        'messages'    => [
+                            [
+                                'role'    => 'system',
+                                'content' => 'You are a pricing analyst helping consumers understand product pricing. Provide practical, actionable insights in JSON format. Be concise and helpful.',
+                            ],
+                            [
+                                'role'    => 'user',
+                                'content' => $data['prompt'],
+                            ],
+                        ],
+                        'temperature' => 0.3,
+                        'max_tokens'  => 800,
+                    ]);
+            }
+        });
+
+        return $responses;
+    }
+
+    /**
+     * Execute concurrent requests for Ollama API.
+     * Note: Ollama may not handle concurrent requests as efficiently as cloud APIs.
+     */
+    private function executeOllamaConcurrent(array $productPrompts): array
+    {
+        $endpoint = rtrim($this->baseUrl, '/') . '/api/generate';
+        $systemPrompt = 'You are a pricing analyst helping consumers understand product pricing. Provide practical, actionable insights in JSON format. Be concise and helpful.';
+
+        $responses = Http::pool(function ($pool) use ($productPrompts, $endpoint, $systemPrompt) {
+            foreach ($productPrompts as $productId => $data) {
+                $pool->as($productId)
+                    ->timeout(120)
+                    ->post($endpoint, [
+                        'model'  => $this->model,
+                        'prompt' => $systemPrompt . "\n\n" . $data['prompt'],
+                        'stream' => false,
+                        'options' => [
+                            'temperature' => 0.3,
+                            'num_predict' => 800,
+                        ],
+                    ]);
+            }
+        });
+
+        return $responses;
+    }
+
+    /**
+     * Extract content from response based on provider.
+     */
+    private function extractResponseContent($response): string
+    {
+        if ($this->provider === 'ollama') {
+            return $response->json('response', '');
+        }
+
+        return $response->json('choices.0.message.content', '');
+    }
 }
 

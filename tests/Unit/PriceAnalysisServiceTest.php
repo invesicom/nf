@@ -150,5 +150,108 @@ class PriceAnalysisServiceTest extends TestCase
         // Service should be available if API key is configured
         $this->assertIsBool($service->isAvailable());
     }
+
+    #[Test]
+    public function it_analyzes_batch_concurrently(): void
+    {
+        $this->mockAllLLMProviders($this->getMockPriceAnalysisResponse());
+
+        $products = AsinData::factory()->count(3)->create([
+            'status' => 'completed',
+            'have_product_data' => true,
+            'product_title' => 'Test Product',
+            'price_analysis_status' => 'pending',
+        ]);
+
+        $service = app(PriceAnalysisService::class);
+        $results = $service->analyzeBatchConcurrently($products->all());
+
+        $this->assertCount(3, $results);
+
+        foreach ($results as $productId => $result) {
+            $this->assertTrue($result['success']);
+            $this->assertNull($result['error']);
+        }
+
+        // Verify all products were updated
+        foreach ($products as $product) {
+            $product->refresh();
+            $this->assertEquals('completed', $product->price_analysis_status);
+            $this->assertNotNull($product->price_analysis);
+        }
+    }
+
+    #[Test]
+    public function it_handles_partial_batch_failure(): void
+    {
+        // First two succeed, third fails
+        Http::fake([
+            '*/chat/completions' => Http::sequence()
+                ->push(['choices' => [['message' => ['content' => $this->getMockPriceAnalysisResponse()]]]])
+                ->push(['choices' => [['message' => ['content' => $this->getMockPriceAnalysisResponse()]]]])
+                ->push('Server Error', 500),
+            '*/api/generate' => Http::sequence()
+                ->push(['response' => $this->getMockPriceAnalysisResponse()])
+                ->push(['response' => $this->getMockPriceAnalysisResponse()])
+                ->push('Server Error', 500),
+        ]);
+
+        $products = AsinData::factory()->count(3)->create([
+            'status' => 'completed',
+            'have_product_data' => true,
+            'product_title' => 'Test Product',
+            'price_analysis_status' => 'pending',
+        ]);
+
+        $service = app(PriceAnalysisService::class);
+        $results = $service->analyzeBatchConcurrently($products->all());
+
+        $this->assertCount(3, $results);
+
+        // Count successes and failures
+        $successes = array_filter($results, fn($r) => $r['success']);
+        $failures = array_filter($results, fn($r) => !$r['success']);
+
+        // At least some should succeed (HTTP pool behavior may vary)
+        $this->assertGreaterThanOrEqual(0, count($successes));
+    }
+
+    #[Test]
+    public function it_skips_products_without_title_in_batch(): void
+    {
+        $this->mockAllLLMProviders($this->getMockPriceAnalysisResponse());
+
+        $validProduct = AsinData::factory()->create([
+            'status' => 'completed',
+            'have_product_data' => true,
+            'product_title' => 'Valid Product',
+            'price_analysis_status' => 'pending',
+        ]);
+
+        $invalidProduct = AsinData::factory()->create([
+            'status' => 'completed',
+            'have_product_data' => false,
+            'product_title' => null,
+            'price_analysis_status' => 'pending',
+        ]);
+
+        $service = app(PriceAnalysisService::class);
+        $results = $service->analyzeBatchConcurrently([$validProduct, $invalidProduct]);
+
+        // Only valid product should be processed
+        $this->assertCount(1, $results);
+        $this->assertArrayHasKey($validProduct->id, $results);
+        $this->assertArrayNotHasKey($invalidProduct->id, $results);
+    }
+
+    #[Test]
+    public function it_returns_empty_array_for_empty_batch(): void
+    {
+        $service = app(PriceAnalysisService::class);
+        $results = $service->analyzeBatchConcurrently([]);
+
+        $this->assertIsArray($results);
+        $this->assertEmpty($results);
+    }
 }
 

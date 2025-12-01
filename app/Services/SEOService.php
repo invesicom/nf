@@ -202,7 +202,7 @@ class SEOService
      */
     private function generateQuestionAnswers(AsinData $asinData): array
     {
-        return [
+        $questions = [
             [
                 'question' => 'What percentage of reviews are fake for this product?',
                 'answer' => "{$asinData->fake_percentage}% of the analyzed reviews appear to be fake or inauthentic."
@@ -224,6 +224,34 @@ class SEOService
                 'answer' => 'This analysis helps consumers identify products with manipulated reviews, enabling more informed purchasing decisions based on genuine customer feedback.'
             ]
         ];
+
+        // Add price-related Q&A if price analysis is available
+        if ($asinData->hasPriceAnalysis()) {
+            $priceAnalysis = $asinData->price_analysis;
+
+            if (!empty($priceAnalysis['msrp_analysis']['amazon_price_assessment'])) {
+                $questions[] = [
+                    'question' => 'Is this product priced fairly on Amazon?',
+                    'answer' => "Based on AI price analysis, this product is {$priceAnalysis['msrp_analysis']['amazon_price_assessment']}."
+                ];
+            }
+
+            if (!empty($priceAnalysis['market_comparison']['price_positioning'])) {
+                $questions[] = [
+                    'question' => 'How is this product positioned in the market?',
+                    'answer' => "This product is positioned as a {$priceAnalysis['market_comparison']['price_positioning']} option in its category."
+                ];
+            }
+
+            if (!empty($priceAnalysis['summary'])) {
+                $questions[] = [
+                    'question' => 'What does the AI price analysis reveal?',
+                    'answer' => $priceAnalysis['summary']
+                ];
+            }
+        }
+
+        return $questions;
     }
 
     /**
@@ -314,24 +342,19 @@ class SEOService
                 'ratingCount' => count($asinData->getReviewsArray()),
                 'reviewCount' => count($asinData->getReviewsArray())
             ],
-            'additionalProperty' => [
-                [
-                    '@type' => 'PropertyValue',
-                    'name' => 'Fake Review Percentage',
-                    'value' => ($asinData->fake_percentage ?? 0) . '%'
-                ],
-                [
-                    '@type' => 'PropertyValue',
-                    'name' => 'Authenticity Grade',
-                    'value' => $asinData->grade ?? 'N/A'
-                ],
-                [
-                    '@type' => 'PropertyValue',
-                    'name' => 'Trust Score',
-                    'value' => $this->calculateTrustScore($asinData) . '/100'
-                ]
-            ]
+            'additionalProperty' => $this->generateProductProperties($asinData)
         ];
+
+        // Add price/offers if we have price data
+        if (!empty($asinData->price)) {
+            $schema['offers'] = [
+                '@type' => 'Offer',
+                'price' => $asinData->price,
+                'priceCurrency' => $asinData->currency ?? 'USD',
+                'availability' => 'https://schema.org/InStock',
+                'url' => "https://www.amazon.{$this->getAmazonDomain($asinData->country)}/dp/{$asinData->asin}"
+            ];
+        }
 
         // Add enhanced analysis as a review for better AI understanding
         if (!empty($asinData->explanation)) {
@@ -706,5 +729,79 @@ class SEOService
             'U' => 0,
             default => 3
         };
+    }
+
+    /**
+     * Generate product properties including price analysis data.
+     */
+    private function generateProductProperties(AsinData $asinData): array
+    {
+        $properties = $this->getBaseProductProperties($asinData);
+
+        if ($asinData->hasPriceAnalysis()) {
+            $properties = array_merge($properties, $this->getPriceAnalysisProperties($asinData));
+        }
+
+        return $properties;
+    }
+
+    /**
+     * Get base product properties for structured data.
+     */
+    private function getBaseProductProperties(AsinData $asinData): array
+    {
+        return [
+            ['@type' => 'PropertyValue', 'name' => 'Fake Review Percentage', 'value' => ($asinData->fake_percentage ?? 0) . '%'],
+            ['@type' => 'PropertyValue', 'name' => 'Authenticity Grade', 'value' => $asinData->grade ?? 'N/A'],
+            ['@type' => 'PropertyValue', 'name' => 'Trust Score', 'value' => $this->calculateTrustScore($asinData) . '/100']
+        ];
+    }
+
+    /**
+     * Get price analysis properties for structured data.
+     */
+    private function getPriceAnalysisProperties(AsinData $asinData): array
+    {
+        $properties = [];
+        $priceAnalysis = $asinData->price_analysis;
+
+        if (!empty($priceAnalysis['msrp_analysis']['estimated_msrp'])) {
+            $properties[] = ['@type' => 'PropertyValue', 'name' => 'Estimated MSRP', 'value' => $priceAnalysis['msrp_analysis']['estimated_msrp']];
+        }
+
+        if (!empty($priceAnalysis['msrp_analysis']['amazon_price_assessment'])) {
+            $properties[] = ['@type' => 'PropertyValue', 'name' => 'Price Assessment', 'value' => $priceAnalysis['msrp_analysis']['amazon_price_assessment']];
+        }
+
+        if (!empty($priceAnalysis['market_comparison']['price_positioning'])) {
+            $properties[] = ['@type' => 'PropertyValue', 'name' => 'Price Positioning', 'value' => $priceAnalysis['market_comparison']['price_positioning']];
+        }
+
+        return $properties;
+    }
+
+    /**
+     * Get Amazon domain from country code.
+     */
+    private function getAmazonDomain(string $country): string
+    {
+        $domains = [
+            'us' => 'com',
+            'gb' => 'co.uk',
+            'uk' => 'co.uk',
+            'ca' => 'ca',
+            'de' => 'de',
+            'fr' => 'fr',
+            'it' => 'it',
+            'es' => 'es',
+            'jp' => 'co.jp',
+            'au' => 'com.au',
+            'mx' => 'com.mx',
+            'in' => 'in',
+            'br' => 'com.br',
+            'nl' => 'nl',
+        ];
+
+        return $domains[strtolower($country)] ?? 'com';
     }
 }

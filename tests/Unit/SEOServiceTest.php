@@ -345,4 +345,67 @@ class SEOServiceTest extends TestCase
         $this->assertContains('Machine Learning Classification', $methodology['techniques']);
         $this->assertContains('Amazon product reviews', $methodology['data_sources']);
     }
+
+    #[Test]
+    public function it_includes_price_analysis_in_product_schema()
+    {
+        $asinData = AsinData::factory()->withPriceAnalysis()->create([
+            'price' => 29.99,
+            'currency' => 'USD',
+        ]);
+
+        $seoData = $this->seoService->generateProductSEOData($asinData);
+        $productSchema = $seoData['product_schema'];
+
+        // Check price/offers is included
+        $this->assertArrayHasKey('offers', $productSchema);
+        $this->assertEquals(29.99, $productSchema['offers']['price']);
+        $this->assertEquals('USD', $productSchema['offers']['priceCurrency']);
+
+        // Check price analysis properties are included
+        $additionalProperties = $productSchema['additionalProperty'];
+        $propertyNames = array_column($additionalProperties, 'name');
+
+        $this->assertContains('Estimated MSRP', $propertyNames);
+        $this->assertContains('Price Assessment', $propertyNames);
+        $this->assertContains('Price Positioning', $propertyNames);
+    }
+
+    #[Test]
+    public function it_includes_price_qa_when_price_analysis_available()
+    {
+        $asinData = AsinData::factory()->withPriceAnalysis()->create();
+
+        $seoData = $this->seoService->generateProductSEOData($asinData);
+        $questions = $seoData['question_answers'];
+
+        // Get all questions
+        $questionTexts = array_column($questions, 'question');
+
+        // Should include price-related questions
+        $this->assertContains('Is this product priced fairly on Amazon?', $questionTexts);
+        $this->assertContains('How is this product positioned in the market?', $questionTexts);
+    }
+
+    #[Test]
+    public function it_excludes_price_data_when_not_analyzed()
+    {
+        $asinData = AsinData::factory()->create([
+            'price_analysis_status' => 'pending',
+            'price_analysis' => null,
+        ]);
+
+        $seoData = $this->seoService->generateProductSEOData($asinData);
+        $productSchema = $seoData['product_schema'];
+
+        // Check offers is NOT included without price
+        $this->assertArrayNotHasKey('offers', $productSchema);
+
+        // Check price analysis properties are NOT included
+        $additionalProperties = $productSchema['additionalProperty'];
+        $propertyNames = array_column($additionalProperties, 'name');
+
+        $this->assertNotContains('Estimated MSRP', $propertyNames);
+        $this->assertNotContains('Price Assessment', $propertyNames);
+    }
 }
