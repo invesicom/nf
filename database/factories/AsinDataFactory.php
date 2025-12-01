@@ -110,4 +110,57 @@ class AsinDataFactory extends Factory
             'grade'           => 'F',
         ]);
     }
+
+    /**
+     * Indicate that the product has completed price analysis.
+     */
+    public function withPriceAnalysis(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'price_analysis_status' => 'completed',
+            'price_analyzed_at'     => now(),
+            'price_analysis'        => [
+                'msrp_analysis' => [
+                    'estimated_msrp'          => '$49.99',
+                    'msrp_source'             => 'Product category average',
+                    'amazon_price_assessment' => 'Below MSRP',
+                ],
+                'market_comparison' => [
+                    'price_positioning'          => 'Mid-range',
+                    'typical_alternatives_range' => '$30-$70',
+                    'value_proposition'          => 'Good value for the features offered.',
+                ],
+                'price_insights' => [
+                    'seasonal_consideration' => 'Consider waiting for Black Friday deals.',
+                    'deal_indicators'        => 'Look for 20%+ discounts.',
+                    'caution_flags'          => 'Unusually low prices may indicate counterfeit.',
+                ],
+                'summary' => 'This product is competitively priced in its category. The current Amazon price appears to be below the typical MSRP, making it a reasonable purchase.',
+            ],
+        ]);
+    }
+
+    /**
+     * Indicate that price analysis is processing.
+     */
+    public function priceAnalysisProcessing(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'price_analysis_status' => 'processing',
+            'price_analyzed_at'     => null,
+            'price_analysis'        => null,
+        ]);
+    }
+
+    /**
+     * Indicate that price analysis failed.
+     */
+    public function priceAnalysisFailed(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'price_analysis_status' => 'failed',
+            'price_analyzed_at'     => null,
+            'price_analysis'        => null,
+        ]);
+    }
 }

@@ -51,6 +51,15 @@ class AsinData extends Model
         'source',
         'extension_version',
         'extraction_timestamp',
+        'price',
+        'currency',
+        'availability',
+        'condition',
+        'seller',
+        'price_updated_at',
+        'price_analysis',
+        'price_analysis_status',
+        'price_analyzed_at',
     ];
 
     /**
@@ -63,11 +72,14 @@ class AsinData extends Model
         'openai_result'            => 'array',
         'detailed_analysis'        => 'array',
         'fake_review_examples'     => 'array',
+        'price_analysis'           => 'array',
         'have_product_data'        => 'boolean',
         'product_data_scraped_at'  => 'datetime',
         'first_analyzed_at'        => 'datetime',
         'last_analyzed_at'         => 'datetime',
         'extraction_timestamp'     => 'datetime',
+        'price_updated_at'         => 'datetime',
+        'price_analyzed_at'        => 'datetime',
     ];
 
     /*
@@ -337,5 +349,64 @@ class AsinData extends Model
 
         // Fallback to basic URL if no slug available
         return "/amazon/{$this->asin}";
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Price Analysis Methods
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Check if price analysis has been completed.
+     *
+     * @return bool True if price analysis is complete
+     */
+    public function hasPriceAnalysis(): bool
+    {
+        return $this->price_analysis_status === 'completed'
+            && !is_null($this->price_analysis)
+            && !empty($this->price_analysis);
+    }
+
+    /**
+     * Check if price analysis is currently in progress.
+     *
+     * @return bool True if price analysis is processing
+     */
+    public function isPriceAnalysisProcessing(): bool
+    {
+        return $this->price_analysis_status === 'processing';
+    }
+
+    /**
+     * Check if price analysis needs to be run.
+     *
+     * @return bool True if price analysis should be triggered
+     */
+    public function needsPriceAnalysis(): bool
+    {
+        // Don't analyze if already completed or in progress
+        if ($this->hasPriceAnalysis() || $this->isPriceAnalysisProcessing()) {
+            return false;
+        }
+
+        // Only analyze products with completed review analysis
+        return $this->isAnalyzed() && $this->have_product_data;
+    }
+
+    /**
+     * Scope for products pending price analysis.
+     */
+    public function scopePendingPriceAnalysis(Builder $query): Builder
+    {
+        return $query->where('status', 'completed')
+            ->where('have_product_data', true)
+            ->whereNotNull('product_title')
+            ->where(function ($q) {
+                $q->whereNull('price_analysis_status')
+                    ->orWhere('price_analysis_status', 'pending')
+                    ->orWhere('price_analysis_status', 'failed');
+            });
     }
 }

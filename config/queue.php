@@ -50,6 +50,14 @@ return [
             'after_commit' => false,
         ],
 
+        'price-analysis' => [
+            'driver'       => 'database',
+            'table'        => 'jobs',
+            'queue'        => 'price-analysis',
+            'retry_after'  => 180, // 3 minutes for price analysis jobs
+            'after_commit' => false,
+        ],
+
         'beanstalkd' => [
             'driver'       => 'beanstalkd',
             'host'         => 'localhost',

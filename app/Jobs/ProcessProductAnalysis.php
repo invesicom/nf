@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Jobs\ProcessPriceAnalysis;
 use App\Models\AnalysisSession;
 use App\Models\AsinData;
 use App\Services\LoggingService;
@@ -146,7 +147,8 @@ class ProcessProductAnalysis implements ShouldQueue
             // Step 8: Mark as completed (100%)
             $session->markAsCompleted($finalResult);
 
-
+            // Dispatch price analysis job (runs independently, doesn't block main flow)
+            $this->dispatchPriceAnalysis($asinData);
 
             LoggingService::log('Async product analysis completed successfully', [
                 'session_id' => $this->sessionId,
@@ -193,6 +195,38 @@ class ProcessProductAnalysis implements ShouldQueue
             'country' => $asinData->country,
             'asin'    => $asinData->asin,
         ]);
+    }
+
+    /**
+     * Dispatch price analysis job (independent, doesn't block main flow).
+     */
+    private function dispatchPriceAnalysis(AsinData $asinData): void
+    {
+        // Only dispatch if product meets requirements
+        if (!$asinData->needsPriceAnalysis()) {
+            LoggingService::log('Skipping price analysis dispatch', [
+                'asin'                   => $asinData->asin,
+                'has_price_analysis'     => $asinData->hasPriceAnalysis(),
+                'is_processing'          => $asinData->isPriceAnalysisProcessing(),
+            ]);
+
+            return;
+        }
+
+        try {
+            ProcessPriceAnalysis::dispatch($asinData->id);
+
+            LoggingService::log('Price analysis job dispatched', [
+                'asin'         => $asinData->asin,
+                'asin_data_id' => $asinData->id,
+            ]);
+        } catch (\Exception $e) {
+            // Log but don't fail - price analysis is a non-critical enhancement
+            LoggingService::log('Failed to dispatch price analysis job', [
+                'asin'  => $asinData->asin,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function handleFailure(AnalysisSession $session, \Exception $e): void

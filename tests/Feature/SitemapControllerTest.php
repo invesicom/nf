@@ -206,15 +206,26 @@ class SitemapControllerTest extends TestCase
     #[Test]
     public function it_sets_appropriate_cache_headers()
     {
-        $response = $this->get('/sitemap.xml');
+        // Use withoutMiddleware to ensure session middleware doesn't override cache headers
+        // This is necessary because session middleware adds no-cache headers by default
+        $response = $this->withoutMiddleware([
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        ])->get('/sitemap.xml');
         $this->assertStringContainsString('max-age=3600', $response->headers->get('Cache-Control'));
         $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
 
-        $response = $this->get('/sitemap-static.xml');
+        $response = $this->withoutMiddleware([
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        ])->get('/sitemap-static.xml');
         $this->assertStringContainsString('max-age=86400', $response->headers->get('Cache-Control'));
         $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
 
-        $response = $this->get('/sitemap-products.xml');
+        $response = $this->withoutMiddleware([
+            \Illuminate\Session\Middleware\StartSession::class,
+            \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        ])->get('/sitemap-products.xml');
         $this->assertStringContainsString('max-age=3600', $response->headers->get('Cache-Control'));
         $this->assertStringContainsString('public', $response->headers->get('Cache-Control'));
     }

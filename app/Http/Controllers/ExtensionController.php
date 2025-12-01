@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcessPriceAnalysis;
 use App\Jobs\ProcessProductAnalysis;
 use App\Models\AnalysisSession;
 use App\Models\AsinData;
@@ -413,6 +414,11 @@ class ExtensionController extends Controller
             'fake_percentage' => $asinData->fake_percentage,
             'grade' => $asinData->grade,
         ]);
+
+        // Dispatch price analysis job (independent, non-blocking)
+        if ($asinData->needsPriceAnalysis()) {
+            ProcessPriceAnalysis::dispatch($asinData->id);
+        }
 
         return response()->json($response);
     }

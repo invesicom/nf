@@ -302,7 +302,7 @@
             </div>
           </div>
           
-          <div class="flex gap-4 mb-4">
+          <div class="flex flex-wrap gap-4 mb-4">
             <a href="{{ $amazon_url }}" 
                target="_blank" 
                rel="noopener noreferrer"
@@ -312,6 +312,14 @@
             <a href="{{ route('home') }}" 
                class="bg-brand hover:bg-brand-dark text-white px-4 py-2 rounded-lg text-sm font-medium">
               Analyze Another Product
+            </a>
+            <a href="#price-analysis" 
+               class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center">
+              <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"></path>
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"></path>
+              </svg>
+              View Price Analysis
             </a>
           </div>
         </div>
@@ -499,6 +507,151 @@
       </div>
     </div>
     @endif
+
+    <!-- Price Analysis Section -->
+    <div id="price-analysis" class="bg-white rounded-lg shadow-md p-6 mt-6 scroll-mt-4">
+      <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+        <svg class="w-5 h-5 text-green-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+          <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z"></path>
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd"></path>
+        </svg>
+        Price Analysis
+      </h2>
+
+      @if($asinData->hasPriceAnalysis())
+        @php $priceData = $asinData->price_analysis; @endphp
+        
+        <!-- Price Summary -->
+        <div class="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg mb-6">
+          <p class="text-gray-700">{{ $priceData['summary'] ?? 'Price analysis completed.' }}</p>
+        </div>
+
+        <!-- Price Analysis Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <!-- MSRP Analysis -->
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-semibold text-gray-900 mb-2">MSRP Assessment</h4>
+            @if(isset($priceData['msrp_analysis']))
+              <div class="space-y-2 text-sm">
+                <div>
+                  <span class="text-gray-600">Estimated MSRP:</span>
+                  <span class="font-medium text-gray-900 block">{{ $priceData['msrp_analysis']['estimated_msrp'] ?? 'N/A' }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-600">Source:</span>
+                  <span class="text-gray-700 block">{{ $priceData['msrp_analysis']['msrp_source'] ?? 'N/A' }}</span>
+                </div>
+                <div>
+                  @php
+                    $assessment = $priceData['msrp_analysis']['amazon_price_assessment'] ?? 'Unknown';
+                    $assessmentColor = match($assessment) {
+                      'Below MSRP' => 'text-green-600',
+                      'Above MSRP' => 'text-red-600',
+                      'At MSRP' => 'text-blue-600',
+                      default => 'text-gray-600'
+                    };
+                  @endphp
+                  <span class="text-gray-600">Amazon Price:</span>
+                  <span class="font-medium {{ $assessmentColor }} block">{{ $assessment }}</span>
+                </div>
+              </div>
+            @else
+              <p class="text-sm text-gray-500">MSRP data unavailable</p>
+            @endif
+          </div>
+
+          <!-- Market Comparison -->
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-semibold text-gray-900 mb-2">Market Position</h4>
+            @if(isset($priceData['market_comparison']))
+              <div class="space-y-2 text-sm">
+                <div>
+                  @php
+                    $positioning = $priceData['market_comparison']['price_positioning'] ?? 'Unknown';
+                    $positionBadge = match($positioning) {
+                      'Budget' => 'bg-green-100 text-green-800',
+                      'Mid-range' => 'bg-blue-100 text-blue-800',
+                      'Premium' => 'bg-purple-100 text-purple-800',
+                      'Luxury' => 'bg-amber-100 text-amber-800',
+                      default => 'bg-gray-100 text-gray-800'
+                    };
+                  @endphp
+                  <span class="text-gray-600">Positioning:</span>
+                  <span class="inline-block px-2 py-1 rounded text-xs font-medium {{ $positionBadge }} mt-1">{{ $positioning }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-600">Alternatives Range:</span>
+                  <span class="text-gray-700 block">{{ $priceData['market_comparison']['typical_alternatives_range'] ?? 'N/A' }}</span>
+                </div>
+                <div>
+                  <span class="text-gray-600">Value:</span>
+                  <span class="text-gray-700 block">{{ $priceData['market_comparison']['value_proposition'] ?? 'N/A' }}</span>
+                </div>
+              </div>
+            @else
+              <p class="text-sm text-gray-500">Market data unavailable</p>
+            @endif
+          </div>
+
+          <!-- Price Insights -->
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h4 class="font-semibold text-gray-900 mb-2">Buying Tips</h4>
+            @if(isset($priceData['price_insights']))
+              <div class="space-y-2 text-sm">
+                @if(!empty($priceData['price_insights']['seasonal_consideration']) && $priceData['price_insights']['seasonal_consideration'] !== 'N/A')
+                <div>
+                  <span class="text-gray-600">Best Time to Buy:</span>
+                  <span class="text-gray-700 block">{{ $priceData['price_insights']['seasonal_consideration'] }}</span>
+                </div>
+                @endif
+                @if(!empty($priceData['price_insights']['deal_indicators']) && $priceData['price_insights']['deal_indicators'] !== 'N/A')
+                <div>
+                  <span class="text-gray-600">Deal Indicators:</span>
+                  <span class="text-gray-700 block">{{ $priceData['price_insights']['deal_indicators'] }}</span>
+                </div>
+                @endif
+                @if(!empty($priceData['price_insights']['caution_flags']) && $priceData['price_insights']['caution_flags'] !== 'N/A')
+                <div>
+                  <span class="text-gray-600">Watch For:</span>
+                  <span class="text-amber-700 block">{{ $priceData['price_insights']['caution_flags'] }}</span>
+                </div>
+                @endif
+              </div>
+            @else
+              <p class="text-sm text-gray-500">Insights unavailable</p>
+            @endif
+          </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="text-xs text-gray-500 border-t pt-3">
+          Price analysis generated by AI based on product category and market research. Actual prices may vary.
+          Last analyzed: {{ $asinData->price_analyzed_at?->format('M j, Y') ?? 'N/A' }}
+        </div>
+
+      @elseif($asinData->isPriceAnalysisProcessing())
+        <!-- Processing State -->
+        <div class="bg-blue-50 p-6 rounded-lg text-center">
+          <div class="animate-pulse flex flex-col items-center">
+            <svg class="w-8 h-8 text-blue-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <p class="text-blue-700 font-medium">Price analysis in progress</p>
+            <p class="text-blue-600 text-sm mt-1">This section will update automatically when complete.</p>
+          </div>
+        </div>
+
+      @else
+        <!-- Pending/Not Available State -->
+        <div class="bg-gray-50 p-6 rounded-lg text-center">
+          <svg class="w-8 h-8 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+          <p class="text-gray-600 font-medium">Price analysis pending</p>
+          <p class="text-gray-500 text-sm mt-1">Price insights will be available shortly.</p>
+        </div>
+      @endif
+    </div>
 
     <!-- Share Section -->
     <div class="bg-white rounded-lg shadow-md p-6 mt-6">

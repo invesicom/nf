@@ -536,6 +536,15 @@ class AsinDataModelTest extends TestCase
             'source',
             'extension_version',
             'extraction_timestamp',
+            'price',
+            'currency',
+            'availability',
+            'condition',
+            'seller',
+            'price_updated_at',
+            'price_analysis',
+            'price_analysis_status',
+            'price_analyzed_at',
         ];
 
         $this->assertEquals($expectedFillable, $fillable);

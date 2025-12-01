@@ -43,6 +43,19 @@ class ExtensionReviewService
             'product_data_scraped_at' => now(),
         ];
 
+        // Store price data if available from extension
+        if (!empty($productInfo['price'])) {
+            $priceData = $this->parsePrice($productInfo['price']);
+            if ($priceData['amount']) {
+                $updateData['price'] = $priceData['amount'];
+                $updateData['currency'] = $priceData['currency'];
+                $updateData['price_updated_at'] = now();
+            }
+        }
+        if (!empty($productInfo['availability'])) {
+            $updateData['availability'] = $this->sanitizeHtml($productInfo['availability']);
+        }
+
         // Add extension-specific fields if they exist in the database schema
         if (Schema::hasColumn('asin_data', 'source')) {
             $updateData['source'] = 'chrome_extension';
@@ -224,5 +237,54 @@ class ExtensionReviewService
         
         // Trim whitespace
         return trim($sanitized);
+    }
+
+    /**
+     * Parse price string into amount and currency.
+     * Handles formats like "$29.99", "£19.99", "€24.99", "CDN$ 39.99"
+     */
+    private function parsePrice(string $priceString): array
+    {
+        $result = ['amount' => null, 'currency' => 'USD'];
+
+        // Currency symbol mapping
+        $currencyMap = [
+            '$' => 'USD',
+            '£' => 'GBP',
+            '€' => 'EUR',
+            '¥' => 'JPY',
+            'CDN$' => 'CAD',
+            'A$' => 'AUD',
+            'MX$' => 'MXN',
+            '₹' => 'INR',
+        ];
+
+        // Detect currency from symbol
+        foreach ($currencyMap as $symbol => $currency) {
+            if (str_contains($priceString, $symbol)) {
+                $result['currency'] = $currency;
+                break;
+            }
+        }
+
+        // Extract numeric value
+        // Remove currency symbols and text, keep numbers and decimal points
+        $cleanPrice = preg_replace('/[^0-9.,]/', '', $priceString);
+        
+        // Handle European format (1.234,56) vs US format (1,234.56)
+        if (preg_match('/^\d{1,3}(\.\d{3})*(,\d{2})?$/', $cleanPrice)) {
+            // European format: replace . with nothing, , with .
+            $cleanPrice = str_replace('.', '', $cleanPrice);
+            $cleanPrice = str_replace(',', '.', $cleanPrice);
+        } else {
+            // US format: just remove commas
+            $cleanPrice = str_replace(',', '', $cleanPrice);
+        }
+
+        if (is_numeric($cleanPrice)) {
+            $result['amount'] = (float) $cleanPrice;
+        }
+
+        return $result;
     }
 }
