@@ -409,4 +409,84 @@ class AsinData extends Model
                     ->orWhere('price_analysis_status', 'failed');
             });
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Image URL Methods
+    |--------------------------------------------------------------------------
+    */
+
+    /**
+     * Transform Amazon image URL to high resolution version for social sharing.
+     *
+     * Amazon image URLs contain transformation parameters like:
+     * - _SY300_SX300_ = dimensions
+     * - _QL70_ = quality (70%)
+     * - _FMwebp_ = webp format
+     *
+     * For social sharing we need:
+     * - Larger images (1200px+ recommended for og:image)
+     * - JPEG format (better compatibility than webp)
+     * - Higher quality
+     *
+     * @param string|null $imageUrl The original Amazon image URL
+     * @return string|null The transformed high-resolution URL
+     */
+    public static function transformToHighResImage(?string $imageUrl): ?string
+    {
+        if (empty($imageUrl)) {
+            return null;
+        }
+
+        // Only transform Amazon media URLs
+        if (!str_contains($imageUrl, 'media-amazon.com/images/')) {
+            return $imageUrl;
+        }
+
+        // Pattern to match Amazon image transformation parameters
+        // Examples: ._AC_SY300_SX300_QL70_FMwebp_.jpg or ._AC_SL1500_.jpg
+        $pattern = '/\._[A-Z0-9_]+_\.(jpg|jpeg|png|gif|webp)$/i';
+
+        // Replace with high-resolution parameters optimized for social sharing
+        // _AC_SL1200_ gives us a 1200px image (optimal for og:image)
+        // Using .jpg for maximum compatibility
+        $highResUrl = preg_replace($pattern, '._AC_SL1200_.jpg', $imageUrl);
+
+        // If the pattern didn't match, try to handle URLs without the trailing format
+        if ($highResUrl === $imageUrl && preg_match('/\._[A-Z0-9_]+_$/i', $imageUrl)) {
+            $highResUrl = preg_replace('/\._[A-Z0-9_]+_$/i', '._AC_SL1200_.jpg', $imageUrl);
+        }
+
+        return $highResUrl;
+    }
+
+    /**
+     * Get high-resolution image URL for social media sharing (og:image, twitter:image).
+     *
+     * This accessor provides a properly sized and formatted image URL for
+     * social media previews. Social platforms like Facebook, Twitter/X, and
+     * Slack have specific requirements:
+     * - Minimum 200x200px (Facebook)
+     * - Recommended 1200x630px for og:image
+     * - JPEG or PNG format (webp not universally supported)
+     *
+     * @return string|null
+     */
+    public function getSocialImageUrlAttribute(): ?string
+    {
+        return self::transformToHighResImage($this->product_image_url);
+    }
+
+    /**
+     * Get the display image URL (for product pages, same as stored URL).
+     *
+     * This is the original image URL, which may be smaller/optimized for
+     * fast page loads. Use social_image_url for sharing previews.
+     *
+     * @return string|null
+     */
+    public function getDisplayImageUrlAttribute(): ?string
+    {
+        return $this->product_image_url;
+    }
 }

@@ -37,10 +37,10 @@
   <meta property="og:title" content="{{ $seo_data['social_title'] }}" />
   <meta property="og:description" content="{{ $seo_data['social_description'] }}" />
   <meta property="og:site_name" content="Null Fake" />
-  @if($asinData->product_image_url)
-  <meta property="og:image" content="{{ $asinData->product_image_url }}" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
+  @if($asinData->social_image_url)
+  <meta property="og:image" content="{{ $asinData->social_image_url }}" />
+  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:alt" content="{{ $asinData->product_title ?? 'Product image' }}" />
   @endif
   <!-- Product specific Open Graph -->
   <meta property="product:price:amount" content="N/A" />
@@ -55,8 +55,9 @@
   <meta property="twitter:url" content="{{ url($canonical_url) }}" />
   <meta property="twitter:title" content="{{ $seo_data['social_title'] }}" />
   <meta property="twitter:description" content="{{ $seo_data['social_description'] }}" />
-  @if($asinData->product_image_url)
-  <meta property="twitter:image" content="{{ $asinData->product_image_url }}" />
+  @if($asinData->social_image_url)
+  <meta property="twitter:image" content="{{ $asinData->social_image_url }}" />
+  <meta property="twitter:image:alt" content="{{ $asinData->product_title ?? 'Product image' }}" />
   @endif
   <!-- Twitter Product Card -->
   <meta name="twitter:label1" content="Grade" />
@@ -95,7 +96,7 @@
     "name": "{{ $asinData->product_title ?? 'Amazon Product' }}",
     "description": "{{ $seo_data['review_summary'] }}",
     @if($asinData->product_image_url)
-    "image": "{{ $asinData->product_image_url }}",
+    "image": "{{ $asinData->social_image_url }}",
     @endif
     "brand": {
       "@type": "Brand",
@@ -267,7 +268,7 @@
       <div class="flex flex-col md:flex-row gap-6">
         @if($asinData->product_image_url)
         <div class="flex-shrink-0">
-          <img src="{{ $asinData->product_image_url }}" 
+          <img src="{{ $asinData->social_image_url }}" 
                alt="{{ $asinData->product_title ?? 'Product Image' }}" 
                class="w-48 h-48 object-contain rounded-lg border">
         </div>
