@@ -46,3 +46,8 @@ Route::prefix('extension')->name('api.extension.')
         // Progress endpoint for async analysis tracking
         Route::get('/progress/{sessionId}', [App\Http\Controllers\ExtensionController::class, 'getExtensionProgress'])->name('progress');
     });
+
+// Chrome Extension Legacy API endpoint - alias for extension endpoint
+// Some extension versions call this URL pattern
+Route::get('/chrome-extension/check-analysis/{asin}/{country}', [App\Http\Controllers\ExtensionController::class, 'getAnalysisStatus'])
+    ->name('api.chrome-extension.check-analysis');

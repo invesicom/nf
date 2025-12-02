@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AnalysisSession;
 use App\Models\AsinData;
 use App\Services\ExtensionReviewService;
 use App\Services\LLMServiceManager;
@@ -748,6 +749,242 @@ class ExtensionApiTest extends TestCase
         $this->assertEquals('chrome_extension', $asinData->source);
         $this->assertEquals('1.4.4', $asinData->extension_version);
         $this->assertCount(10, $asinData->getReviewsArray());
+    }
+
+    #[Test]
+    public function it_supports_chrome_extension_check_analysis_route_alias(): void
+    {
+        // Create existing analysis data with sample reviews
+        $sampleReviews = [
+            ['id' => 1, 'text' => 'Great product!'],
+            ['id' => 2, 'text' => 'Good quality'],
+        ];
+        
+        AsinData::create([
+            'asin' => 'B0F2H3W2JR',
+            'country' => 'ca',
+            'status' => 'completed',
+            'fake_percentage' => 28.0,
+            'grade' => 'C',
+            'amazon_rating' => 4.3,
+            'adjusted_rating' => 3.7,
+            'explanation' => 'This product shows some suspicious review patterns.',
+            'product_title' => 'Full Size Wired Keyboard for Mac',
+            'product_image_url' => 'https://m.media-amazon.com/images/I/61n1I3fdbuL._AC_SL1500_.jpg',
+            'total_reviews_on_amazon' => 27,
+            'reviews' => json_encode($sampleReviews),
+        ]);
+
+        // Test the chrome-extension route alias (different from /api/extension/analysis)
+        $response = $this->getJson('/api/chrome-extension/check-analysis/B0F2H3W2JR/ca', [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'exists' => true,
+                'data' => [
+                    'asin' => 'B0F2H3W2JR',
+                    'country' => 'ca',
+                    'status' => 'completed',
+                    'analysis_complete' => true,
+                ],
+            ])
+            ->assertJsonStructure([
+                'success',
+                'exists',
+                'data' => [
+                    'asin',
+                    'country',
+                    'status',
+                    'analysis_complete',
+                    'redirect_url',
+                    'view_url',
+                    'url',
+                    'analysis' => [
+                        'grade',
+                        'fake_percentage',
+                        'adjusted_rating',
+                        'total_reviews',
+                        'fake_count',
+                        'genuine_count',
+                    ],
+                    'product_info' => [
+                        'title',
+                        'image_url',
+                        'amazon_rating',
+                        'total_reviews_on_amazon',
+                    ],
+                ],
+            ]);
+
+        // Verify critical fields
+        $responseData = $response->json();
+        $this->assertTrue($responseData['data']['analysis_complete']);
+        $this->assertEquals(28.0, $responseData['data']['analysis']['fake_percentage']);
+        $this->assertEquals('C', $responseData['data']['analysis']['grade']);
+        $this->assertEquals('Full Size Wired Keyboard for Mac', $responseData['data']['product_info']['title']);
+        $this->assertStringContainsString('/amazon/ca/B0F2H3W2JR', $responseData['data']['redirect_url']);
+    }
+
+    #[Test]
+    public function it_returns_404_from_chrome_extension_route_for_nonexistent_analysis(): void
+    {
+        $response = $this->getJson('/api/chrome-extension/check-analysis/NONEXISTENT/us', [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(404)
+            ->assertJson([
+                'success' => false,
+                'exists' => false,
+                'message' => 'No analysis found for this product',
+                'asin' => 'NONEXISTENT',
+                'country' => 'us',
+            ]);
+    }
+
+    #[Test]
+    public function it_returns_in_progress_from_chrome_extension_route(): void
+    {
+        AsinData::create([
+            'asin' => 'B0PROCESSING',
+            'country' => 'ca',
+            'status' => 'processing',
+            'fake_percentage' => null,
+            'grade' => null,
+            'reviews' => json_encode([['id' => 1, 'text' => 'Sample review']]),
+        ]);
+
+        $response = $this->getJson('/api/chrome-extension/check-analysis/B0PROCESSING/ca', [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'exists' => true,
+                'data' => [
+                    'asin' => 'B0PROCESSING',
+                    'country' => 'ca',
+                    'status' => 'processing',
+                    'analysis_complete' => false,
+                ],
+            ]);
+
+        // Verify the extension will see analysis_complete = false
+        $responseData = $response->json();
+        $this->assertFalse($responseData['data']['analysis_complete']);
+    }
+
+    #[Test]
+    public function progress_endpoint_returns_analysis_complete_during_processing(): void
+    {
+        $session = AnalysisSession::create([
+            'user_session' => 'test_session_123',
+            'asin' => 'B0TEST12345',
+            'product_url' => 'https://www.amazon.com/dp/B0TEST12345/',
+            'status' => 'processing',
+            'current_step' => 2,
+            'total_steps' => 5,
+            'progress_percentage' => 40.0,
+            'current_message' => 'Analyzing reviews with AI...',
+        ]);
+
+        $response = $this->getJson('/api/extension/progress/' . $session->id, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'status' => 'processing',
+                'analysis_complete' => false, // CRITICAL: Must be present even during processing
+            ]);
+
+        $responseData = $response->json();
+        $this->assertArrayHasKey('analysis_complete', $responseData);
+        $this->assertFalse($responseData['analysis_complete']);
+    }
+
+    #[Test]
+    public function progress_endpoint_returns_analysis_complete_true_when_completed(): void
+    {
+        $session = AnalysisSession::create([
+            'user_session' => 'test_session_456',
+            'asin' => 'B0TEST67890',
+            'product_url' => 'https://www.amazon.com/dp/B0TEST67890/',
+            'status' => 'completed',
+            'current_step' => 5,
+            'total_steps' => 5,
+            'progress_percentage' => 100.0,
+            'current_message' => 'Analysis complete!',
+            'result' => [
+                'success' => true,
+                'redirect_url' => 'https://nullfake.com/amazon/us/B0TEST67890/test-product',
+            ],
+            'completed_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/extension/progress/' . $session->id, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'status' => 'completed',
+                'analysis_complete' => true,
+            ]);
+
+        $responseData = $response->json();
+        $this->assertTrue($responseData['analysis_complete']);
+        $this->assertArrayHasKey('redirect_url', $responseData);
+    }
+
+    #[Test]
+    public function progress_endpoint_returns_analysis_complete_false_when_failed(): void
+    {
+        $session = AnalysisSession::create([
+            'user_session' => 'test_session_789',
+            'asin' => 'B0TESTFAIL1',
+            'product_url' => 'https://www.amazon.com/dp/B0TESTFAIL1/',
+            'status' => 'failed',
+            'error_message' => 'LLM service unavailable',
+            'completed_at' => now(),
+        ]);
+
+        $response = $this->getJson('/api/extension/progress/' . $session->id, [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(200)
+            ->assertJson([
+                'success' => true,
+                'status' => 'failed',
+                'analysis_complete' => false,
+                'error' => 'LLM service unavailable',
+            ]);
+
+        $responseData = $response->json();
+        $this->assertFalse($responseData['analysis_complete']);
+        $this->assertArrayHasKey('error', $responseData);
+    }
+
+    #[Test]
+    public function progress_endpoint_returns_404_with_analysis_complete_for_nonexistent_session(): void
+    {
+        $response = $this->getJson('/api/extension/progress/nonexistent-session-id', [
+            'X-API-Key' => $this->validApiKey,
+        ]);
+
+        $response->assertStatus(404)
+            ->assertJson([
+                'success' => false,
+                'error' => 'Analysis session not found',
+                'analysis_complete' => false,
+            ]);
     }
 
 }

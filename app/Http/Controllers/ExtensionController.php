@@ -140,6 +140,7 @@ class ExtensionController extends Controller
             return response()->json([
                 'success' => false,
                 'error' => 'Analysis session not found',
+                'analysis_complete' => false,
             ], 404);
         }
 
@@ -151,6 +152,7 @@ class ExtensionController extends Controller
             'progress_percentage' => $session->progress_percentage,
             'current_message'     => $session->current_message,
             'asin'                => $session->asin,
+            'analysis_complete'   => false, // Default to false, updated below if completed
         ];
 
         if ($session->isCompleted()) {
@@ -159,7 +161,7 @@ class ExtensionController extends Controller
             $response['analysis_complete'] = true;
         } elseif ($session->isFailed()) {
             $response['error'] = $session->error_message;
-            $response['analysis_complete'] = false;
+            // analysis_complete remains false for failed sessions
         }
 
         return response()->json($response);
