@@ -98,6 +98,52 @@ class ExtensionController extends Controller
                 'extension_version' => $data['extension_version'],
             ]);
 
+            // Check if product is ALREADY fully analyzed - if so, return existing analysis immediately
+            // This prevents overwriting completed analysis with status='fetched'
+            $existingAnalysis = AsinData::where('asin', $data['asin'])
+                ->where('country', $data['country'])
+                ->first();
+
+            if ($existingAnalysis && $existingAnalysis->isAnalyzed()) {
+                LoggingService::log('Product already analyzed - returning existing analysis', [
+                    'asin' => $data['asin'],
+                    'country' => $data['country'],
+                    'grade' => $existingAnalysis->grade,
+                    'status' => $existingAnalysis->status,
+                ]);
+
+                // Build redirect URL
+                $productSlug = $existingAnalysis->product_title 
+                    ? \Illuminate\Support\Str::slug($existingAnalysis->product_title) 
+                    : null;
+                $redirectUrl = $productSlug 
+                    ? route('amazon.product.show.slug', [
+                        'country' => $data['country'],
+                        'asin' => $data['asin'],
+                        'slug' => $productSlug,
+                    ])
+                    : route('amazon.product.show', [
+                        'asin' => $data['asin'],
+                        'country' => $data['country'],
+                    ]);
+
+                return response()->json([
+                    'success' => true,
+                    'asin' => $data['asin'],
+                    'country' => $data['country'],
+                    'analysis_id' => $existingAnalysis->id,
+                    'analysis_complete' => true,
+                    'already_analyzed' => true,
+                    'redirect_url' => $redirectUrl,
+                    'view_url' => $redirectUrl,
+                    'fake_percentage' => $existingAnalysis->fake_percentage,
+                    'grade' => $existingAnalysis->grade,
+                    'adjusted_rating' => $existingAnalysis->adjusted_rating,
+                    'amazon_rating' => $existingAnalysis->amazon_rating,
+                    'explanation' => $existingAnalysis->explanation,
+                ]);
+            }
+
             // Check if async processing is enabled (disabled in testing environment)
             $asyncEnabled = !app()->environment('testing') && (
                 config('analysis.async_enabled') ??
