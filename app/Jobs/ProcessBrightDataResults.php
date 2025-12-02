@@ -99,6 +99,17 @@ class ProcessBrightDataResults implements ShouldQueue
             ['status' => 'pending_analysis']
         );
 
+        // CRITICAL: Never overwrite a completed analysis - this job may run AFTER
+        // the main analysis has already finished
+        if ($asinData->isAnalyzed()) {
+            LoggingService::log('BrightData results skipped - analysis already complete', [
+                'asin'   => $this->asin,
+                'status' => $asinData->status,
+                'grade'  => $asinData->grade,
+            ]);
+            return $asinData;
+        }
+
         $asinData->reviews = json_encode($transformedData['reviews']);
         $asinData->product_description = $transformedData['description'] ?? '';
         $asinData->total_reviews_on_amazon = $transformedData['total_reviews'] ?? count($transformedData['reviews']);

@@ -24,6 +24,17 @@ class ExtensionReviewService
             'extension_version' => $extensionData['extension_version'],
         ]);
 
+        // Check if product is already fully analyzed - don't overwrite completed analysis
+        $existingData = AsinData::where('asin', $asin)->where('country', $country)->first();
+        if ($existingData && $existingData->isAnalyzed()) {
+            LoggingService::log('Extension data skipped - analysis already complete', [
+                'asin'   => $asin,
+                'status' => $existingData->status,
+                'grade'  => $existingData->grade,
+            ]);
+            return $existingData;
+        }
+
         // Transform extension review format to internal format
         $transformedReviews = $this->transformReviewsFormat($extensionData['reviews']);
 

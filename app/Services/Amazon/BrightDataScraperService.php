@@ -195,7 +195,17 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             ['status' => 'processing']
         );
 
-        // Always set to processing status for async mode
+        // CRITICAL: Never overwrite a completed analysis
+        if ($asinData->isAnalyzed()) {
+            LoggingService::log('BrightData async skipped - analysis already complete', [
+                'asin'   => $asin,
+                'status' => $asinData->status,
+                'grade'  => $asinData->grade,
+            ]);
+            return $asinData;
+        }
+
+        // Set to processing status for async mode
         if ($asinData->status !== 'processing') {
             $asinData->update(['status' => 'processing']);
         }
