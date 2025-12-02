@@ -169,12 +169,13 @@ class ExtensionController extends Controller
 
     /**
      * Get analysis status for extension.
+     * 
+     * Returns data DIRECTLY without wrapper - extension API client adds its own wrapper.
      */
     public function getAnalysisStatus(Request $request, string $asin, string $country): JsonResponse
     {
         if (!app()->environment(['local', 'testing']) && config('services.extension.require_api_key', true) && !$this->validateApiKey($request)) {
             return response()->json([
-                'success' => false,
                 'error' => 'Invalid or missing API key',
             ], 401);
         }
@@ -185,41 +186,11 @@ class ExtensionController extends Controller
 
         if (!$asinData) {
             return response()->json([
-                'success' => false,
-                'exists' => false,
-                'message' => 'No analysis found for this product',
+                'error' => 'No analysis found',
                 'asin' => $asin,
                 'country' => $country,
             ], 404);
         }
-
-        // Check if analysis is complete AND page is ready to display
-        // Use the same logic as AmazonProductController to ensure consistency
-        if (!$asinData->isAnalyzed()) {
-            return response()->json([
-                'success' => true,
-                'exists' => true,
-                'data' => [
-                    'asin' => $asin,
-                    'country' => $country,
-                    'status' => $asinData->status ?? 'processing',
-                    'analysis_complete' => false, // CRITICAL: Extension checks this field
-                    'progress' => [
-                        'stage' => $asinData->status ?? 'processing',
-                        'percentage' => 50, // Approximate progress
-                        'message' => 'Analyzing reviews with AI...',
-                    ],
-                    'estimated_completion' => now()->addMinutes(2)->toISOString(),
-                ],
-            ]);
-        }
-
-        // Calculate review counts
-        $reviews = $asinData->getReviewsArray();
-        $totalReviews = count($reviews);
-        $fakeCount = round(($asinData->fake_percentage / 100) * $totalReviews);
-        $genuineCount = $totalReviews - $fakeCount;
-        $ratingDifference = ($asinData->adjusted_rating ?? 0) - ($asinData->amazon_rating ?? 0);
 
         // Build the product URL with slug for better SEO
         $productSlug = $asinData->product_title ? \Illuminate\Support\Str::slug($asinData->product_title) : null;
@@ -234,37 +205,26 @@ class ExtensionController extends Controller
                 'country' => $country,
             ]);
 
+        // Check if analysis is complete AND page is ready to display
+        $isAnalyzed = $asinData->isAnalyzed();
+
+        // Return data DIRECTLY - extension API client wraps in {success, exists, data}
         return response()->json([
-            'success' => true, // CRITICAL: Extension checks this field
-            'exists' => true,
-            'data' => [
-                'asin' => $asin,
-                'country' => $country,
-                'status' => 'completed',
-                'analysis_complete' => true, // CRITICAL: Extension checks this field
-                'redirect_url' => $redirectUrl,
-                'view_url' => $redirectUrl, // Fallback field
-                'url' => $redirectUrl, // Fallback field
-                'analysis' => [
-                    'fake_percentage' => (float) $asinData->fake_percentage,
-                    'grade' => $asinData->grade,
-                    'explanation' => $asinData->explanation ?? 'Analysis completed successfully.',
-                    'adjusted_rating' => (float) ($asinData->adjusted_rating ?? 0),
-                    'total_reviews' => $totalReviews,
-                    'fake_count' => $fakeCount,
-                    'genuine_count' => $genuineCount,
-                    'confidence' => 'high', // Could be extracted from explanation or stored separately
-                ],
-                'product_info' => [
-                    'title' => $asinData->product_title,
-                    'image_url' => $asinData->product_image_url,
-                    'amazon_rating' => (float) ($asinData->amazon_rating ?? 0),
-                    'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon,
-                ],
-                'analyzed_at' => $asinData->updated_at->toISOString(),
-                'created_at' => $asinData->created_at->toISOString(),
-                'updated_at' => $asinData->updated_at->toISOString(),
-            ],
+            'asin' => $asin,
+            'country' => $country,
+            'status' => $isAnalyzed ? 'completed' : ($asinData->status ?? 'processing'),
+            'analysis_complete' => $isAnalyzed,
+            'redirect_url' => $redirectUrl,
+            'view_url' => $redirectUrl,
+            'fake_percentage' => $asinData->fake_percentage,
+            'grade' => $asinData->grade,
+            'adjusted_rating' => $asinData->adjusted_rating,
+            'amazon_rating' => $asinData->amazon_rating,
+            'explanation' => $asinData->explanation,
+            'product_title' => $asinData->product_title,
+            'product_image_url' => $asinData->product_image_url,
+            'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon,
+            'analyzed_at' => $asinData->last_analyzed_at?->toISOString(),
         ]);
     }
 

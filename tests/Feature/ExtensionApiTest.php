@@ -395,65 +395,40 @@ class ExtensionApiTest extends TestCase
             'X-API-Key' => $this->validApiKey,
         ]);
 
+        // Response is returned DIRECTLY without wrapper (extension client adds wrapper)
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
-                'exists' => true,
-                'data' => [
-                    'asin' => 'B0FFVTPRQY',
-                    'country' => 'ca',
-                    'status' => 'completed',
-                    'analysis_complete' => true, // CRITICAL field for Chrome extension
-                ],
+                'asin' => 'B0FFVTPRQY',
+                'country' => 'ca',
+                'status' => 'completed',
+                'analysis_complete' => true,
+                'grade' => 'B',
+                'fake_percentage' => 25.5,
+                'amazon_rating' => 4.2,
             ])
             ->assertJsonStructure([
-                'success',
-                'exists',
-                'data' => [
-                    'asin',
-                    'country',
-                    'status',
-                    'analysis_complete',
-                    'redirect_url',
-                    'view_url',
-                    'url',
-                    'analysis' => [
-                        'grade',
-                        'fake_percentage',
-                        'adjusted_rating',
-                        'total_reviews',
-                        'fake_count',
-                        'genuine_count',
-                        'explanation',
-                        'confidence',
-                    ],
-                    'product_info' => [
-                        'title',
-                        'image_url',
-                        'amazon_rating',
-                        'total_reviews_on_amazon',
-                    ],
-                    'analyzed_at',
-                    'created_at',
-                    'updated_at',
-                ],
-            ])
-            ->assertJsonPath('data.analysis.grade', 'B')
-            ->assertJsonPath('data.analysis.fake_percentage', 25.5)
-            ->assertJsonPath('data.analysis.total_reviews', 2)
-            ->assertJsonPath('data.analysis.fake_count', 1)
-            ->assertJsonPath('data.analysis.genuine_count', 1)
-            ->assertJsonPath('data.product_info.amazon_rating', 4.2);
+                'asin',
+                'country',
+                'status',
+                'analysis_complete',
+                'redirect_url',
+                'view_url',
+                'fake_percentage',
+                'grade',
+                'adjusted_rating',
+                'amazon_rating',
+                'explanation',
+                'analyzed_at',
+            ]);
 
         // Verify the critical fields that Chrome extension checks
         $responseData = $response->json();
-        $this->assertTrue($responseData['success']);
-        $this->assertTrue($responseData['exists']);
-        $this->assertTrue($responseData['data']['analysis_complete']);
-        $this->assertEquals('completed', $responseData['data']['status']);
-        $this->assertNotEmpty($responseData['data']['redirect_url']);
-        $this->assertNotEmpty($responseData['data']['view_url']);
-        $this->assertNotEmpty($responseData['data']['url']);
+        $this->assertTrue($responseData['analysis_complete']);
+        $this->assertEquals('completed', $responseData['status']);
+        $this->assertEquals('B', $responseData['grade']);
+        $this->assertEquals(25.5, $responseData['fake_percentage']);
+        $this->assertNotEmpty($responseData['redirect_url']);
+        $this->assertNotEmpty($responseData['view_url']);
     }
 
     #[Test]
@@ -473,40 +448,19 @@ class ExtensionApiTest extends TestCase
             'X-API-Key' => $this->validApiKey,
         ]);
 
+        // Response is returned DIRECTLY without wrapper
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
-                'exists' => true,
-                'data' => [
-                    'asin' => 'B0INCOMPLETE',
-                    'country' => 'us',
-                    'status' => 'processing',
-                    'analysis_complete' => false, // CRITICAL: Should be false during processing
-                ],
-            ])
-            ->assertJsonStructure([
-                'success',
-                'exists',
-                'data' => [
-                    'asin',
-                    'country',
-                    'status',
-                    'analysis_complete',
-                    'progress' => [
-                        'stage',
-                        'percentage',
-                        'message',
-                    ],
-                    'estimated_completion',
-                ],
+                'asin' => 'B0INCOMPLETE',
+                'country' => 'us',
+                'status' => 'processing',
+                'analysis_complete' => false,
             ]);
 
         // Verify the critical fields that Chrome extension checks for in-progress state
         $responseData = $response->json();
-        $this->assertTrue($responseData['success']);
-        $this->assertTrue($responseData['exists']);
-        $this->assertFalse($responseData['data']['analysis_complete']); // Should be false
-        $this->assertEquals('processing', $responseData['data']['status']);
+        $this->assertFalse($responseData['analysis_complete']);
+        $this->assertEquals('processing', $responseData['status']);
     }
 
     #[Test]
@@ -518,9 +472,7 @@ class ExtensionApiTest extends TestCase
 
         $response->assertStatus(404)
             ->assertJson([
-                'success' => false,
-                'exists' => false,
-                'message' => 'No analysis found for this product',
+                'error' => 'No analysis found',
                 'asin' => 'NONEXISTENT',
                 'country' => 'us',
             ]);
@@ -780,52 +732,24 @@ class ExtensionApiTest extends TestCase
             'X-API-Key' => $this->validApiKey,
         ]);
 
+        // Response is returned DIRECTLY without wrapper
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
-                'exists' => true,
-                'data' => [
-                    'asin' => 'B0F2H3W2JR',
-                    'country' => 'ca',
-                    'status' => 'completed',
-                    'analysis_complete' => true,
-                ],
-            ])
-            ->assertJsonStructure([
-                'success',
-                'exists',
-                'data' => [
-                    'asin',
-                    'country',
-                    'status',
-                    'analysis_complete',
-                    'redirect_url',
-                    'view_url',
-                    'url',
-                    'analysis' => [
-                        'grade',
-                        'fake_percentage',
-                        'adjusted_rating',
-                        'total_reviews',
-                        'fake_count',
-                        'genuine_count',
-                    ],
-                    'product_info' => [
-                        'title',
-                        'image_url',
-                        'amazon_rating',
-                        'total_reviews_on_amazon',
-                    ],
-                ],
+                'asin' => 'B0F2H3W2JR',
+                'country' => 'ca',
+                'status' => 'completed',
+                'analysis_complete' => true,
+                'fake_percentage' => 28.0,
+                'grade' => 'C',
             ]);
 
         // Verify critical fields
         $responseData = $response->json();
-        $this->assertTrue($responseData['data']['analysis_complete']);
-        $this->assertEquals(28.0, $responseData['data']['analysis']['fake_percentage']);
-        $this->assertEquals('C', $responseData['data']['analysis']['grade']);
-        $this->assertEquals('Full Size Wired Keyboard for Mac', $responseData['data']['product_info']['title']);
-        $this->assertStringContainsString('/amazon/ca/B0F2H3W2JR', $responseData['data']['redirect_url']);
+        $this->assertTrue($responseData['analysis_complete']);
+        $this->assertEquals(28.0, $responseData['fake_percentage']);
+        $this->assertEquals('C', $responseData['grade']);
+        $this->assertEquals('Full Size Wired Keyboard for Mac', $responseData['product_title']);
+        $this->assertStringContainsString('/amazon/ca/B0F2H3W2JR', $responseData['redirect_url']);
     }
 
     #[Test]
@@ -837,9 +761,7 @@ class ExtensionApiTest extends TestCase
 
         $response->assertStatus(404)
             ->assertJson([
-                'success' => false,
-                'exists' => false,
-                'message' => 'No analysis found for this product',
+                'error' => 'No analysis found',
                 'asin' => 'NONEXISTENT',
                 'country' => 'us',
             ]);
@@ -861,21 +783,18 @@ class ExtensionApiTest extends TestCase
             'X-API-Key' => $this->validApiKey,
         ]);
 
+        // Response is returned DIRECTLY without wrapper
         $response->assertStatus(200)
             ->assertJson([
-                'success' => true,
-                'exists' => true,
-                'data' => [
-                    'asin' => 'B0PROCESSING',
-                    'country' => 'ca',
-                    'status' => 'processing',
-                    'analysis_complete' => false,
-                ],
+                'asin' => 'B0PROCESSING',
+                'country' => 'ca',
+                'status' => 'processing',
+                'analysis_complete' => false,
             ]);
 
         // Verify the extension will see analysis_complete = false
         $responseData = $response->json();
-        $this->assertFalse($responseData['data']['analysis_complete']);
+        $this->assertFalse($responseData['analysis_complete']);
     }
 
     #[Test]
