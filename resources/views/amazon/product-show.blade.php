@@ -104,6 +104,7 @@
     },
     "sku": "{{ $asinData->asin }}",
     "gtin": "{{ $asinData->asin }}",
+    @if(count($asinData->getReviewsArray()) > 0)
     "aggregateRating": {
       "@type": "AggregateRating",
       "ratingValue": "{{ $asinData->adjusted_rating }}",
@@ -112,6 +113,7 @@
       "ratingCount": "{{ count($asinData->getReviewsArray()) }}",
       "reviewCount": "{{ count($asinData->getReviewsArray()) }}"
     },
+    @endif
     "review": [
       {
         "@type": "Review",

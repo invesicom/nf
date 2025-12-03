@@ -325,6 +325,8 @@ class SEOService
      */
     private function generateProductSchema(AsinData $asinData): array
     {
+        $reviewCount = count($asinData->getReviewsArray());
+        
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Product',
@@ -334,16 +336,20 @@ class SEOService
             'sku' => $asinData->asin,
             'gtin' => $asinData->asin,
             'brand' => ['@type' => 'Brand', 'name' => 'Amazon'],
-            'aggregateRating' => [
+            'additionalProperty' => $this->generateProductProperties($asinData)
+        ];
+        
+        // Only include aggregateRating if there are reviews (Google requires positive values)
+        if ($reviewCount > 0) {
+            $schema['aggregateRating'] = [
                 '@type' => 'AggregateRating',
                 'ratingValue' => $asinData->adjusted_rating ?? 0,
                 'bestRating' => 5,
                 'worstRating' => 1,
-                'ratingCount' => count($asinData->getReviewsArray()),
-                'reviewCount' => count($asinData->getReviewsArray())
-            ],
-            'additionalProperty' => $this->generateProductProperties($asinData)
-        ];
+                'ratingCount' => $reviewCount,
+                'reviewCount' => $reviewCount
+            ];
+        }
 
         // Add price/offers if we have price data
         if (!empty($asinData->price)) {
