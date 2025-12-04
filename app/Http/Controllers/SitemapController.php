@@ -5,30 +5,38 @@ namespace App\Http\Controllers;
 use App\Models\AsinData;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class SitemapController extends Controller
 {
+    /**
+     * Cache TTL in seconds (1 hour)
+     */
+    private const CACHE_TTL = 3600;
+
     /**
      * Generate main sitemap index
      */
     public function index(): Response
     {
-        $sitemaps = [
-            [
-                'loc' => url('/sitemap-static.xml'),
-                'lastmod' => Carbon::now()->toISOString()
-            ],
-            [
-                'loc' => url('/sitemap-products.xml'),
-                'lastmod' => $this->getLatestProductUpdate()
-            ],
-            [
-                'loc' => url('/sitemap-analysis.xml'),
-                'lastmod' => $this->getLatestAnalysisUpdate()
-            ]
-        ];
+        $xml = Cache::remember('sitemap.index', self::CACHE_TTL, function () {
+            $sitemaps = [
+                [
+                    'loc' => url('/sitemap-static.xml'),
+                    'lastmod' => Carbon::now()->toISOString()
+                ],
+                [
+                    'loc' => url('/sitemap-products.xml'),
+                    'lastmod' => $this->getLatestProductUpdate()
+                ],
+                [
+                    'loc' => url('/sitemap-analysis.xml'),
+                    'lastmod' => $this->getLatestAnalysisUpdate()
+                ]
+            ];
 
-        $xml = $this->generateSitemapIndex($sitemaps);
+            return $this->generateSitemapIndex($sitemaps);
+        });
 
         return response($xml, 200, [
             'Content-Type' => 'application/xml',
@@ -41,28 +49,30 @@ class SitemapController extends Controller
      */
     public function static(): Response
     {
-        $urls = [
-            [
-                'loc' => url('/'),
-                'lastmod' => Carbon::now()->toISOString(),
-                'changefreq' => 'daily',
-                'priority' => '1.0'
-            ],
-            [
-                'loc' => url('/privacy'),
-                'lastmod' => Carbon::now()->subDays(30)->toISOString(),
-                'changefreq' => 'monthly',
-                'priority' => '0.3'
-            ],
-            [
-                'loc' => url('/contact'),
-                'lastmod' => Carbon::now()->subDays(7)->toISOString(),
-                'changefreq' => 'weekly',
-                'priority' => '0.5'
-            ]
-        ];
+        $xml = Cache::remember('sitemap.static', self::CACHE_TTL, function () {
+            $urls = [
+                [
+                    'loc' => url('/'),
+                    'lastmod' => Carbon::now()->toISOString(),
+                    'changefreq' => 'daily',
+                    'priority' => '1.0'
+                ],
+                [
+                    'loc' => url('/privacy'),
+                    'lastmod' => Carbon::now()->subDays(30)->toISOString(),
+                    'changefreq' => 'monthly',
+                    'priority' => '0.3'
+                ],
+                [
+                    'loc' => url('/contact'),
+                    'lastmod' => Carbon::now()->subDays(7)->toISOString(),
+                    'changefreq' => 'weekly',
+                    'priority' => '0.5'
+                ]
+            ];
 
-        $xml = $this->generateUrlSet($urls);
+            return $this->generateUrlSet($urls);
+        });
 
         return response($xml, 200, [
             'Content-Type' => 'application/xml',
@@ -75,34 +85,36 @@ class SitemapController extends Controller
      */
     public function products(): Response
     {
-        $products = AsinData::where('status', 'completed')
-            ->where('have_product_data', true)
-            ->whereNotNull('product_title')
-            ->orderBy('updated_at', 'desc')
-            ->limit(50000) // Sitemap limit
-            ->get();
+        $xml = Cache::remember('sitemap.products', self::CACHE_TTL, function () {
+            $products = AsinData::where('status', 'completed')
+                ->where('have_product_data', true)
+                ->whereNotNull('product_title')
+                ->orderBy('updated_at', 'desc')
+                ->limit(50000) // Sitemap limit
+                ->get();
 
-        $urls = $products->map(function ($product) {
-            return [
-                'loc' => url("/analysis/{$product->asin}/{$product->country}"),
-                'lastmod' => $product->updated_at->toISOString(),
-                'changefreq' => $this->getChangeFrequency($product),
-                'priority' => $this->calculatePriority($product),
-                'image' => $product->product_image_url ? [
-                    'loc' => $product->product_image_url,
-                    'title' => $product->product_title,
-                    'caption' => "Review analysis for {$product->product_title}"
-                ] : null,
-                // AI-specific metadata
-                'news' => [
-                    'publication_date' => $product->updated_at->toISOString(),
-                    'title' => "Review Analysis: {$product->product_title}",
-                    'keywords' => $this->generateProductKeywords($product)
-                ]
-            ];
-        })->toArray();
+            $urls = $products->map(function ($product) {
+                return [
+                    'loc' => url("/analysis/{$product->asin}/{$product->country}"),
+                    'lastmod' => $product->updated_at->toISOString(),
+                    'changefreq' => $this->getChangeFrequency($product),
+                    'priority' => $this->calculatePriority($product),
+                    'image' => $product->product_image_url ? [
+                        'loc' => $product->product_image_url,
+                        'title' => $product->product_title,
+                        'caption' => "Review analysis for {$product->product_title}"
+                    ] : null,
+                    // AI-specific metadata
+                    'news' => [
+                        'publication_date' => $product->updated_at->toISOString(),
+                        'title' => "Review Analysis: {$product->product_title}",
+                        'keywords' => $this->generateProductKeywords($product)
+                    ]
+                ];
+            })->toArray();
 
-        $xml = $this->generateUrlSet($urls, true);
+            return $this->generateUrlSet($urls, true);
+        });
 
         return response($xml, 200, [
             'Content-Type' => 'application/xml',
@@ -115,31 +127,33 @@ class SitemapController extends Controller
      */
     public function analysis(): Response
     {
-        $analyses = AsinData::where('status', 'completed')
-            ->whereNotNull('explanation')
-            ->orderBy('updated_at', 'desc')
-            ->limit(50000)
-            ->get();
+        $xml = Cache::remember('sitemap.analysis', self::CACHE_TTL, function () {
+            $analyses = AsinData::where('status', 'completed')
+                ->whereNotNull('explanation')
+                ->orderBy('updated_at', 'desc')
+                ->limit(50000)
+                ->get();
 
-        $urls = $analyses->map(function ($analysis) {
-            return [
-                'loc' => url("/analysis/{$analysis->asin}/{$analysis->country}"),
-                'lastmod' => $analysis->updated_at->toISOString(),
-                'changefreq' => 'weekly',
-                'priority' => $this->calculateAnalysisPriority($analysis),
-                // AI-optimized metadata
-                'ai_metadata' => [
-                    'fake_percentage' => $analysis->fake_percentage,
-                    'grade' => $analysis->grade,
-                    'trust_score' => $this->calculateTrustScore($analysis),
-                    'review_count' => count($analysis->getReviewsArray()),
-                    'analysis_type' => 'fake_review_detection',
-                    'methodology' => 'ai_machine_learning'
-                ]
-            ];
-        })->toArray();
+            $urls = $analyses->map(function ($analysis) {
+                return [
+                    'loc' => url("/analysis/{$analysis->asin}/{$analysis->country}"),
+                    'lastmod' => $analysis->updated_at->toISOString(),
+                    'changefreq' => 'weekly',
+                    'priority' => $this->calculateAnalysisPriority($analysis),
+                    // AI-optimized metadata
+                    'ai_metadata' => [
+                        'fake_percentage' => $analysis->fake_percentage,
+                        'grade' => $analysis->grade,
+                        'trust_score' => $this->calculateTrustScore($analysis),
+                        'review_count' => count($analysis->getReviewsArray()),
+                        'analysis_type' => 'fake_review_detection',
+                        'methodology' => 'ai_machine_learning'
+                    ]
+                ];
+            })->toArray();
 
-        $xml = $this->generateAnalysisSitemap($urls);
+            return $this->generateAnalysisSitemap($urls);
+        });
 
         return response($xml, 200, [
             'Content-Type' => 'application/xml',
@@ -381,10 +395,27 @@ class SitemapController extends Controller
     }
 
     /**
-     * Clear sitemap cache (placeholder for compatibility)
+     * Clear sitemap cache
      */
     public static function clearCache(): void
     {
-        // Sitemaps are generated dynamically, no cache to clear
+        Cache::forget('sitemap.index');
+        Cache::forget('sitemap.static');
+        Cache::forget('sitemap.products');
+        Cache::forget('sitemap.analysis');
+    }
+
+    /**
+     * Warm sitemap cache by generating all sitemaps
+     */
+    public static function warmCache(): void
+    {
+        $controller = new self();
+        
+        // Generate each sitemap to populate cache
+        $controller->index();
+        $controller->static();
+        $controller->products();
+        $controller->analysis();
     }
 }

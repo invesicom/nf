@@ -12,6 +12,12 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
+        // Warm sitemap cache every 50 minutes to prevent expiry
+        $schedule->command('sitemap:warm')
+                 ->cron('*/50 * * * *')
+                 ->withoutOverlapping()
+                 ->runInBackground();
+
         // Generate sitemap daily to ensure Google has fresh product links
         $schedule->command('sitemap:generate --clear-cache')
                  ->daily()

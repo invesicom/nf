@@ -356,4 +356,73 @@ class SitemapControllerTest extends TestCase
         $xml = simplexml_load_string($content);
         $this->assertNotFalse($xml);
     }
+
+    #[Test]
+    public function it_caches_sitemap_responses()
+    {
+        AsinData::factory()->create([
+            'status' => 'completed',
+            'have_product_data' => true,
+            'product_title' => 'Cache Test Product'
+        ]);
+
+        // Clear cache before test
+        \Illuminate\Support\Facades\Cache::forget('sitemap.products');
+
+        // First request should cache the result
+        $response1 = $this->get('/sitemap-products.xml');
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.products'));
+
+        // Second request should use cached result
+        $response2 = $this->get('/sitemap-products.xml');
+        
+        // Both should return the same content
+        $this->assertEquals($response1->getContent(), $response2->getContent());
+    }
+
+    #[Test]
+    public function it_clears_all_sitemap_caches()
+    {
+        // Populate cache
+        $this->get('/sitemap.xml');
+        $this->get('/sitemap-static.xml');
+        $this->get('/sitemap-products.xml');
+        $this->get('/sitemap-analysis.xml');
+
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.index'));
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.static'));
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.products'));
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.analysis'));
+
+        // Clear cache
+        \App\Http\Controllers\SitemapController::clearCache();
+
+        // Verify all caches are cleared
+        $this->assertFalse(\Illuminate\Support\Facades\Cache::has('sitemap.index'));
+        $this->assertFalse(\Illuminate\Support\Facades\Cache::has('sitemap.static'));
+        $this->assertFalse(\Illuminate\Support\Facades\Cache::has('sitemap.products'));
+        $this->assertFalse(\Illuminate\Support\Facades\Cache::has('sitemap.analysis'));
+    }
+
+    #[Test]
+    public function it_warms_cache_with_all_sitemaps()
+    {
+        AsinData::factory()->create([
+            'status' => 'completed',
+            'have_product_data' => true,
+            'product_title' => 'Warm Cache Test Product'
+        ]);
+
+        // Clear cache first
+        \App\Http\Controllers\SitemapController::clearCache();
+
+        // Warm cache
+        \App\Http\Controllers\SitemapController::warmCache();
+
+        // Verify all caches are populated
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.index'));
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.static'));
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.products'));
+        $this->assertTrue(\Illuminate\Support\Facades\Cache::has('sitemap.analysis'));
+    }
 }

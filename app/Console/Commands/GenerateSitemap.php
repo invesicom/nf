@@ -38,6 +38,9 @@ class GenerateSitemap extends Command
         if ($clearCache) {
             $this->info('🧹 Clearing existing sitemap cache...');
             SitemapController::clearCache();
+            
+            $this->info('🔥 Warming cache...');
+            SitemapController::warmCache();
         }
 
         // Get statistics about products to be included
