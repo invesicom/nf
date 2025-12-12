@@ -47,11 +47,10 @@ class EnhancedExplanationGenerationTest extends TestCase
         $paragraphs = explode("\n\n", $explanation);
         $this->assertGreaterThanOrEqual(3, count($paragraphs), 'Should have at least 3 paragraphs');
 
-        // Check content for excellent products
+        // Check content for excellent products (balanced language)
         $this->assertStringContainsString('excellent review authenticity', $explanation);
-        $this->assertStringContainsString('genuine customer experiences', $explanation);
-        $this->assertStringContainsString('trustworthy product', $explanation);
-        $this->assertStringContainsString('authentic customer feedback', $explanation);
+        $this->assertStringContainsString('authentic signals', $explanation);
+        $this->assertStringContainsString('genuine customer feedback', $explanation);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -81,11 +80,10 @@ class EnhancedExplanationGenerationTest extends TestCase
         $paragraphs = explode("\n\n", $explanation);
         $this->assertGreaterThanOrEqual(3, count($paragraphs), 'Should have at least 3 paragraphs');
 
-        // Check content for good products
+        // Check content for good products (balanced language)
         $this->assertStringContainsString('good review authenticity', $explanation);
-        $this->assertStringContainsString('low fake review activity', $explanation);
-        $this->assertStringContainsString('reliable for purchase decisions', $explanation);
-        $this->assertStringContainsString('predominantly authentic', $explanation);
+        $this->assertStringContainsString('predominantly genuine', $explanation);
+        $this->assertStringContainsString('reliable for', $explanation);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -115,11 +113,10 @@ class EnhancedExplanationGenerationTest extends TestCase
         $paragraphs = explode("\n\n", $explanation);
         $this->assertGreaterThanOrEqual(3, count($paragraphs), 'Should have at least 3 paragraphs');
 
-        // Check content for moderate products
-        $this->assertStringContainsString('moderate fake review concerns', $explanation);
-        $this->assertStringContainsString('careful evaluation', $explanation);
-        $this->assertStringContainsString('exercise caution', $explanation);
-        $this->assertStringContainsString('artificial inflation', $explanation);
+        // Check content for moderate products (balanced language)
+        $this->assertStringContainsString('mixed review profile', $explanation);
+        $this->assertStringContainsString('genuine', $explanation);
+        $this->assertStringContainsString('verified purchase', $explanation);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -149,11 +146,10 @@ class EnhancedExplanationGenerationTest extends TestCase
         $paragraphs = explode("\n\n", $explanation);
         $this->assertGreaterThanOrEqual(3, count($paragraphs), 'Should have at least 3 paragraphs');
 
-        // Check content for high risk products
-        $this->assertStringContainsString('high fake review activity', $explanation);
-        $this->assertStringContainsString('significant authenticity concerns', $explanation);
-        $this->assertStringContainsString('Proceed with caution', $explanation);
-        $this->assertStringContainsString('coordinated efforts', $explanation);
+        // Check content for high risk products (balanced language)
+        $this->assertStringContainsString('concerning review patterns', $explanation);
+        $this->assertStringContainsString('authenticity', $explanation);
+        $this->assertStringContainsString('caution', $explanation);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -183,11 +179,10 @@ class EnhancedExplanationGenerationTest extends TestCase
         $paragraphs = explode("\n\n", $explanation);
         $this->assertGreaterThanOrEqual(3, count($paragraphs), 'Should have at least 3 paragraphs');
 
-        // Check content for very high risk products
-        $this->assertStringContainsString('very high fake review activity', $explanation);
-        $this->assertStringContainsString('artificially generated', $explanation);
-        $this->assertStringContainsString('coordinated fake review campaigns', $explanation);
-        $this->assertStringContainsString('alternative products', $explanation);
+        // Check content for very high risk products (balanced language)
+        $this->assertStringContainsString('significant review authenticity concerns', $explanation);
+        $this->assertStringContainsString('manipulation patterns', $explanation);
+        $this->assertStringContainsString('research from multiple sources', $explanation);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]

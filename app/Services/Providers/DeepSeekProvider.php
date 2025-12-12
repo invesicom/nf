@@ -325,10 +325,14 @@ class DeepSeekProvider implements LLMProviderInterface
 
     private function generateLabel(int $score): string
     {
-        if ($score >= 85) {
+        if ($score >= 80) {
             return 'fake';
-        } elseif ($score >= 40) {
+        } elseif ($score >= 60) {
+            return 'suspicious';
+        } elseif ($score >= 45) {
             return 'uncertain';
+        } elseif ($score >= 25) {
+            return 'likely_genuine';
         } else {
             return 'genuine';
         }
@@ -354,12 +358,16 @@ class DeepSeekProvider implements LLMProviderInterface
     {
         switch ($label) {
             case 'fake':
-                return $score >= 95 ? 'Extremely suspicious: Multiple red flags detected' : 'High fake risk: Multiple suspicious indicators detected';
+                return $score >= 90 ? 'Likely inauthentic: Clear manipulation patterns detected' : 'Suspicious: Multiple concerning indicators present';
+            case 'suspicious':
+                return 'Concerning patterns: Some indicators suggest potential manipulation';
             case 'uncertain':
-                return $score >= 60 ? 'Moderately suspicious: Some concerning patterns found' : 'Mildly suspicious: Minor inconsistencies noted';
+                return 'Mixed signals: Insufficient information to determine authenticity';
+            case 'likely_genuine':
+                return 'Likely authentic: Some genuine signals present';
             case 'genuine':
             default:
-                return $score <= 10 ? 'Highly authentic: Strong genuine indicators' : 'Appears genuine: Natural language and specific details';
+                return $score <= 15 ? 'Highly authentic: Strong genuine indicators - detailed experience, personal context' : 'Genuine: Natural language with specific details';
         }
     }
 }

@@ -40,7 +40,7 @@ class PromptGenerationServiceTest extends TestCase
         );
 
         $this->assertArrayHasKey('prompt', $result);
-        $this->assertStringContainsString('Analyze reviews for fake probability', $result['prompt']);
+        $this->assertStringContainsString('Analyze reviews for authenticity', $result['prompt']);
         $this->assertStringContainsString('R1|V|5★|', $result['prompt']);
         $this->assertStringContainsString('R2|U|2★|', $result['prompt']);
         $this->assertStringContainsString('fake_percentage', $result['prompt']);
@@ -57,7 +57,7 @@ class PromptGenerationServiceTest extends TestCase
 
         $this->assertArrayHasKey('system', $result);
         $this->assertArrayHasKey('user', $result);
-        $this->assertStringContainsString('Analyze reviews for fake probability', $result['system']);
+        $this->assertStringContainsString('Analyze reviews for authenticity', $result['system']);
         $this->assertStringContainsString('R1|V|5★|', $result['user']);
         $this->assertStringContainsString('fake_percentage', $result['user']);
     }
@@ -83,8 +83,10 @@ class PromptGenerationServiceTest extends TestCase
         // The review text should be truncated (original was ~1500 chars, should be ~100)
         $originalLength = strlen(str_repeat('This is a very long review text. ', 50));
         $promptLength = strlen($result['prompt']);
-        // Prompt should be much shorter than if we included the full review text
-        $this->assertLessThan($originalLength + 500, $promptLength); // Much shorter than original + overhead
+        // Prompt includes fixed instructions plus truncated review - ensure review was actually truncated
+        // The prompt contains base instructions (~3000 chars) + truncated review text (~100 chars)
+        // Just verify the prompt doesn't contain the full 1500 char review text
+        $this->assertStringNotContainsString(str_repeat('This is a very long review text. ', 45), $result['prompt']);
     }
 
     #[Test]
@@ -131,11 +133,11 @@ class PromptGenerationServiceTest extends TestCase
         $result1 = PromptGenerationService::generateReviewAnalysisPrompt($this->sampleReviews, 'single');
         $result2 = PromptGenerationService::generateReviewAnalysisPrompt($this->sampleReviews, 'chat');
 
-        // Both formats should contain the same core scoring guidance
-        $this->assertStringContainsString('≤39=genuine', $result1['prompt']);
-        $this->assertStringContainsString('≥85=fake', $result1['prompt']);
-        $this->assertStringContainsString('≤39=genuine', $result2['system']);
-        $this->assertStringContainsString('≥85=fake', $result2['system']);
+        // Both formats should contain the same core scoring guidance (balanced approach)
+        $this->assertStringContainsString('0-20: Clearly genuine', $result1['prompt']);
+        $this->assertStringContainsString('81-100: Likely fake', $result1['prompt']);
+        $this->assertStringContainsString('0-20: Clearly genuine', $result2['system']);
+        $this->assertStringContainsString('81-100: Likely fake', $result2['system']);
     }
 
     #[Test]
@@ -154,12 +156,12 @@ class PromptGenerationServiceTest extends TestCase
         $deepseekMessage = PromptGenerationService::getProviderSystemMessage('deepseek');
         $ollamaMessage = PromptGenerationService::getProviderSystemMessage('ollama');
 
-        // All should contain core elements
-        $this->assertStringContainsString('expert Amazon review authenticity detector', $openaiMessage);
-        $this->assertStringContainsString('expert Amazon review authenticity detector', $deepseekMessage);
-        $this->assertStringContainsString('expert Amazon review authenticity detector', $ollamaMessage);
+        // All should contain core elements (balanced approach)
+        $this->assertStringContainsString('expert Amazon review authenticity analyst', $openaiMessage);
+        $this->assertStringContainsString('expert Amazon review authenticity analyst', $deepseekMessage);
+        $this->assertStringContainsString('expert Amazon review authenticity analyst', $ollamaMessage);
         
-        $this->assertStringContainsString('15-40% fake reviews', $openaiMessage);
+        $this->assertStringContainsString('ACCURACY', $openaiMessage);
         $this->assertStringContainsString('JSON', $openaiMessage);
     }
 
