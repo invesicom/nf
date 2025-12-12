@@ -259,6 +259,8 @@
   <meta name="ai:qa:answer" content="{{ $qa['answer'] }}" />
   @endforeach
   @endif
+
+  @include('partials.adsense')
 </head>
 
 <body class="bg-gray-50 min-h-screen">

@@ -13,6 +13,8 @@
   <!-- TailwindCSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   @vite(['resources/css/app.css'])
+
+  @include('partials.adsense')
 </head>
 
 <body class="bg-gray-50 min-h-screen">

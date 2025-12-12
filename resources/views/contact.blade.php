@@ -38,6 +38,8 @@
   <style>
     body { font-family: 'Plus Jakarta Sans', sans-serif; }
   </style>
+
+  @include('partials.adsense')
 </head>
 <body class="bg-gray-50 min-h-screen">
   @include('partials.header')

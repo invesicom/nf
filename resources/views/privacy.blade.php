@@ -7,6 +7,8 @@
   <meta name="description" content="Privacy Policy for Null Fake - Amazon Review Analysis Tool" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
   @vite(['resources/css/app.css'])
+
+  @include('partials.adsense')
 </head>
 <body class="bg-gray-100 text-gray-800">
 

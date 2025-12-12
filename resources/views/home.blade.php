@@ -89,6 +89,7 @@
     gtag('config', 'G-BYWNNLXEYV');
   </script>
 
+  @include('partials.adsense')
 </head>
 <body class="bg-gray-100 text-gray-800">
 
