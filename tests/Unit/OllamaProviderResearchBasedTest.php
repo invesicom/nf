@@ -45,15 +45,15 @@ class OllamaProviderResearchBasedTest extends TestCase
 
         $result = $this->provider->analyzeReviews($reviews);
 
-        // Verify the request was made with research-based prompt
+        // Verify the request was made with balanced prompt elements
         Http::assertSent(function ($request) {
             $body = $request->data();
             $prompt = $body['prompt'];
 
-            // Check for key balanced prompt elements
-            $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
-            $this->assertStringContainsString('Consider: Generic language (+20), specific complaints (-20)', $prompt);
-            $this->assertStringContainsString('Scoring: Use full range 0-100. ≤39=genuine, 40-84=uncertain/suspicious, ≥85=fake', $prompt);
+            // Check for key balanced prompt elements (updated for balanced approach)
+            $this->assertStringContainsString('Analyze reviews for authenticity', $prompt);
+            $this->assertStringContainsString('Be ACCURATE and BALANCED', $prompt);
+            $this->assertStringContainsString('STRONG GENUINE SIGNALS', $prompt);
 
             // Verify temperature is set for consistency
             $this->assertEquals(0.1, $body['options']['temperature']);
@@ -94,9 +94,9 @@ class OllamaProviderResearchBasedTest extends TestCase
         $scoreData = $result['detailed_scores']['TEST001'];
         $this->assertIsArray($scoreData);
         $this->assertEquals(35, $scoreData['score']);
-        $this->assertEquals('genuine', $scoreData['label']);
+        $this->assertEquals('genuine', $scoreData['label']); // Label comes from response
         $this->assertEquals(0.8, $scoreData['confidence']);
-        $this->assertStringContainsString('authentic', $scoreData['explanation']);
+        $this->assertNotEmpty($scoreData['explanation']);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -128,7 +128,7 @@ class OllamaProviderResearchBasedTest extends TestCase
         $scoreData = $result['detailed_scores']['TEST001'];
         $this->assertIsArray($scoreData);
         $this->assertEquals(75, $scoreData['score']);
-        $this->assertEquals('uncertain', $scoreData['label']); // Generated from score (75 is in 40-84 range)
+        $this->assertEquals('suspicious', $scoreData['label']); // Generated from score (75 is in 60-79 suspicious range)
         $this->assertGreaterThan(0, $scoreData['confidence']); // Generated from score
         $this->assertNotEmpty($scoreData['explanation']);
     }
@@ -140,11 +140,11 @@ class OllamaProviderResearchBasedTest extends TestCase
         $method = $reflection->getMethod('generateLabel');
         $method->setAccessible(true);
 
-        // Test label generation thresholds (updated to match new 85+ fake threshold)
-        $this->assertEquals('genuine', $method->invoke($this->provider, 25));
-        $this->assertEquals('genuine', $method->invoke($this->provider, 39));
-        $this->assertEquals('uncertain', $method->invoke($this->provider, 40));
-        $this->assertEquals('uncertain', $method->invoke($this->provider, 84));
+        // Test label generation thresholds (balanced approach with more granular labels)
+        $this->assertEquals('genuine', $method->invoke($this->provider, 20));
+        $this->assertEquals('likely_genuine', $method->invoke($this->provider, 35));
+        $this->assertEquals('uncertain', $method->invoke($this->provider, 50));
+        $this->assertEquals('suspicious', $method->invoke($this->provider, 70));
         $this->assertEquals('fake', $method->invoke($this->provider, 85));
         $this->assertEquals('fake', $method->invoke($this->provider, 95));
     }
@@ -164,8 +164,8 @@ class OllamaProviderResearchBasedTest extends TestCase
         $this->assertEquals(0.4, $method->invoke($this->provider, 50)); // Uncertain
 
         // Moderate confidence for borderline cases
-        $this->assertEquals(0.6, $method->invoke($this->provider, 65)); // Borderline fake
-        $this->assertEquals(0.6, $method->invoke($this->provider, 35)); // Borderline genuine
+        $this->assertEquals(0.6, $method->invoke($this->provider, 65)); // Borderline suspicious
+        $this->assertEquals(0.7, $method->invoke($this->provider, 25)); // Borderline genuine
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -175,17 +175,14 @@ class OllamaProviderResearchBasedTest extends TestCase
         $method = $reflection->getMethod('generateExplanationFromLabel');
         $method->setAccessible(true);
 
-        $genuineExplanation = $method->invoke($this->provider, 'genuine', 30);
+        $genuineExplanation = $method->invoke($this->provider, 'genuine', 15);
         $this->assertStringContainsString('authentic', $genuineExplanation);
-        $this->assertStringContainsString('specific details', $genuineExplanation);
 
         $uncertainExplanation = $method->invoke($this->provider, 'uncertain', 50);
         $this->assertStringContainsString('Mixed signals', $uncertainExplanation);
-        $this->assertStringContainsString('insufficient evidence', $uncertainExplanation);
 
-        $fakeExplanation = $method->invoke($this->provider, 'fake', 80);
-        $this->assertStringContainsString('High fake risk', $fakeExplanation);
-        $this->assertStringContainsString('forensic-linguistic analysis', $fakeExplanation);
+        $fakeExplanation = $method->invoke($this->provider, 'fake', 90);
+        $this->assertStringContainsString('inauthentic', $fakeExplanation);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -275,8 +272,9 @@ class OllamaProviderResearchBasedTest extends TestCase
         Http::assertSent(function ($request) {
             $prompt = $request->data()['prompt'];
 
-            // Verify balanced prompt format
-            $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
+            // Verify balanced prompt format (updated for balanced approach)
+            $this->assertStringContainsString('Analyze reviews for authenticity', $prompt);
+            $this->assertStringContainsString('DEFAULT TO GENUINE when uncertain', $prompt);
             $this->assertStringContainsString('TEST001|V|2★|Product broke after one week', $prompt);
 
             return true;

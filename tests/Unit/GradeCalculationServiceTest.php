@@ -111,23 +111,23 @@ class GradeCalculationServiceTest extends TestCase
     public function it_returns_correct_grade_descriptions()
     {
         $this->assertEquals(
-            'Excellent - Very few fake reviews detected',
+            'Excellent - Highly authentic reviews with strong genuine signals',
             GradeCalculationService::getGradeDescription('A')
         );
         $this->assertEquals(
-            'Good - Low fake review percentage',
+            'Good - Predominantly genuine reviews with reliable feedback',
             GradeCalculationService::getGradeDescription('B')
         );
         $this->assertEquals(
-            'Fair - Moderate fake review concerns',
+            'Fair - Mixed authenticity, focus on verified purchase reviews',
             GradeCalculationService::getGradeDescription('C')
         );
         $this->assertEquals(
-            'Poor - High fake review percentage',
+            'Caution - Significant authenticity concerns present',
             GradeCalculationService::getGradeDescription('D')
         );
         $this->assertEquals(
-            'Failing - Majority of reviews appear fake',
+            'Warning - Many reviews lack authenticity indicators',
             GradeCalculationService::getGradeDescription('F')
         );
         $this->assertEquals(

@@ -359,14 +359,16 @@ class OllamaProvider implements LLMProviderInterface
 
     private function generateExplanation(float $score): string
     {
-        if ($score >= 70) {
-            return 'High fake risk: Multiple suspicious indicators detected';
-        } elseif ($score >= 40) {
-            return 'Medium fake risk: Some concerning patterns found';
-        } elseif ($score >= 20) {
-            return 'Low fake risk: Minor inconsistencies noted';
+        if ($score >= 80) {
+            return 'Likely inauthentic: Clear manipulation patterns detected';
+        } elseif ($score >= 60) {
+            return 'Suspicious: Multiple concerning indicators present';
+        } elseif ($score >= 45) {
+            return 'Uncertain: Mixed signals, insufficient authenticity indicators';
+        } elseif ($score >= 25) {
+            return 'Likely genuine: Some authentic signals present';
         } else {
-            return 'Appears genuine: Natural language and specific details';
+            return 'Genuine: Strong authenticity indicators - personal context, specific details';
         }
     }
 
@@ -383,12 +385,17 @@ class OllamaProvider implements LLMProviderInterface
 
     private function generateLabel(float $score): string
     {
-        if ($score <= 39) {
-            return 'genuine';
-        } elseif ($score <= 84) {
-            return 'uncertain';
-        } else {
+        // Balanced label thresholds with more granular categories
+        if ($score >= 80) {
             return 'fake';
+        } elseif ($score >= 60) {
+            return 'suspicious';
+        } elseif ($score >= 45) {
+            return 'uncertain';
+        } elseif ($score >= 25) {
+            return 'likely_genuine';
+        } else {
+            return 'genuine';
         }
     }
 
@@ -409,14 +416,17 @@ class OllamaProvider implements LLMProviderInterface
     private function generateExplanationFromLabel(string $label, float $score): string
     {
         switch ($label) {
-            case 'genuine':
-                return "Appears authentic: Contains specific details, balanced perspective, or credible context (Score: {$score})";
-            case 'uncertain':
-                return "Mixed signals: Some concerning patterns but insufficient evidence for definitive classification (Score: {$score})";
             case 'fake':
-                return "High fake risk: Multiple suspicious indicators detected using forensic-linguistic analysis (Score: {$score})";
+                return $score >= 90 ? 'Likely inauthentic: Clear manipulation patterns detected' : 'Suspicious: Multiple concerning indicators present';
+            case 'suspicious':
+                return 'Concerning patterns: Some indicators suggest potential manipulation';
+            case 'uncertain':
+                return 'Mixed signals: Insufficient information to determine authenticity';
+            case 'likely_genuine':
+                return 'Likely authentic: Some genuine signals present';
+            case 'genuine':
             default:
-                return "Analysis completed using research-based methodology (Score: {$score})";
+                return $score <= 15 ? 'Highly authentic: Strong genuine indicators - detailed experience, personal context' : 'Genuine: Natural language with specific details';
         }
     }
 

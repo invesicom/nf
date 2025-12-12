@@ -26,8 +26,8 @@ class EnhancedPromptGenerationTest extends TestCase
         $result = $this->service->generateReviewAnalysisPrompt($reviews, 'single');
         $prompt = $result['prompt'];
 
-        // Should include instructions for structured paragraphs
-        $this->assertStringContainsString('3-4 distinct paragraphs', $prompt);
+        // Should include instructions for structured paragraphs (balanced approach)
+        $this->assertStringContainsString('4 paragraphs', $prompt);
         $this->assertStringContainsString('\\n\\n', $prompt);
         $this->assertStringContainsString('PARAGRAPH 1:', $prompt);
         $this->assertStringContainsString('PARAGRAPH 2:', $prompt);
@@ -46,11 +46,11 @@ class EnhancedPromptGenerationTest extends TestCase
         $result = $this->service->generateReviewAnalysisPrompt($reviews, 'single');
         $prompt = $result['prompt'];
 
-        // Should request comprehensive analysis
-        $this->assertStringContainsString('comprehensive', $prompt);
-        $this->assertStringContainsString('3-4 paragraph', $prompt);
-        $this->assertStringContainsString('specific review snippets', $prompt);
-        $this->assertStringContainsString('detailed findings', $prompt);
+        // Should request comprehensive balanced analysis
+        $this->assertStringContainsString('BALANCED', $prompt);
+        $this->assertStringContainsString('4 paragraph', $prompt);
+        $this->assertStringContainsString('authenticity', $prompt);
+        $this->assertStringContainsString('genuine', $prompt);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -68,8 +68,8 @@ class EnhancedPromptGenerationTest extends TestCase
         $this->assertStringContainsString('product_insights', $prompt);
         $this->assertStringContainsString('product', $prompt);
         $this->assertStringContainsString('2-3 sentence', $prompt);
-        $this->assertStringContainsString('genuine reviews', $prompt);
-        $this->assertStringContainsString('avoiding direct copying', $prompt);
+        $this->assertStringContainsString('genuine review', $prompt);
+        $this->assertStringContainsString('real user feedback', $prompt);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -101,10 +101,10 @@ class EnhancedPromptGenerationTest extends TestCase
         $result = $this->service->generateReviewAnalysisPrompt($reviews, 'single');
         $prompt = $result['prompt'];
 
-        // Should emphasize formatting importance
-        $this->assertStringContainsString('IMPORTANT: Separate each paragraph', $prompt);
-        $this->assertStringContainsString('double line breaks', $prompt);
-        $this->assertStringContainsString('proper formatting', $prompt);
+        // Should emphasize balanced analysis importance
+        $this->assertStringContainsString('IMPORTANT:', $prompt);
+        $this->assertStringContainsString('fake_percentage should be LOW', $prompt);
+        $this->assertStringContainsString('Do NOT penalize products', $prompt);
     }
 
     #[\PHPUnit\Framework\Attributes\Test]
@@ -120,8 +120,8 @@ class EnhancedPromptGenerationTest extends TestCase
         $this->assertArrayHasKey('system', $chatResult);
         $this->assertArrayHasKey('user', $chatResult);
         
-        // Should include paragraph formatting instructions in system message
-        $this->assertStringContainsString('3-4 distinct paragraphs', $chatResult['user']);
+        // Should include balanced analysis instructions in user message
+        $this->assertStringContainsString('4 paragraphs', $chatResult['user']);
         $this->assertStringContainsString('product_insights', $chatResult['user']);
     }
 }

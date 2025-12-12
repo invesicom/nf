@@ -49,6 +49,8 @@ class GradeCalculationService
 
     /**
      * Get grade description.
+     * 
+     * Descriptions are framed positively, focusing on authenticity rate.
      *
      * @param string $grade
      *
@@ -57,11 +59,11 @@ class GradeCalculationService
     public static function getGradeDescription(string $grade): string
     {
         return match ($grade) {
-            'A'     => 'Excellent - Very few fake reviews detected',
-            'B'     => 'Good - Low fake review percentage',
-            'C'     => 'Fair - Moderate fake review concerns',
-            'D'     => 'Poor - High fake review percentage',
-            'F'     => 'Failing - Majority of reviews appear fake',
+            'A'     => 'Excellent - Highly authentic reviews with strong genuine signals',
+            'B'     => 'Good - Predominantly genuine reviews with reliable feedback',
+            'C'     => 'Fair - Mixed authenticity, focus on verified purchase reviews',
+            'D'     => 'Caution - Significant authenticity concerns present',
+            'F'     => 'Warning - Many reviews lack authenticity indicators',
             'U'     => 'Unanalyzable - No reviews available for analysis',
             default => 'Unknown grade'
         };

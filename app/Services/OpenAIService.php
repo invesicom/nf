@@ -276,15 +276,19 @@ class OpenAIService
 
     /**
      * Build an optimized prompt that uses fewer tokens while maintaining accuracy.
+     * 
+     * This prompt is designed to be BALANCED - recognizing genuine reviews as the norm.
      */
     private function buildOptimizedPrompt($reviews): string
     {
-        $prompt = "Score each review 0-100 (0=genuine, 100=fake). Be thorough and suspicious. Return JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
-        $prompt .= "HIGH FAKE RISK (70-100): Generic praise, no specifics, promotional language, perfect 5-stars with short text, non-verified purchases, obvious AI writing, repetitive phrases across reviews\n";
-        $prompt .= "MEDIUM FAKE RISK (40-69): Overly positive without balance, lacks personal context, generic complaints, suspicious timing patterns, limited product knowledge\n";
-        $prompt .= "LOW FAKE RISK (20-39): Some specifics but feels coached, minor inconsistencies, unusual language patterns for demographic\n";
-        $prompt .= "GENUINE (0-19): Specific details, balanced pros/cons, personal context, natural language, verified purchase, realistic complaints, product knowledge\n\n";
-        $prompt .= "Key: V=Verified, U=Unverified, Vine=Amazon Vine reviewer\n\n";
+        $prompt = "Score each review 0-100 (0=genuine, 100=fake). Be ACCURATE and BALANCED. Most reviews are genuine. Return JSON: [{\"id\":\"X\",\"score\":Y}]\n\n";
+        $prompt .= "CLEARLY GENUINE (0-25): Verified purchase, specific personal experience, detailed product knowledge, mentions pros AND cons, natural language with personal context\n";
+        $prompt .= "LIKELY GENUINE (26-45): Some specific details, reasonable personal context, verified purchase, minor generic elements but overall authentic feel\n";
+        $prompt .= "UNCERTAIN (46-60): Mixed signals, insufficient information to determine authenticity, could be genuine but lacks strong indicators\n";
+        $prompt .= "SUSPICIOUS (61-80): Multiple concerning patterns: generic praise without specifics, promotional language, no personal context, unverified with marketing-style writing\n";
+        $prompt .= "LIKELY FAKE (81-100): Clear manipulation: obvious promotional copy, repetitive phrases matching other reviews, no genuine experience indicators, AI-generated patterns\n\n";
+        $prompt .= "IMPORTANT: High ratings for quality products are NORMAL. Default to genuine when uncertain.\n";
+        $prompt .= "Key: V=Verified (strong genuine signal), U=Unverified (minor concern), Vine=Amazon Vine reviewer\n\n";
 
         foreach ($reviews as $review) {
             $verified = isset($review['meta_data']['verified_purchase']) && $review['meta_data']['verified_purchase'] ? 'V' : 'U';
@@ -522,14 +526,16 @@ class OpenAIService
 
     private function generateExplanation(float $score): string
     {
-        if ($score >= 70) {
-            return 'High fake risk: Multiple suspicious indicators detected';
-        } elseif ($score >= 40) {
-            return 'Medium fake risk: Some concerning patterns found';
-        } elseif ($score >= 20) {
-            return 'Low fake risk: Minor inconsistencies noted';
+        if ($score >= 80) {
+            return 'Likely inauthentic: Clear manipulation patterns detected';
+        } elseif ($score >= 60) {
+            return 'Suspicious: Multiple concerning indicators present';
+        } elseif ($score >= 45) {
+            return 'Uncertain: Mixed signals, insufficient authenticity indicators';
+        } elseif ($score >= 25) {
+            return 'Likely genuine: Some authentic signals present';
         } else {
-            return 'Appears genuine: Natural language and specific details';
+            return 'Genuine: Strong authenticity indicators - personal context, specific details, balanced perspective';
         }
     }
 

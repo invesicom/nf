@@ -277,10 +277,10 @@ class OllamaProviderTest extends TestCase
                 $body = json_decode($request->body(), true);
                 $prompt = $body['prompt'];
 
-                // Verify balanced prompt elements are present
-                $this->assertStringContainsString('Analyze reviews for fake probability (0-100 scale: 0=genuine, 100=fake)', $prompt);
-                $this->assertStringContainsString('Consider: Generic language (+20), specific complaints (-20)', $prompt);
-                $this->assertStringContainsString('Scoring: Use full range 0-100. ≤39=genuine, 40-84=uncertain/suspicious, ≥85=fake', $prompt);
+                // Verify balanced prompt elements are present (updated for balanced approach)
+                $this->assertStringContainsString('Analyze reviews for authenticity', $prompt);
+                $this->assertStringContainsString('Be ACCURATE and BALANCED', $prompt);
+                $this->assertStringContainsString('STRONG GENUINE SIGNALS', $prompt);
                 $this->assertStringContainsString('1|V|5★|', $prompt);
                 $this->assertStringContainsString('fake_percentage', $prompt);
 
