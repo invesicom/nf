@@ -32,10 +32,16 @@ class AmazonProductController extends Controller
                 'asin'    => $asin,
             ]);
 
+            // Check if there's an active analysis session for this ASIN
+            $processingInfo = AsinData::checkProcessingSession($asin, $country);
+
             return response()
                 ->view('amazon.product-not-found', [
-                    'asin'       => $asin,
-                    'amazon_url' => $this->buildAmazonUrl($asin, $country),
+                    'asin'              => $asin,
+                    'country'           => $country,
+                    'amazon_url'        => $this->buildAmazonUrl($asin, $country),
+                    'is_processing'     => $processingInfo['is_processing'],
+                    'estimated_minutes' => $processingInfo['estimated_minutes'],
                 ])
                 ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
                 ->header('Pragma', 'no-cache')
@@ -46,15 +52,23 @@ class AmazonProductController extends Controller
         if (!$asinData->isAnalyzed()) {
             LoggingService::log('Product not yet analyzed', [
                 'asin'              => $asin,
+                'status'            => $asinData->status,
                 'has_reviews'       => !empty($asinData->getReviewsArray()),
                 'has_openai_result' => !empty($asinData->openai_result),
             ]);
 
+            // Product exists but is still being processed
+            $isProcessing = $asinData->isProcessing();
+            $estimatedMinutes = $asinData->getEstimatedProcessingTimeMinutes();
+
             return response()
                 ->view('amazon.product-not-found', [
-                    'asin'       => $asin,
-                    'amazon_url' => "https://www.amazon.com/dp/{$asin}",
-                    'message'    => 'This product analysis is still in progress. Please try again in a few moments.',
+                    'asin'              => $asin,
+                    'country'           => $country,
+                    'amazon_url'        => $this->buildAmazonUrl($asin, $country),
+                    'is_processing'     => $isProcessing,
+                    'estimated_minutes' => $estimatedMinutes,
+                    'product_title'     => $asinData->product_title,
                 ])
                 ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
                 ->header('Pragma', 'no-cache')
@@ -104,10 +118,16 @@ class AmazonProductController extends Controller
                 'slug'    => $slug,
             ]);
 
+            // Check if there's an active analysis session for this ASIN
+            $processingInfo = AsinData::checkProcessingSession($asin, $country);
+
             return response()
                 ->view('amazon.product-not-found', [
-                    'asin'       => $asin,
-                    'amazon_url' => $this->buildAmazonUrl($asin, $country),
+                    'asin'              => $asin,
+                    'country'           => $country,
+                    'amazon_url'        => $this->buildAmazonUrl($asin, $country),
+                    'is_processing'     => $processingInfo['is_processing'],
+                    'estimated_minutes' => $processingInfo['estimated_minutes'],
                 ])
                 ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
                 ->header('Pragma', 'no-cache')
@@ -119,15 +139,23 @@ class AmazonProductController extends Controller
             LoggingService::log('Product not yet analyzed', [
                 'asin'              => $asin,
                 'slug'              => $slug,
+                'status'            => $asinData->status,
                 'has_reviews'       => !empty($asinData->getReviewsArray()),
                 'has_openai_result' => !empty($asinData->openai_result),
             ]);
 
+            // Product exists but is still being processed
+            $isProcessing = $asinData->isProcessing();
+            $estimatedMinutes = $asinData->getEstimatedProcessingTimeMinutes();
+
             return response()
                 ->view('amazon.product-not-found', [
-                    'asin'       => $asin,
-                    'amazon_url' => "https://www.amazon.com/dp/{$asin}",
-                    'message'    => 'This product analysis is still in progress. Please try again in a few moments.',
+                    'asin'              => $asin,
+                    'country'           => $country,
+                    'amazon_url'        => $this->buildAmazonUrl($asin, $country),
+                    'is_processing'     => $isProcessing,
+                    'estimated_minutes' => $estimatedMinutes,
+                    'product_title'     => $asinData->product_title,
                 ])
                 ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
                 ->header('Pragma', 'no-cache')
@@ -197,10 +225,15 @@ class AmazonProductController extends Controller
         $asinData = AsinData::where('asin', $asin)->first();
 
         if (!$asinData) {
-            // Product not found - show not found page with US as default
+            // Product not found - check if there's an active analysis session
+            $processingInfo = AsinData::checkProcessingSession($asin);
+
             return view('amazon.product-not-found', [
-                'asin'       => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
+                'asin'              => $asin,
+                'country'           => 'us',
+                'amazon_url'        => $this->buildAmazonUrl($asin, 'us'),
+                'is_processing'     => $processingInfo['is_processing'],
+                'estimated_minutes' => $processingInfo['estimated_minutes'],
             ]);
         }
 
@@ -226,10 +259,15 @@ class AmazonProductController extends Controller
         $asinData = AsinData::where('asin', $asin)->first();
 
         if (!$asinData) {
-            // Product not found - show not found page
+            // Product not found - check if there's an active analysis session
+            $processingInfo = AsinData::checkProcessingSession($asin);
+
             return view('amazon.product-not-found', [
-                'asin'       => $asin,
-                'amazon_url' => $this->buildAmazonUrl($asin, 'us'),
+                'asin'              => $asin,
+                'country'           => 'us',
+                'amazon_url'        => $this->buildAmazonUrl($asin, 'us'),
+                'is_processing'     => $processingInfo['is_processing'],
+                'estimated_minutes' => $processingInfo['estimated_minutes'],
             ]);
         }
 

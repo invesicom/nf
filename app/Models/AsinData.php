@@ -309,6 +309,78 @@ class AsinData extends Model
     }
 
     /**
+     * Check if the product is currently being processed (queued or in-progress analysis).
+     *
+     * @return bool True if analysis is in progress
+     */
+    public function isProcessing(): bool
+    {
+        return in_array($this->status, ['fetched', 'pending', 'pending_analysis', 'processing']);
+    }
+
+    /**
+     * Get estimated time remaining for processing in minutes.
+     * Based on typical analysis times and current review count.
+     *
+     * @return int Estimated minutes remaining
+     */
+    public function getEstimatedProcessingTimeMinutes(): int
+    {
+        $reviewCount = count($this->getReviewsArray());
+        $baseTime = 2; // Base time for small products (2 minutes)
+
+        // Add time based on review count - roughly 30 seconds per 50 reviews
+        $additionalTime = ceil($reviewCount / 50);
+
+        // Cap at reasonable maximum
+        return min($baseTime + $additionalTime, 10);
+    }
+
+    /**
+     * Check if there's an active processing session for a given ASIN.
+     * Used when no AsinData record exists yet to check if analysis is queued.
+     *
+     * @param string $asin The ASIN to check
+     * @param string|null $country Optional country filter
+     * @return array{is_processing: bool, estimated_minutes: int, session: \App\Models\AnalysisSession|null}
+     */
+    public static function checkProcessingSession(string $asin, ?string $country = null): array
+    {
+        $query = AnalysisSession::where('asin', $asin)
+            ->whereIn('status', ['pending', 'processing'])
+            ->orderBy('created_at', 'desc');
+
+        $session = $query->first();
+
+        if (!$session) {
+            return [
+                'is_processing' => false,
+                'estimated_minutes' => 0,
+                'session' => null,
+            ];
+        }
+
+        // Calculate estimated time based on session progress
+        $elapsedMinutes = $session->started_at 
+            ? $session->started_at->diffInMinutes(now()) 
+            : 0;
+        
+        // Base estimate of 3 minutes total, minus elapsed time
+        $estimatedMinutes = max(1, 3 - $elapsedMinutes);
+
+        // If it's been processing for a while, give a conservative estimate
+        if ($elapsedMinutes > 3) {
+            $estimatedMinutes = 2; // Still processing after expected time
+        }
+
+        return [
+            'is_processing' => true,
+            'estimated_minutes' => $estimatedMinutes,
+            'session' => $session,
+        ];
+    }
+
+    /**
      * Generate a URL-friendly slug from the product title.
      *
      * @return string|null The slug or null if no title
