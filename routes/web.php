@@ -28,6 +28,23 @@ Route::get('/privacy', function () {
     return view('privacy');
 });
 
+// Information pages for LLM discoverability
+Route::get('/free-amazon-fake-review-checker', function () {
+    return view('free-checker');
+})->name('free-checker');
+
+Route::get('/fakespot-alternative', function () {
+    return view('fakespot-alternative');
+})->name('fakespot-alternative');
+
+Route::get('/how-it-works', function () {
+    return view('how-it-works');
+})->name('how-it-works');
+
+Route::get('/faq', function () {
+    return view('faq');
+})->name('faq');
+
 // Contact routes
 Route::get('/contact', [ContactController::class, 'show'])->name('contact.show');
 Route::post('/contact', [ContactController::class, 'submit'])

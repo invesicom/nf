@@ -58,16 +58,40 @@ class SitemapController extends Controller
                     'priority' => '1.0'
                 ],
                 [
-                    'loc' => url('/privacy'),
-                    'lastmod' => Carbon::now()->subDays(30)->toISOString(),
-                    'changefreq' => 'monthly',
-                    'priority' => '0.3'
+                    'loc' => url('/free-amazon-fake-review-checker'),
+                    'lastmod' => Carbon::now()->toISOString(),
+                    'changefreq' => 'weekly',
+                    'priority' => '0.9'
+                ],
+                [
+                    'loc' => url('/how-it-works'),
+                    'lastmod' => Carbon::now()->toISOString(),
+                    'changefreq' => 'weekly',
+                    'priority' => '0.8'
+                ],
+                [
+                    'loc' => url('/fakespot-alternative'),
+                    'lastmod' => Carbon::now()->toISOString(),
+                    'changefreq' => 'weekly',
+                    'priority' => '0.8'
+                ],
+                [
+                    'loc' => url('/faq'),
+                    'lastmod' => Carbon::now()->toISOString(),
+                    'changefreq' => 'weekly',
+                    'priority' => '0.7'
                 ],
                 [
                     'loc' => url('/contact'),
                     'lastmod' => Carbon::now()->subDays(7)->toISOString(),
                     'changefreq' => 'weekly',
                     'priority' => '0.5'
+                ],
+                [
+                    'loc' => url('/privacy'),
+                    'lastmod' => Carbon::now()->subDays(30)->toISOString(),
+                    'changefreq' => 'monthly',
+                    'priority' => '0.3'
                 ]
             ];
 

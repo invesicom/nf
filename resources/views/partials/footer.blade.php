@@ -27,11 +27,19 @@
       GitHub
     </a>
   </div>
-  <div class="flex items-center justify-center space-x-4 text-xs">
-    <a href="https://github.com/stardothosting/nullfake/blob/main/LICENSE" class="text-gray-500 hover:text-gray-700" target="_blank" rel="noopener">MIT License</a>
-    <span>•</span>
+  <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs">
+    <a href="/how-it-works" class="text-gray-500 hover:text-gray-700">How It Works</a>
+    <span class="hidden sm:inline">•</span>
+    <a href="/faq" class="text-gray-500 hover:text-gray-700">FAQ</a>
+    <span class="hidden sm:inline">•</span>
+    <a href="/free-amazon-fake-review-checker" class="text-gray-500 hover:text-gray-700">Free Review Checker</a>
+    <span class="hidden sm:inline">•</span>
+    <a href="/fakespot-alternative" class="text-gray-500 hover:text-gray-700">Fakespot Alternative</a>
+    <span class="hidden sm:inline">•</span>
     <a href="/privacy" class="text-gray-500 hover:text-gray-700">Privacy Policy</a>
-    <span>•</span>
+    <span class="hidden sm:inline">•</span>
     <a href="/contact" class="text-gray-500 hover:text-gray-700">Contact</a>
+    <span class="hidden sm:inline">•</span>
+    <a href="https://github.com/stardothosting/nullfake/blob/main/LICENSE" class="text-gray-500 hover:text-gray-700" target="_blank" rel="noopener">MIT License</a>
   </div>
 </footer>

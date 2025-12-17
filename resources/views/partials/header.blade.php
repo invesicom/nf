@@ -11,6 +11,7 @@
     <nav class="hidden md:flex items-center space-x-6">
       <a href="{{ route('home') }}" class="text-gray-600 hover:text-gray-900 transition-colors {{ request()->routeIs('home') ? 'text-indigo-600 font-medium' : '' }}">Home</a>
       <a href="/products" class="text-gray-600 hover:text-gray-900 transition-colors {{ request()->routeIs('products.*') ? 'text-indigo-600 font-medium' : '' }}">All Products</a>
+      <a href="/how-it-works" class="text-gray-600 hover:text-gray-900 transition-colors {{ request()->is('how-it-works') ? 'text-indigo-600 font-medium' : '' }}">How It Works</a>
       <a href="{{ route('contact.show') }}" class="text-gray-600 hover:text-gray-900 transition-colors {{ request()->routeIs('contact.*') ? 'text-indigo-600 font-medium' : '' }}">Contact</a>
       <a href="https://chromewebstore.google.com/detail/null-fake-product-review/fgngdgdpfcfkddgipaafgpnadiikfkaa" 
          target="_blank" 
@@ -40,6 +41,7 @@
     <nav class="flex flex-col space-y-4 pt-4">
       <a href="{{ route('home') }}" class="text-gray-600 hover:text-gray-900 transition-colors px-4 py-2 {{ request()->routeIs('home') ? 'text-indigo-600 font-medium bg-indigo-50' : '' }}">Home</a>
       <a href="/products" class="text-gray-600 hover:text-gray-900 transition-colors px-4 py-2 {{ request()->routeIs('products.*') ? 'text-indigo-600 font-medium bg-indigo-50' : '' }}">All Products</a>
+      <a href="/how-it-works" class="text-gray-600 hover:text-gray-900 transition-colors px-4 py-2 {{ request()->is('how-it-works') ? 'text-indigo-600 font-medium bg-indigo-50' : '' }}">How It Works</a>
       <a href="{{ route('contact.show') }}" class="text-gray-600 hover:text-gray-900 transition-colors px-4 py-2 {{ request()->routeIs('contact.*') ? 'text-indigo-600 font-medium bg-indigo-50' : '' }}">Contact</a>
       <a href="https://chromewebstore.google.com/detail/null-fake-product-review/fgngdgdpfcfkddgipaafgpnadiikfkaa" 
          target="_blank" 

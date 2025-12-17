@@ -151,12 +151,14 @@ class FooterPartialTest extends TestCase
         $content = $response->getContent();
         
         // Count occurrences of key footer elements to ensure no duplication
-        // Note: "shift8 web" appears in meta tag AND footer, so expect 2 occurrences
+        // Note: "shift8 web" appears only in meta tag, footer link text is "web design toronto"
         $shiftWebCount = substr_count($content, 'shift8 web');
+        $webDesignTorontoCount = substr_count($content, 'web design toronto');
         $atomicEdgeCount = substr_count($content, 'atomic edge firewall');
         $githubLinkCount = substr_count($content, 'https://github.com/stardothosting/nullfake');
         
-        $this->assertEquals(2, $shiftWebCount, 'shift8 web should appear in meta tag and footer (2 times)');
+        $this->assertEquals(1, $shiftWebCount, 'shift8 web should appear in meta tag (1 time)');
+        $this->assertEquals(1, $webDesignTorontoCount, 'web design toronto should appear in footer (1 time)');
         $this->assertEquals(1, $atomicEdgeCount, 'atomic edge firewall should appear exactly once');
         $this->assertGreaterThanOrEqual(1, $githubLinkCount, 'GitHub link should appear at least once (may appear in multiple contexts)');
     }
@@ -167,12 +169,17 @@ class FooterPartialTest extends TestCase
     private function assertFooterContentPresent($response)
     {
         $response->assertSee('built with');
-        $response->assertSee('shift8 web');
+        $response->assertSee('web design toronto'); // Footer link text (not "shift8 web" which is in meta tag)
         $response->assertSee('atomic edge firewall');
         $response->assertSee('All analyzed products');
         $response->assertSee('GitHub');
         $response->assertSee('MIT License');
         $response->assertSee('Privacy Policy');
         $response->assertSee('Contact');
+        // New informational page links added in footer
+        $response->assertSee('How It Works');
+        $response->assertSee('FAQ');
+        $response->assertSee('Free Review Checker');
+        $response->assertSee('Fakespot Alternative');
     }
 }
