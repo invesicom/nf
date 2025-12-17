@@ -299,7 +299,7 @@ class AsinData extends Model
         // A product is considered analyzed if it has:
         // 1. Status is completed AND
         // 2. Has fake_percentage and grade (key analysis results)
-        // 
+        //
         // Note: Grade U products (no reviews) ARE considered analyzed - they went through
         // the complete analysis process and received a valid result (Grade U).
         // The analysis is complete, just with no reviews to analyze.
@@ -340,8 +340,9 @@ class AsinData extends Model
      * Check if there's an active processing session for a given ASIN.
      * Used when no AsinData record exists yet to check if analysis is queued.
      *
-     * @param string $asin The ASIN to check
+     * @param string      $asin    The ASIN to check
      * @param string|null $country Optional country filter
+     *
      * @return array{is_processing: bool, estimated_minutes: int, session: \App\Models\AnalysisSession|null}
      */
     public static function checkProcessingSession(string $asin, ?string $country = null): array
@@ -354,17 +355,17 @@ class AsinData extends Model
 
         if (!$session) {
             return [
-                'is_processing' => false,
+                'is_processing'     => false,
                 'estimated_minutes' => 0,
-                'session' => null,
+                'session'           => null,
             ];
         }
 
         // Calculate estimated time based on session progress
-        $elapsedMinutes = $session->started_at 
-            ? $session->started_at->diffInMinutes(now()) 
+        $elapsedMinutes = $session->started_at
+            ? $session->started_at->diffInMinutes(now())
             : 0;
-        
+
         // Base estimate of 3 minutes total, minus elapsed time
         $estimatedMinutes = max(1, 3 - $elapsedMinutes);
 
@@ -374,9 +375,9 @@ class AsinData extends Model
         }
 
         return [
-            'is_processing' => true,
+            'is_processing'     => true,
             'estimated_minutes' => $estimatedMinutes,
-            'session' => $session,
+            'session'           => $session,
         ];
     }
 
@@ -502,6 +503,7 @@ class AsinData extends Model
      * - Higher quality
      *
      * @param string|null $imageUrl The original Amazon image URL
+     *
      * @return string|null The transformed high-resolution URL
      */
     public static function transformToHighResImage(?string $imageUrl): ?string

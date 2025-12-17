@@ -31,9 +31,9 @@ class DeepSeekChunkingTest extends TestCase
         $reviews = [];
         for ($i = 1; $i <= 100; $i++) {
             $reviews[] = [
-                'id' => "R{$i}",
-                'text' => "Test review number {$i}. This is a sample review.",
-                'rating' => rand(3, 5)
+                'id'     => "R{$i}",
+                'text'   => "Test review number {$i}. This is a sample review.",
+                'rating' => rand(3, 5),
             ];
         }
 
@@ -44,24 +44,24 @@ class DeepSeekChunkingTest extends TestCase
                     'choices' => [
                         ['message' => ['content' => json_encode([
                             'fake_percentage' => 15,
-                            'confidence' => 'high',
-                            'explanation' => 'Chunk 1 analysis',
-                            'fake_examples' => [],
-                            'key_patterns' => []
-                        ])]]
-                    ]
+                            'confidence'      => 'high',
+                            'explanation'     => 'Chunk 1 analysis',
+                            'fake_examples'   => [],
+                            'key_patterns'    => [],
+                        ])]],
+                    ],
                 ], 200)
                 ->push([
                     'choices' => [
                         ['message' => ['content' => json_encode([
                             'fake_percentage' => 20,
-                            'confidence' => 'medium',
-                            'explanation' => 'Chunk 2 analysis',
-                            'fake_examples' => [],
-                            'key_patterns' => []
-                        ])]]
-                    ]
-                ], 200)
+                            'confidence'      => 'medium',
+                            'explanation'     => 'Chunk 2 analysis',
+                            'fake_examples'   => [],
+                            'key_patterns'    => [],
+                        ])]],
+                    ],
+                ], 200),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
@@ -82,9 +82,9 @@ class DeepSeekChunkingTest extends TestCase
         $reviews = [];
         for ($i = 1; $i <= 50; $i++) {
             $reviews[] = [
-                'id' => "R{$i}",
-                'text' => "Test review number {$i}. This is a sample review.",
-                'rating' => rand(3, 5)
+                'id'     => "R{$i}",
+                'text'   => "Test review number {$i}. This is a sample review.",
+                'rating' => rand(3, 5),
             ];
         }
 
@@ -93,13 +93,13 @@ class DeepSeekChunkingTest extends TestCase
                 'choices' => [
                     ['message' => ['content' => json_encode([
                         'fake_percentage' => 12,
-                        'confidence' => 'high',
-                        'explanation' => 'Single analysis',
-                        'fake_examples' => [],
-                        'key_patterns' => []
-                    ])]]
-                ]
-            ], 200)
+                        'confidence'      => 'high',
+                        'explanation'     => 'Single analysis',
+                        'fake_examples'   => [],
+                        'key_patterns'    => [],
+                    ])]],
+                ],
+            ], 200),
         ]);
 
         $result = $this->provider->analyzeReviews($reviews);
@@ -133,9 +133,9 @@ class DeepSeekChunkingTest extends TestCase
         $reviews = [];
         for ($i = 1; $i <= 100; $i++) {
             $reviews[] = [
-                'id' => "R{$i}",
-                'text' => "Test review number {$i}.",
-                'rating' => rand(3, 5)
+                'id'     => "R{$i}",
+                'text'   => "Test review number {$i}.",
+                'rating' => rand(3, 5),
             ];
         }
 
@@ -146,14 +146,14 @@ class DeepSeekChunkingTest extends TestCase
                     'choices' => [
                         ['message' => ['content' => json_encode([
                             'fake_percentage' => 15,
-                            'confidence' => 'high',
-                            'explanation' => 'Chunk 1',
-                            'fake_examples' => [],
-                            'key_patterns' => []
-                        ])]]
-                    ]
+                            'confidence'      => 'high',
+                            'explanation'     => 'Chunk 1',
+                            'fake_examples'   => [],
+                            'key_patterns'    => [],
+                        ])]],
+                    ],
                 ], 200)
-                ->push(['error' => 'Rate limit exceeded'], 429)
+                ->push(['error' => 'Rate limit exceeded'], 429),
         ]);
 
         // Should still succeed with partial results (50% failure threshold)
@@ -168,15 +168,15 @@ class DeepSeekChunkingTest extends TestCase
         $reviews = [];
         for ($i = 1; $i <= 150; $i++) {
             $reviews[] = [
-                'id' => "R{$i}",
-                'text' => "Test review number {$i}.",
-                'rating' => rand(3, 5)
+                'id'     => "R{$i}",
+                'text'   => "Test review number {$i}.",
+                'rating' => rand(3, 5),
             ];
         }
 
         // All chunks fail
         Http::fake([
-            'api.deepseek.com/*' => Http::response(['error' => 'Service unavailable'], 503)
+            'api.deepseek.com/*' => Http::response(['error' => 'Service unavailable'], 503),
         ]);
 
         $this->expectException(\Exception::class);

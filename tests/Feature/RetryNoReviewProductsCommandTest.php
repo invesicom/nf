@@ -24,15 +24,15 @@ class RetryNoReviewProductsCommandTest extends TestCase
     {
         // Create a Grade U product
         $product = AsinData::factory()->create([
-            'asin' => 'B0TEST1234',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
-            'product_title' => 'Test Product',
+            'asin'            => 'B0TEST1234',
+            'country'         => 'us',
+            'grade'           => 'U',
+            'status'          => 'completed',
+            'product_title'   => 'Test Product',
             'fake_percentage' => null,
-            'explanation' => null,
-            'reviews' => null,
-            'openai_result' => null,
+            'explanation'     => null,
+            'reviews'         => null,
+            'openai_result'   => null,
         ]);
 
         $this->artisan('products:retry-no-reviews', ['asin' => 'B0TEST1234', '--force' => true])
@@ -60,17 +60,17 @@ class RetryNoReviewProductsCommandTest extends TestCase
     public function it_retries_specific_asin_with_different_country()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TEST1234',
-            'country' => 'ca',
-            'grade' => 'U',
-            'status' => 'completed',
+            'asin'          => 'B0TEST1234',
+            'country'       => 'ca',
+            'grade'         => 'U',
+            'status'        => 'completed',
             'product_title' => 'Test Product Canada',
         ]);
 
         $this->artisan('products:retry-no-reviews', [
-            'asin' => 'B0TEST1234',
+            'asin'      => 'B0TEST1234',
             '--country' => 'ca',
-            '--force' => true
+            '--force'   => true,
         ])
             ->expectsOutput('Retrying specific ASIN: B0TEST1234 (country: ca)')
             ->expectsOutput('✓ Successfully queued: B0TEST1234 (ca)')
@@ -85,10 +85,10 @@ class RetryNoReviewProductsCommandTest extends TestCase
     public function it_shows_dry_run_for_specific_asin()
     {
         $product = AsinData::factory()->create([
-            'asin' => 'B0TEST1234',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
+            'asin'          => 'B0TEST1234',
+            'country'       => 'us',
+            'grade'         => 'U',
+            'status'        => 'completed',
             'product_title' => 'Test Product',
         ]);
 
@@ -120,10 +120,10 @@ class RetryNoReviewProductsCommandTest extends TestCase
     public function it_fails_when_product_is_not_grade_u()
     {
         AsinData::factory()->create([
-            'asin' => 'B0TEST1234',
+            'asin'    => 'B0TEST1234',
             'country' => 'us',
-            'grade' => 'A',
-            'status' => 'completed',
+            'grade'   => 'A',
+            'status'  => 'completed',
         ]);
 
         $this->artisan('products:retry-no-reviews', ['asin' => 'B0TEST1234', '--force' => true])
@@ -137,10 +137,10 @@ class RetryNoReviewProductsCommandTest extends TestCase
     public function it_fails_when_product_is_not_completed()
     {
         AsinData::factory()->create([
-            'asin' => 'B0TEST1234',
+            'asin'    => 'B0TEST1234',
             'country' => 'us',
-            'grade' => 'U',
-            'status' => 'processing',
+            'grade'   => 'U',
+            'status'  => 'processing',
         ]);
 
         $this->artisan('products:retry-no-reviews', ['asin' => 'B0TEST1234', '--force' => true])
@@ -155,39 +155,39 @@ class RetryNoReviewProductsCommandTest extends TestCase
     {
         // Create Grade U products within age range
         $recentProduct1 = AsinData::factory()->create([
-            'asin' => 'B0RECENT01',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
-            'product_title' => 'Recent Product 1',
+            'asin'              => 'B0RECENT01',
+            'country'           => 'us',
+            'grade'             => 'U',
+            'status'            => 'completed',
+            'product_title'     => 'Recent Product 1',
             'first_analyzed_at' => now()->subHours(12),
         ]);
 
         $recentProduct2 = AsinData::factory()->create([
-            'asin' => 'B0RECENT02',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
-            'product_title' => 'Recent Product 2',
+            'asin'              => 'B0RECENT02',
+            'country'           => 'us',
+            'grade'             => 'U',
+            'status'            => 'completed',
+            'product_title'     => 'Recent Product 2',
             'first_analyzed_at' => now()->subHours(18),
         ]);
 
         // Create old product outside age range
         AsinData::factory()->create([
-            'asin' => 'B0OLD00001',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
-            'product_title' => 'Old Product',
+            'asin'              => 'B0OLD00001',
+            'country'           => 'us',
+            'grade'             => 'U',
+            'status'            => 'completed',
+            'product_title'     => 'Old Product',
             'first_analyzed_at' => now()->subHours(48),
         ]);
 
         // Create non-U grade product (should be ignored)
         AsinData::factory()->create([
-            'asin' => 'B0GRADEA01',
-            'country' => 'us',
-            'grade' => 'A',
-            'status' => 'completed',
+            'asin'              => 'B0GRADEA01',
+            'country'           => 'us',
+            'grade'             => 'A',
+            'status'            => 'completed',
             'first_analyzed_at' => now()->subHours(6),
         ]);
 
@@ -215,11 +215,11 @@ class RetryNoReviewProductsCommandTest extends TestCase
         // Create 3 Grade U products
         for ($i = 1; $i <= 3; $i++) {
             AsinData::factory()->create([
-                'asin' => "B0TEST000{$i}",
-                'country' => 'us',
-                'grade' => 'U',
-                'status' => 'completed',
-                'product_title' => "Test Product {$i}",
+                'asin'              => "B0TEST000{$i}",
+                'country'           => 'us',
+                'grade'             => 'U',
+                'status'            => 'completed',
+                'product_title'     => "Test Product {$i}",
                 'first_analyzed_at' => now()->subHours(12),
             ]);
         }
@@ -238,11 +238,11 @@ class RetryNoReviewProductsCommandTest extends TestCase
     public function it_shows_dry_run_for_bulk_retry()
     {
         AsinData::factory()->create([
-            'asin' => 'B0TEST1234',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
-            'product_title' => 'Test Product',
+            'asin'              => 'B0TEST1234',
+            'country'           => 'us',
+            'grade'             => 'U',
+            'status'            => 'completed',
+            'product_title'     => 'Test Product',
             'first_analyzed_at' => now()->subHours(12),
         ]);
 
@@ -259,10 +259,10 @@ class RetryNoReviewProductsCommandTest extends TestCase
     {
         // Create a product outside the age range
         AsinData::factory()->create([
-            'asin' => 'B0OLD00001',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
+            'asin'              => 'B0OLD00001',
+            'country'           => 'us',
+            'grade'             => 'U',
+            'status'            => 'completed',
             'first_analyzed_at' => now()->subHours(48),
         ]);
 
@@ -278,21 +278,21 @@ class RetryNoReviewProductsCommandTest extends TestCase
     {
         // Product with title (should be retried)
         AsinData::factory()->create([
-            'asin' => 'B0WITHTITLE',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
-            'product_title' => 'Product With Title',
+            'asin'              => 'B0WITHTITLE',
+            'country'           => 'us',
+            'grade'             => 'U',
+            'status'            => 'completed',
+            'product_title'     => 'Product With Title',
             'first_analyzed_at' => now()->subHours(12),
         ]);
 
         // Product without title (should be ignored)
         AsinData::factory()->create([
-            'asin' => 'B0NOTITLE01',
-            'country' => 'us',
-            'grade' => 'U',
-            'status' => 'completed',
-            'product_title' => null,
+            'asin'              => 'B0NOTITLE01',
+            'country'           => 'us',
+            'grade'             => 'U',
+            'status'            => 'completed',
+            'product_title'     => null,
             'first_analyzed_at' => now()->subHours(12),
         ]);
 

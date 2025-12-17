@@ -2,10 +2,10 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
-use App\Services\MetricsCalculationService;
 use App\Models\AsinData;
+use App\Services\MetricsCalculationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\TestCase;
 
 class EnhancedExplanationGenerationTest extends TestCase
 {
@@ -23,20 +23,20 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_generates_multi_paragraph_explanations_for_excellent_products()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 20, ['text' => 'Great product!', 'rating' => 5]))
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 20, ['text' => 'Great product!', 'rating' => 5])),
         ]);
 
         // Set up openai_result with excellent authenticity (5% fake)
         $asinData->update([
             'openai_result' => json_encode([
                 'fake_percentage' => 5,
-                'confidence' => 'high',
-                'fake_examples' => [],
-                'key_patterns' => []
-            ])
+                'confidence'      => 'high',
+                'fake_examples'   => [],
+                'key_patterns'    => [],
+            ]),
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -57,20 +57,20 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_generates_multi_paragraph_explanations_for_good_products()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 15, ['text' => 'Good product', 'rating' => 4]))
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 15, ['text' => 'Good product', 'rating' => 4])),
         ]);
 
         // Set up openai_result with good authenticity (25% fake)
         $asinData->update([
             'openai_result' => json_encode([
                 'fake_percentage' => 25,
-                'confidence' => 'medium',
-                'fake_examples' => [],
-                'key_patterns' => []
-            ])
+                'confidence'      => 'medium',
+                'fake_examples'   => [],
+                'key_patterns'    => [],
+            ]),
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -90,20 +90,20 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_generates_multi_paragraph_explanations_for_moderate_products()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 12, ['text' => 'Okay product', 'rating' => 3]))
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 12, ['text' => 'Okay product', 'rating' => 3])),
         ]);
 
         // Set up openai_result with moderate concerns (40% fake)
         $asinData->update([
             'openai_result' => json_encode([
                 'fake_percentage' => 40,
-                'confidence' => 'medium',
-                'fake_examples' => [],
-                'key_patterns' => []
-            ])
+                'confidence'      => 'medium',
+                'fake_examples'   => [],
+                'key_patterns'    => [],
+            ]),
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -123,20 +123,20 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_generates_multi_paragraph_explanations_for_high_risk_products()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 10, ['text' => 'Amazing!', 'rating' => 5]))
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 10, ['text' => 'Amazing!', 'rating' => 5])),
         ]);
 
         // Set up openai_result with high fake activity (65% fake)
         $asinData->update([
             'openai_result' => json_encode([
                 'fake_percentage' => 65,
-                'confidence' => 'high',
-                'fake_examples' => [],
-                'key_patterns' => []
-            ])
+                'confidence'      => 'high',
+                'fake_examples'   => [],
+                'key_patterns'    => [],
+            ]),
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -156,20 +156,20 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_generates_multi_paragraph_explanations_for_very_high_risk_products()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 8, ['text' => 'Perfect!', 'rating' => 5]))
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 8, ['text' => 'Perfect!', 'rating' => 5])),
         ]);
 
         // Set up openai_result with very high fake activity (85% fake)
         $asinData->update([
             'openai_result' => json_encode([
                 'fake_percentage' => 85,
-                'confidence' => 'high',
-                'fake_examples' => [],
-                'key_patterns' => []
-            ])
+                'confidence'      => 'high',
+                'fake_examples'   => [],
+                'key_patterns'    => [],
+            ]),
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -189,10 +189,10 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_preserves_llm_explanation_when_available()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 10, ['text' => 'Good product', 'rating' => 4]))
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 10, ['text' => 'Good product', 'rating' => 4])),
         ]);
 
         $llmExplanation = "LLM generated first paragraph.\n\nLLM generated second paragraph.\n\nLLM generated third paragraph.";
@@ -201,11 +201,11 @@ class EnhancedExplanationGenerationTest extends TestCase
         $asinData->update([
             'openai_result' => json_encode([
                 'fake_percentage' => 30,
-                'confidence' => 'medium',
-                'explanation' => $llmExplanation,
-                'fake_examples' => [],
-                'key_patterns' => []
-            ])
+                'confidence'      => 'medium',
+                'explanation'     => $llmExplanation,
+                'fake_examples'   => [],
+                'key_patterns'    => [],
+            ]),
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -226,20 +226,20 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_adds_key_patterns_to_explanation_when_available()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 10, ['text' => 'Test review', 'rating' => 4]))
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 10, ['text' => 'Test review', 'rating' => 4])),
         ]);
 
         // Set up openai_result with key patterns
         $asinData->update([
             'openai_result' => json_encode([
                 'fake_percentage' => 20,
-                'confidence' => 'medium',
-                'fake_examples' => [],
-                'key_patterns' => ['Generic praise', 'Short reviews', 'Timing clusters']
-            ])
+                'confidence'      => 'medium',
+                'fake_examples'   => [],
+                'key_patterns'    => ['Generic praise', 'Short reviews', 'Timing clusters'],
+            ]),
         ]);
 
         $result = $this->service->calculateFinalMetrics($asinData);
@@ -257,16 +257,16 @@ class EnhancedExplanationGenerationTest extends TestCase
     public function it_handles_empty_or_null_aggregate_data()
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
-            'reviews' => json_encode(array_fill(0, 5, ['text' => 'Review', 'rating' => 3])),
-            'openai_result' => json_encode([
+            'grade'           => null,
+            'reviews'         => json_encode(array_fill(0, 5, ['text' => 'Review', 'rating' => 3])),
+            'openai_result'   => json_encode([
                 'fake_percentage' => 35,
-                'confidence' => 'medium',
-                'fake_examples' => [],
-                'key_patterns' => []
-            ])
+                'confidence'      => 'medium',
+                'fake_examples'   => [],
+                'key_patterns'    => [],
+            ]),
         ]);
 
         // Test with minimal openai_result - should generate fallback explanation

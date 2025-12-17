@@ -2,7 +2,6 @@
 
 namespace App\Jobs;
 
-use App\Jobs\ProcessPriceAnalysis;
 use App\Models\AnalysisSession;
 use App\Models\AsinData;
 use App\Services\LoggingService;

@@ -202,6 +202,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 'status' => $asinData->status,
                 'grade'  => $asinData->grade,
             ]);
+
             return $asinData;
         }
 
@@ -334,6 +335,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                 'urls_count' => count($urls),
                 'reason'     => 'Approaching concurrent job limit',
             ]);
+
             return null;
         }
 
@@ -368,7 +370,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     'Content-Type'  => 'application/json',
                 ],
                 'query' => $queryParams,
-                'json' => $payload,
+                'json'  => $payload,
             ]);
 
             $statusCode = $response->getStatusCode();
@@ -387,15 +389,15 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                         'response_body' => $body,
                         'suggestion'    => 'Run: php artisan brightdata:analyze to see job distribution',
                     ]);
-                    
+
                     // Use AlertManager for rate limit issues
                     app(AlertManager::class)->recordFailure(
                         'BrightData API',
                         'RATE_LIMIT_EXCEEDED',
                         'Too many running jobs (100+ limit reached)',
                         [
-                            'status_code' => $statusCode,
-                            'response' => $body,
+                            'status_code'   => $statusCode,
+                            'response'      => $body,
                             'action_needed' => 'Cancel old running jobs',
                         ]
                     );
@@ -556,7 +558,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
         // Cancel the job after polling timeout to prevent accumulation
         $cancelSuccess = $this->cancelJob($jobId);
-        
+
         LoggingService::log('BrightData job cancellation after timeout', [
             'job_id'         => $jobId,
             'cancel_success' => $cancelSuccess,
@@ -567,7 +569,7 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
         app(AlertManager::class)->recordFailure(
             'BrightData Web Scraper',
             'POLLING_TIMEOUT',
-            "Job polling timed out after {$this->maxAttempts} attempts, cancellation " . ($cancelSuccess ? 'successful' : 'failed'),
+            "Job polling timed out after {$this->maxAttempts} attempts, cancellation ".($cancelSuccess ? 'successful' : 'failed'),
             [
                 'job_id'           => $jobId,
                 'asin'             => $asin,
@@ -827,18 +829,18 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
     {
         $maxConcurrent = config('amazon.brightdata.max_concurrent_jobs', 90);
         $alertThreshold = 70; // Alert when we have 70+ running jobs
-        
+
         try {
             $runningJobs = $this->getJobsByStatus('running');
             $currentCount = count($runningJobs);
-            
+
             LoggingService::log('BrightData concurrent job check', [
                 'current_running' => $currentCount,
                 'max_allowed'     => $maxConcurrent,
                 'alert_threshold' => $alertThreshold,
                 'can_create'      => $currentCount < $maxConcurrent,
             ]);
-            
+
             // Alert if we're approaching the limit
             if ($currentCount >= $alertThreshold) {
                 app(AlertManager::class)->recordFailure(
@@ -847,21 +849,21 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
                     "High number of running BrightData jobs: {$currentCount}/100 limit",
                     [
                         'current_running_jobs' => $currentCount,
-                        'alert_threshold' => $alertThreshold,
-                        'max_limit' => 100,
-                        'recommendation' => 'Consider running: php artisan brightdata:cleanup --force',
-                        'jobs_until_limit' => 100 - $currentCount,
+                        'alert_threshold'      => $alertThreshold,
+                        'max_limit'            => 100,
+                        'recommendation'       => 'Consider running: php artisan brightdata:cleanup --force',
+                        'jobs_until_limit'     => 100 - $currentCount,
                     ]
                 );
             }
-            
+
             return $currentCount < $maxConcurrent;
         } catch (\Exception $e) {
             LoggingService::log('Failed to check concurrent job limit', [
-                'error' => $e->getMessage(),
+                'error'    => $e->getMessage(),
                 'fallback' => 'Allowing job creation',
             ]);
-            
+
             // If we can't check, allow job creation to avoid blocking legitimate requests
             return true;
         }
@@ -883,12 +885,14 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             }
 
             $data = json_decode($response->getBody()->getContents(), true);
+
             return is_array($data) ? $data : [];
         } catch (\Exception $e) {
             LoggingService::log('Failed to fetch jobs by status', [
                 'status' => $status,
                 'error'  => $e->getMessage(),
             ]);
+
             return [];
         }
     }
@@ -906,10 +910,10 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
             $statusCode = $response->getStatusCode();
             $body = $response->getBody()->getContents();
-            
+
             // BrightData returns 200 with "OK" response for successful cancellation
             $success = $statusCode === 200 && trim($body) === 'OK';
-            
+
             LoggingService::log('BrightData job cancellation attempt', [
                 'job_id'      => $jobId,
                 'success'     => $success,
@@ -921,10 +925,11 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
             return $success;
         } catch (\Exception $e) {
             LoggingService::log('BrightData job cancellation failed', [
-                'job_id' => $jobId,
-                'error'  => $e->getMessage(),
+                'job_id'   => $jobId,
+                'error'    => $e->getMessage(),
                 'endpoint' => "{$this->baseUrl}/snapshot/{$jobId}/cancel",
             ]);
+
             return false;
         }
     }
@@ -941,70 +946,69 @@ class BrightDataScraperService implements AmazonReviewServiceInterface
 
         $staleThreshold = config('amazon.brightdata.stale_job_threshold', 60); // minutes
         $cutoffTime = now()->subMinutes($staleThreshold);
-        
+
         try {
             $runningJobs = $this->getJobsByStatus('running');
             $staleCandidates = [];
-            
+
             foreach ($runningJobs as $job) {
                 $jobId = $job['id'] ?? null;
                 $createdAt = $job['created_at'] ?? null;
-                
+
                 if (!$jobId || !$createdAt) {
                     continue;
                 }
-                
+
                 try {
                     $jobCreatedAt = \Carbon\Carbon::parse($createdAt);
                     if ($jobCreatedAt->lt($cutoffTime)) {
                         $staleCandidates[] = [
-                            'id' => $jobId,
-                            'created_at' => $createdAt,
+                            'id'          => $jobId,
+                            'created_at'  => $createdAt,
                             'age_minutes' => now()->diffInMinutes($jobCreatedAt),
                         ];
                     }
                 } catch (\Exception $e) {
                     LoggingService::log('Could not parse job creation date', [
-                        'job_id' => $jobId,
+                        'job_id'     => $jobId,
                         'created_at' => $createdAt,
-                        'error' => $e->getMessage(),
+                        'error'      => $e->getMessage(),
                     ]);
                 }
             }
-            
+
             $canceled = [];
             $failed = [];
-            
+
             foreach ($staleCandidates as $job) {
                 if ($this->cancelJob($job['id'])) {
                     $canceled[] = $job;
                 } else {
                     $failed[] = $job;
                 }
-                
+
                 // Small delay to avoid overwhelming the API
                 usleep(500000); // 0.5 seconds
             }
-            
+
             LoggingService::log('BrightData stale job cleanup completed', [
                 'stale_threshold_minutes' => $staleThreshold,
-                'candidates_found' => count($staleCandidates),
-                'successfully_canceled' => count($canceled),
-                'failed_to_cancel' => count($failed),
+                'candidates_found'        => count($staleCandidates),
+                'successfully_canceled'   => count($canceled),
+                'failed_to_cancel'        => count($failed),
             ]);
-            
+
             return [
                 'stale_threshold_minutes' => $staleThreshold,
-                'candidates_found' => count($staleCandidates),
-                'canceled' => $canceled,
-                'failed' => $failed,
+                'candidates_found'        => count($staleCandidates),
+                'canceled'                => $canceled,
+                'failed'                  => $failed,
             ];
-            
         } catch (\Exception $e) {
             LoggingService::log('BrightData stale job cleanup failed', [
                 'error' => $e->getMessage(),
             ]);
-            
+
             return ['error' => $e->getMessage()];
         }
     }

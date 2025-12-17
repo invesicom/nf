@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
 use App\Services\PromptGenerationService;
+use Tests\TestCase;
 
 class EnhancedPromptGenerationTest extends TestCase
 {
@@ -119,7 +119,7 @@ class EnhancedPromptGenerationTest extends TestCase
         $this->assertIsArray($chatResult);
         $this->assertArrayHasKey('system', $chatResult);
         $this->assertArrayHasKey('user', $chatResult);
-        
+
         // Should include balanced analysis instructions in user message
         $this->assertStringContainsString('4 paragraphs', $chatResult['user']);
         $this->assertStringContainsString('product_insights', $chatResult['user']);

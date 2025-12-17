@@ -6,10 +6,10 @@ use App\Models\AsinData;
 
 /**
  * Central authority for managing AsinData analysis status.
- * 
+ *
  * PRINCIPLE: Once status='completed', it NEVER changes back.
  * This prevents race conditions where background jobs overwrite completed analysis.
- * 
+ *
  * For new features that don't block the main analysis, use separate status columns:
  * - price_analysis_status
  * - product_data_status (future)
@@ -21,12 +21,12 @@ class AnalysisStatusService
      * Status progression order. Can only move forward, never backward.
      */
     private const STATUS_ORDER = [
-        'pending' => 0,
-        'fetched' => 1,
+        'pending'          => 0,
+        'fetched'          => 1,
         'pending_analysis' => 2,
-        'processing' => 3,
-        'analyzed' => 4,
-        'completed' => 5,  // FINAL - never changes after this
+        'processing'       => 3,
+        'analyzed'         => 4,
+        'completed'        => 5,  // FINAL - never changes after this
     ];
 
     /**
@@ -38,10 +38,11 @@ class AnalysisStatusService
         // If already completed, status is locked
         if ($asinData->isAnalyzed()) {
             LoggingService::log('Status change blocked - analysis already complete', [
-                'asin' => $asinData->asin,
-                'current_status' => $asinData->status,
+                'asin'             => $asinData->asin,
+                'current_status'   => $asinData->status,
                 'attempted_status' => $newStatus,
             ]);
+
             return false;
         }
 
@@ -60,6 +61,7 @@ class AnalysisStatusService
         }
 
         $asinData->update(['status' => $newStatus]);
+
         return true;
     }
 
@@ -72,15 +74,16 @@ class AnalysisStatusService
         // Verify we have the required data for completion
         if (is_null($asinData->fake_percentage) || is_null($asinData->grade)) {
             LoggingService::log('Cannot mark completed - missing required data', [
-                'asin' => $asinData->asin,
+                'asin'            => $asinData->asin,
                 'fake_percentage' => $asinData->fake_percentage,
-                'grade' => $asinData->grade,
+                'grade'           => $asinData->grade,
             ]);
+
             return false;
         }
 
         $updateData = array_merge($additionalData, [
-            'status' => 'completed',
+            'status'           => 'completed',
             'last_analyzed_at' => now(),
         ]);
 
@@ -92,8 +95,8 @@ class AnalysisStatusService
         $asinData->update($updateData);
 
         LoggingService::log('Analysis marked as completed', [
-            'asin' => $asinData->asin,
-            'grade' => $asinData->grade,
+            'asin'            => $asinData->asin,
+            'grade'           => $asinData->grade,
             'fake_percentage' => $asinData->fake_percentage,
         ]);
 
@@ -103,7 +106,7 @@ class AnalysisStatusService
     /**
      * Mark analysis as failed. Can be retried later.
      */
-    public static function markFailed(AsinData $asinData, string $reason = null): bool
+    public static function markFailed(AsinData $asinData, ?string $reason = null): bool
     {
         // Don't overwrite completed analysis
         if ($asinData->isAnalyzed()) {
@@ -111,7 +114,7 @@ class AnalysisStatusService
         }
 
         $asinData->update([
-            'status' => 'failed',
+            'status'         => 'failed',
             'analysis_notes' => $reason,
         ]);
 
@@ -144,4 +147,3 @@ class AnalysisStatusService
         return 'processing';
     }
 }
-

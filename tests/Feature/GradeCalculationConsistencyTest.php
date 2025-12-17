@@ -86,8 +86,8 @@ class GradeCalculationConsistencyTest extends TestCase
 
         // Run the reanalyze command in fast mode
         $this->artisan('analysis:manage', [
-            'action' => 'reanalyze',
-            '--grade' => 'F',
+            'action'   => 'reanalyze',
+            '--grade'  => 'F',
             '--limit'  => 1,
             '--force'  => true,
         ])->assertExitCode(0);

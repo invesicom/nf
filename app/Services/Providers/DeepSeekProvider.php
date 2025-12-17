@@ -2,10 +2,10 @@
 
 namespace App\Services\Providers;
 
+use App\Services\ContextAwareChunkingService;
 use App\Services\LLMProviderInterface;
 use App\Services\LoggingService;
 use App\Services\PromptGenerationService;
-use App\Services\ContextAwareChunkingService;
 use Illuminate\Support\Facades\Http;
 
 class DeepSeekProvider implements LLMProviderInterface
@@ -33,9 +33,10 @@ class DeepSeekProvider implements LLMProviderInterface
         // With aggregate format, chunk when we'd exceed token limits (around 80-100 reviews)
         $reviewCount = count($reviews);
         $chunkingThreshold = 80; // Reduced to handle DeepSeek's max_tokens limit
-        
+
         if ($reviewCount > $chunkingThreshold) {
             LoggingService::log("Extremely large review set detected ({$reviewCount} reviews > {$chunkingThreshold}), using chunking for DeepSeek");
+
             return $this->analyzeReviewsInChunks($reviews);
         }
 
@@ -91,17 +92,17 @@ class DeepSeekProvider implements LLMProviderInterface
     {
         // DeepSeek has a max_tokens limit of 8192
         $maxAllowed = 8192;
-        
+
         // For aggregate responses with detailed explanations, we need more tokens
         // Especially for chunked analysis where explanations need to be comprehensive
         $baseTokens = min(3000, $reviewCount * 15); // Increased base for detailed explanations
         $buffer = min(2000, $reviewCount * 8); // Larger buffer for complex patterns
-        
+
         // Minimum 2500 tokens for aggregate responses with detailed explanations
         $minTokens = 2500;
-        
+
         $calculated = max($minTokens, $baseTokens + $buffer);
-        
+
         // Ensure we never exceed DeepSeek's limit
         return min($calculated, $maxAllowed);
     }
@@ -112,15 +113,15 @@ class DeepSeekProvider implements LLMProviderInterface
     private function analyzeReviewsInChunks(array $reviews): array
     {
         $chunkingService = app(ContextAwareChunkingService::class);
-        
+
         return $chunkingService->processWithContextAwareChunking(
             $reviews,
             50, // Optimal chunk size for DeepSeek
             [$this, 'processChunkWithContext'],
             [
-                'delay_ms' => 500, // Rate limiting delay
+                'delay_ms'         => 500, // Rate limiting delay
                 'max_failure_rate' => 0.5,
-                'provider_name' => 'DeepSeek'
+                'provider_name'    => 'DeepSeek',
             ]
         );
     }
@@ -139,12 +140,12 @@ class DeepSeekProvider implements LLMProviderInterface
 
         // Add global context to the prompt
         $contextHeader = app(ContextAwareChunkingService::class)->generateContextHeader($context);
-        $promptData['user'] = $contextHeader . "\n\n" . $promptData['user'];
+        $promptData['user'] = $contextHeader."\n\n".$promptData['user'];
 
         try {
             $endpoint = rtrim($this->baseUrl, '/').'/chat/completions';
             $maxTokens = $this->getOptimizedMaxTokens(count($chunk));
-            
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer '.$this->apiKey,
                 'Content-Type'  => 'application/json',
@@ -167,18 +168,17 @@ class DeepSeekProvider implements LLMProviderInterface
 
             if ($response->successful()) {
                 $result = $response->json();
+
                 return $this->parseResponse($result, $chunk);
             } else {
-                throw new \Exception('DeepSeek API error: ' . $response->body());
+                throw new \Exception('DeepSeek API error: '.$response->body());
             }
-            
         } catch (\Exception $e) {
-            LoggingService::log("DeepSeek chunk processing failed: " . $e->getMessage());
+            LoggingService::log('DeepSeek chunk processing failed: '.$e->getMessage());
+
             throw $e;
         }
     }
-    
-    
 
     public function isAvailable(): bool
     {
@@ -231,32 +231,31 @@ class DeepSeekProvider implements LLMProviderInterface
                str_contains($this->baseUrl, '10.0.');
     }
 
-
     private function parseResponse($response, $reviews): array
     {
         $content = $response['choices'][0]['message']['content'] ?? '';
 
         // Debug: Log the actual response content for troubleshooting
-        LoggingService::log('DeepSeek raw response content: ' . substr($content, 0, 1000) . (strlen($content) > 1000 ? '...' : ''));
-        LoggingService::log('DeepSeek response length: ' . strlen($content) . ' characters');
+        LoggingService::log('DeepSeek raw response content: '.substr($content, 0, 1000).(strlen($content) > 1000 ? '...' : ''));
+        LoggingService::log('DeepSeek response length: '.strlen($content).' characters');
 
         // Parse aggregate JSON response
         try {
             // Try direct JSON decode first
             $result = json_decode($content, true);
-            
+
             // If direct decode fails, try extracting JSON from markdown or wrapped content
             if (!is_array($result)) {
                 // Try extracting JSON from markdown code blocks (most common case)
                 if (preg_match('/```(?:json)?\s*(\{.*?\})\s*```/s', $content, $matches)) {
                     $result = json_decode($matches[1], true);
-                } 
+                }
                 // Handle truncated responses - try to extract partial JSON and fix it
                 elseif (preg_match('/```(?:json)?\s*(\{.*)/s', $content, $matches)) {
                     $partialJson = $matches[1];
                     // If it ends incomplete, try to close it properly
                     if (!str_ends_with(trim($partialJson), '}')) {
-                        $partialJson = rtrim($partialJson, ',') . '}';
+                        $partialJson = rtrim($partialJson, ',').'}';
                     }
                     $result = json_decode($partialJson, true);
                     if (is_array($result)) {
@@ -270,7 +269,7 @@ class DeepSeekProvider implements LLMProviderInterface
             }
 
             if (!is_array($result)) {
-                throw new \Exception('Invalid JSON response format - expected object, got: ' . gettype($result));
+                throw new \Exception('Invalid JSON response format - expected object, got: '.gettype($result));
             }
 
             // Validate required fields
@@ -278,16 +277,16 @@ class DeepSeekProvider implements LLMProviderInterface
                 throw new \Exception('Invalid response format - missing required fields (fake_percentage, confidence, explanation)');
             }
 
-            LoggingService::log('DeepSeek: Successfully parsed aggregate analysis - ' . $result['fake_percentage'] . '% fake, confidence: ' . $result['confidence']);
-            
+            LoggingService::log('DeepSeek: Successfully parsed aggregate analysis - '.$result['fake_percentage'].'% fake, confidence: '.$result['confidence']);
+
             return [
-                'fake_percentage' => (float) $result['fake_percentage'],
-                'confidence' => $result['confidence'],
-                'explanation' => $result['explanation'],
-                'fake_examples' => $result['fake_examples'] ?? [],
-                'key_patterns' => $result['key_patterns'] ?? [],
-                'analysis_provider' => 'DeepSeek-API-' . $this->model,
-                'total_cost' => 0.0001 // Placeholder cost
+                'fake_percentage'   => (float) $result['fake_percentage'],
+                'confidence'        => $result['confidence'],
+                'explanation'       => $result['explanation'],
+                'fake_examples'     => $result['fake_examples'] ?? [],
+                'key_patterns'      => $result['key_patterns'] ?? [],
+                'analysis_provider' => 'DeepSeek-API-'.$this->model,
+                'total_cost'        => 0.0001, // Placeholder cost
             ];
         } catch (\Exception $e) {
             LoggingService::log('Failed to parse DeepSeek response: '.$e->getMessage());

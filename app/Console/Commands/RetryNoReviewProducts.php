@@ -34,15 +34,15 @@ class RetryNoReviewProducts extends Command
             return $this->retrySpecificAsin($asin, $country, $dryRun, $force);
         }
 
-        $this->info("Retrying Grade U products (no reviews found)");
+        $this->info('Retrying Grade U products (no reviews found)');
         $this->line("- Limit: {$limit} products");
         $this->line("- Age filter: within last {$ageHours} hours");
-        $this->line("- Mode: " . ($dryRun ? 'DRY RUN' : 'LIVE'));
+        $this->line('- Mode: '.($dryRun ? 'DRY RUN' : 'LIVE'));
         $this->line('');
 
         // Find Grade U products within the specified age range
         $cutoffTime = now()->subHours($ageHours);
-        
+
         $query = AsinData::where('grade', 'U')
             ->where('status', 'completed')
             ->where('first_analyzed_at', '>=', $cutoffTime)
@@ -54,17 +54,19 @@ class RetryNoReviewProducts extends Command
 
         if ($totalCount === 0) {
             $this->info('No Grade U products found within the specified time range.');
+
             return 0;
         }
 
         $this->info("Found {$totalCount} Grade U products within last {$ageHours} hours.");
-        
+
         if ($totalCount > $limit) {
             $this->info("Will process first {$limit} products due to --limit={$limit}");
         }
 
         if ($products->isEmpty()) {
             $this->info('No products to process after filtering.');
+
             return 0;
         }
 
@@ -85,11 +87,13 @@ class RetryNoReviewProducts extends Command
         if ($dryRun) {
             $this->info('');
             $this->warn('DRY RUN: No changes made. Remove --dry-run to process these products.');
+
             return 0;
         }
 
         if (!$force && !$this->confirm("Retry analysis for {$products->count()} Grade U products?")) {
             $this->info('Cancelled.');
+
             return 0;
         }
 
@@ -103,12 +107,12 @@ class RetryNoReviewProducts extends Command
             try {
                 // Reset the product status to trigger fresh analysis
                 $product->update([
-                    'status' => 'processing',
-                    'reviews' => null,
-                    'openai_result' => null,
-                    'fake_percentage' => null,
-                    'grade' => null,
-                    'explanation' => null,
+                    'status'           => 'processing',
+                    'reviews'          => null,
+                    'openai_result'    => null,
+                    'fake_percentage'  => null,
+                    'grade'            => null,
+                    'explanation'      => null,
                     'last_analyzed_at' => now(),
                 ]);
 
@@ -119,9 +123,9 @@ class RetryNoReviewProducts extends Command
                 $this->line("✓ Queued: {$product->asin} ({$product->country})");
 
                 LoggingService::log('Grade U product retry queued', [
-                    'asin' => $product->asin,
-                    'country' => $product->country,
-                    'product_title' => $product->product_title,
+                    'asin'                   => $product->asin,
+                    'country'                => $product->country,
+                    'product_title'          => $product->product_title,
                     'original_analysis_date' => $product->first_analyzed_at,
                 ]);
 
@@ -129,15 +133,14 @@ class RetryNoReviewProducts extends Command
                 if ($processed < $products->count()) {
                     usleep(100000); // 0.1 seconds
                 }
-
             } catch (\Exception $e) {
                 $failed++;
                 $this->error("✗ Failed: {$product->asin} - {$e->getMessage()}");
 
                 LoggingService::log('Grade U product retry failed', [
-                    'asin' => $product->asin,
+                    'asin'    => $product->asin,
                     'country' => $product->country,
-                    'error' => $e->getMessage(),
+                    'error'   => $e->getMessage(),
                 ]);
             }
         }
@@ -146,7 +149,7 @@ class RetryNoReviewProducts extends Command
         $this->info('Retry processing complete:');
         $this->line("- Successfully queued: {$processed}");
         $this->line("- Failed: {$failed}");
-        $this->line("- Total processed: " . ($processed + $failed));
+        $this->line('- Total processed: '.($processed + $failed));
 
         if ($processed > 0) {
             $this->info('');
@@ -160,7 +163,7 @@ class RetryNoReviewProducts extends Command
     private function retrySpecificAsin(string $asin, string $country, bool $dryRun, bool $force): int
     {
         $this->info("Retrying specific ASIN: {$asin} (country: {$country})");
-        $this->line("- Mode: " . ($dryRun ? 'DRY RUN' : 'LIVE'));
+        $this->line('- Mode: '.($dryRun ? 'DRY RUN' : 'LIVE'));
         $this->line('');
 
         // Find the specific product
@@ -170,16 +173,19 @@ class RetryNoReviewProducts extends Command
 
         if (!$product) {
             $this->error("Product not found: {$asin} (country: {$country})");
+
             return 1;
         }
 
         if ($product->grade !== 'U') {
             $this->error("Product {$asin} has grade '{$product->grade}', not 'U'. Only Grade U products can be retried.");
+
             return 1;
         }
 
         if ($product->status !== 'completed') {
             $this->error("Product {$asin} has status '{$product->status}', not 'completed'. Only completed products can be retried.");
+
             return 1;
         }
 
@@ -199,23 +205,25 @@ class RetryNoReviewProducts extends Command
         if ($dryRun) {
             $this->info('');
             $this->warn('DRY RUN: No changes made. Remove --dry-run to retry this product.');
+
             return 0;
         }
 
         if (!$force && !$this->confirm("Retry analysis for {$asin} ({$country})?")) {
             $this->info('Cancelled.');
+
             return 0;
         }
 
         try {
             // Reset the product status to trigger fresh analysis
             $product->update([
-                'status' => 'processing',
-                'reviews' => null,
-                'openai_result' => null,
-                'fake_percentage' => null,
-                'grade' => null,
-                'explanation' => null,
+                'status'           => 'processing',
+                'reviews'          => null,
+                'openai_result'    => null,
+                'fake_percentage'  => null,
+                'grade'            => null,
+                'explanation'      => null,
                 'last_analyzed_at' => now(),
             ]);
 
@@ -225,9 +233,9 @@ class RetryNoReviewProducts extends Command
             $this->info("✓ Successfully queued: {$product->asin} ({$product->country})");
 
             LoggingService::log('Specific Grade U product retry queued', [
-                'asin' => $product->asin,
-                'country' => $product->country,
-                'product_title' => $product->product_title,
+                'asin'                   => $product->asin,
+                'country'                => $product->country,
+                'product_title'          => $product->product_title,
                 'original_analysis_date' => $product->first_analyzed_at,
             ]);
 
@@ -236,14 +244,13 @@ class RetryNoReviewProducts extends Command
             $this->info('Check the queue workers and logs for progress updates.');
 
             return 0;
-
         } catch (\Exception $e) {
             $this->error("✗ Failed to retry {$product->asin}: {$e->getMessage()}");
 
             LoggingService::log('Specific Grade U product retry failed', [
-                'asin' => $product->asin,
+                'asin'    => $product->asin,
                 'country' => $product->country,
-                'error' => $e->getMessage(),
+                'error'   => $e->getMessage(),
             ]);
 
             return 1;
@@ -252,6 +259,6 @@ class RetryNoReviewProducts extends Command
 
     private function truncate(string $text, int $length): string
     {
-        return strlen($text) > $length ? substr($text, 0, $length - 3) . '...' : $text;
+        return strlen($text) > $length ? substr($text, 0, $length - 3).'...' : $text;
     }
 }

@@ -39,10 +39,10 @@ Route::prefix('extension')->name('api.extension.')
         Route::post('/submit-reviews', [App\Http\Controllers\ExtensionController::class, 'submitReviews'])
             ->middleware(['throttle:60,1']) // 60 requests per minute per IP
             ->name('submit');
-        
+
         // Status endpoint without rate limiting for frequent polling
         Route::get('/analysis/{asin}/{country}', [App\Http\Controllers\ExtensionController::class, 'getAnalysisStatus'])->name('status');
-        
+
         // Progress endpoint for async analysis tracking
         Route::get('/progress/{sessionId}', [App\Http\Controllers\ExtensionController::class, 'getExtensionProgress'])->name('progress');
     });

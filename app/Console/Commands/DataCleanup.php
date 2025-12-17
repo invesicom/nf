@@ -20,9 +20,9 @@ class DataCleanup extends Command
         $dryRun = $this->option('dry-run');
         $limit = $this->option('limit');
         $force = $this->option('force');
-        
-        $this->info("Data Cleanup - Type: {$type}" . ($dryRun ? ' (DRY RUN)' : ''));
-        
+
+        $this->info("Data Cleanup - Type: {$type}".($dryRun ? ' (DRY RUN)' : ''));
+
         switch ($type) {
             case 'reviews':
                 return $this->backfillReviewCounts();
@@ -36,7 +36,8 @@ class DataCleanup extends Command
                 return $this->auditDuplicates();
             default:
                 $this->error("Unknown cleanup type: {$type}");
-                $this->info("Available types: reviews, sessions, zero-reviews, discrepancies, duplicates");
+                $this->info('Available types: reviews, sessions, zero-reviews, discrepancies, duplicates');
+
                 return 1;
         }
     }
@@ -45,6 +46,7 @@ class DataCleanup extends Command
     {
         $this->info('Backfilling total review counts...');
         $this->warn('Implementation needed: Move logic from BackfillTotalReviewCounts');
+
         return 0;
     }
 
@@ -52,6 +54,7 @@ class DataCleanup extends Command
     {
         $this->info('Cleaning up analysis sessions...');
         $this->warn('Implementation needed: Move logic from CleanupAnalysisSessions');
+
         return 0;
     }
 
@@ -59,6 +62,7 @@ class DataCleanup extends Command
     {
         $this->info('Cleaning up zero review products...');
         $this->warn('Implementation needed: Move logic from CleanupZeroReviewProducts');
+
         return 0;
     }
 
@@ -66,6 +70,7 @@ class DataCleanup extends Command
     {
         $this->info('Fixing review count discrepancies...');
         $this->warn('Implementation needed: Move logic from FixReviewCountDiscrepancies');
+
         return 0;
     }
 
@@ -73,6 +78,7 @@ class DataCleanup extends Command
     {
         $this->info('Auditing review duplication...');
         $this->warn('Implementation needed: Move logic from AuditReviewDuplication');
+
         return 0;
     }
 }

@@ -28,16 +28,16 @@ class ProductNotFoundProcessingTest extends TestCase
     {
         // Create an active analysis session
         $session = AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440000',
-            'user_session' => 'test_session',
-            'asin' => 'B0CMVXDBV8',
-            'product_url' => 'https://www.amazon.com/dp/B0CMVXDBV8',
-            'status' => 'processing',
-            'current_step' => 2,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440000',
+            'user_session'        => 'test_session',
+            'asin'                => 'B0CMVXDBV8',
+            'product_url'         => 'https://www.amazon.com/dp/B0CMVXDBV8',
+            'status'              => 'processing',
+            'current_step'        => 2,
             'progress_percentage' => 50,
-            'current_message' => 'Analyzing reviews...',
-            'total_steps' => 5,
-            'started_at' => now()->subMinute(),
+            'current_message'     => 'Analyzing reviews...',
+            'total_steps'         => 5,
+            'started_at'          => now()->subMinute(),
         ]);
 
         $response = $this->get('/amazon/us/B0CMVXDBV8');
@@ -55,12 +55,12 @@ class ProductNotFoundProcessingTest extends TestCase
     {
         // Create AsinData with 'fetched' status (submitted by extension but not yet analyzed)
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0CMVXDBV8',
-            'country' => 'us',
-            'status' => 'fetched',
-            'product_title' => 'Test Product',
+            'asin'            => 'B0CMVXDBV8',
+            'country'         => 'us',
+            'status'          => 'fetched',
+            'product_title'   => 'Test Product',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $response = $this->get('/amazon/us/B0CMVXDBV8');
@@ -77,12 +77,12 @@ class ProductNotFoundProcessingTest extends TestCase
     {
         // Create AsinData with 'processing' status
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0CMVXDBV8',
-            'country' => 'us',
-            'status' => 'processing',
-            'product_title' => 'Test Product Being Processed',
+            'asin'            => 'B0CMVXDBV8',
+            'country'         => 'us',
+            'status'          => 'processing',
+            'product_title'   => 'Test Product Being Processed',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $response = $this->get('/amazon/us/B0CMVXDBV8');
@@ -98,12 +98,12 @@ class ProductNotFoundProcessingTest extends TestCase
     {
         // Create fully analyzed product
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0CMVXDBV8',
-            'country' => 'us',
-            'status' => 'completed',
-            'product_title' => 'Completed Product',
-            'fake_percentage' => 25.5,
-            'grade' => 'B',
+            'asin'              => 'B0CMVXDBV8',
+            'country'           => 'us',
+            'status'            => 'completed',
+            'product_title'     => 'Completed Product',
+            'fake_percentage'   => 25.5,
+            'grade'             => 'B',
             'have_product_data' => true,
         ]);
 
@@ -113,7 +113,7 @@ class ProductNotFoundProcessingTest extends TestCase
         $this->assertTrue(
             $response->isRedirect() || $response->status() === 200
         );
-        
+
         if ($response->status() === 200) {
             $response->assertDontSee('Product Not Found');
             $response->assertDontSee('Analysis In Progress');
@@ -125,21 +125,21 @@ class ProductNotFoundProcessingTest extends TestCase
     {
         // Create product with many reviews (should take longer)
         $reviews = array_fill(0, 150, [
-            'author' => 'Test Author',
-            'content' => 'Test review content',
-            'rating' => 5,
-            'date' => '2024-01-01',
+            'author'            => 'Test Author',
+            'content'           => 'Test review content',
+            'rating'            => 5,
+            'date'              => '2024-01-01',
             'verified_purchase' => true,
         ]);
 
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0CMVXDBV8',
-            'country' => 'us',
-            'status' => 'processing',
-            'product_title' => 'Product with Many Reviews',
-            'reviews' => $reviews,
+            'asin'            => 'B0CMVXDBV8',
+            'country'         => 'us',
+            'status'          => 'processing',
+            'product_title'   => 'Product with Many Reviews',
+            'reviews'         => $reviews,
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $response = $this->get('/amazon/us/B0CMVXDBV8');
@@ -147,7 +147,7 @@ class ProductNotFoundProcessingTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Analysis In Progress');
         $response->assertSee('Estimated completion time');
-        
+
         // Should show some reasonable estimate
         $estimatedMinutes = $asinData->getEstimatedProcessingTimeMinutes();
         $this->assertGreaterThan(0, $estimatedMinutes);
@@ -158,15 +158,15 @@ class ProductNotFoundProcessingTest extends TestCase
     public function processing_status_detection_with_pending_status(): void
     {
         $session = AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440001',
-            'user_session' => 'test_session_2',
-            'asin' => 'B0TEST1234',
-            'product_url' => 'https://www.amazon.com/dp/B0TEST1234',
-            'status' => 'pending',
-            'current_step' => 0,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440001',
+            'user_session'        => 'test_session_2',
+            'asin'                => 'B0TEST1234',
+            'product_url'         => 'https://www.amazon.com/dp/B0TEST1234',
+            'status'              => 'pending',
+            'current_step'        => 0,
             'progress_percentage' => 0,
-            'current_message' => 'Queued for analysis...',
-            'total_steps' => 5,
+            'current_message'     => 'Queued for analysis...',
+            'total_steps'         => 5,
         ]);
 
         $response = $this->get('/amazon/us/B0TEST1234');
@@ -181,16 +181,16 @@ class ProductNotFoundProcessingTest extends TestCase
     {
         // Create session that started 5 minutes ago (longer than expected)
         $session = AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440002',
-            'user_session' => 'test_session_3',
-            'asin' => 'B0LONGRUN1',
-            'product_url' => 'https://www.amazon.com/dp/B0LONGRUN1',
-            'status' => 'processing',
-            'current_step' => 3,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440002',
+            'user_session'        => 'test_session_3',
+            'asin'                => 'B0LONGRUN1',
+            'product_url'         => 'https://www.amazon.com/dp/B0LONGRUN1',
+            'status'              => 'processing',
+            'current_step'        => 3,
             'progress_percentage' => 60,
-            'current_message' => 'Still analyzing...',
-            'total_steps' => 5,
-            'started_at' => now()->subMinutes(5),
+            'current_message'     => 'Still analyzing...',
+            'total_steps'         => 5,
+            'started_at'          => now()->subMinutes(5),
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0LONGRUN1');
@@ -216,12 +216,12 @@ class ProductNotFoundProcessingTest extends TestCase
     {
         // Create AsinData with processing status
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0CMVXDBV8',
-            'country' => 'us',
-            'status' => 'processing',
-            'product_title' => 'Test Product With Slug',
+            'asin'            => 'B0CMVXDBV8',
+            'country'         => 'us',
+            'status'          => 'processing',
+            'product_title'   => 'Test Product With Slug',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $response = $this->get('/amazon/us/B0CMVXDBV8/test-product-with-slug');
@@ -231,4 +231,3 @@ class ProductNotFoundProcessingTest extends TestCase
         $response->assertSee('Test Product With Slug');
     }
 }
-

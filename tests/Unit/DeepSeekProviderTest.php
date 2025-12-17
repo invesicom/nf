@@ -46,7 +46,7 @@ class DeepSeekProviderTest extends TestCase
         $this->assertArrayHasKey('explanation', $result);
         $this->assertArrayHasKey('analysis_provider', $result);
         $this->assertArrayHasKey('total_cost', $result);
-        
+
         $this->assertEquals(25, $result['fake_percentage']);
         $this->assertEquals('high', $result['confidence']);
         $this->assertStringContainsString('Mixed review set', $result['explanation']);
@@ -90,7 +90,7 @@ class DeepSeekProviderTest extends TestCase
         // Test with large review count
         $largeTokens = $this->provider->getOptimizedMaxTokens(200);
         $this->assertLessThanOrEqual(8192, $largeTokens); // Should be capped at DeepSeek limit
-        
+
         // Should have reasonable minimum for aggregate responses
         $this->assertGreaterThanOrEqual(1500, $tokens);
     }

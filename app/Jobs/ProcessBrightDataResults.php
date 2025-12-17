@@ -107,6 +107,7 @@ class ProcessBrightDataResults implements ShouldQueue
                 'status' => $asinData->status,
                 'grade'  => $asinData->grade,
             ]);
+
             return $asinData;
         }
 

@@ -4,9 +4,9 @@ namespace Tests\Unit;
 
 use App\Models\AsinData;
 use App\Services\SEOService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class SEOServiceTest extends TestCase
 {
@@ -24,22 +24,22 @@ class SEOServiceTest extends TestCase
     public function it_generates_comprehensive_product_seo_data()
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0123456789',
-            'country' => 'us',
-            'product_title' => 'Test Product Title',
-            'fake_percentage' => 25,
-            'grade' => 'B',
-            'adjusted_rating' => 4.2,
-            'amazon_rating' => 4.5,
-            'status' => 'completed',
+            'asin'              => 'B0123456789',
+            'country'           => 'us',
+            'product_title'     => 'Test Product Title',
+            'fake_percentage'   => 25,
+            'grade'             => 'B',
+            'adjusted_rating'   => 4.2,
+            'amazon_rating'     => 4.5,
+            'status'            => 'completed',
             'have_product_data' => true,
             'product_image_url' => 'https://example.com/image.jpg',
-            'explanation' => 'This product has moderate fake review presence.',
-            'reviews' => json_encode([
+            'explanation'       => 'This product has moderate fake review presence.',
+            'reviews'           => json_encode([
                 ['text' => 'Great product!', 'rating' => 5],
                 ['text' => 'Good value', 'rating' => 4],
-                ['text' => 'Average quality', 'rating' => 3]
-            ])
+                ['text' => 'Average quality', 'rating' => 3],
+            ]),
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -69,9 +69,9 @@ class SEOServiceTest extends TestCase
     {
         // High fake percentage product
         $highFakeProduct = AsinData::factory()->create([
-            'product_title' => 'High Fake Product',
+            'product_title'   => 'High Fake Product',
             'fake_percentage' => 60,
-            'grade' => 'F'
+            'grade'           => 'F',
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($highFakeProduct);
@@ -80,10 +80,10 @@ class SEOServiceTest extends TestCase
 
         // Low fake percentage product
         $lowFakeProduct = AsinData::factory()->create([
-            'product_title' => 'Trustworthy Product',
+            'product_title'   => 'Trustworthy Product',
             'fake_percentage' => 5,
-            'grade' => 'A',
-            'adjusted_rating' => 4.8
+            'grade'           => 'A',
+            'adjusted_rating' => 4.8,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($lowFakeProduct);
@@ -96,8 +96,8 @@ class SEOServiceTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'fake_percentage' => 30,
-            'grade' => 'C',
-            'explanation' => null // Force fallback to basic summary
+            'grade'           => 'C',
+            'explanation'     => null, // Force fallback to basic summary
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -113,12 +113,12 @@ class SEOServiceTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'fake_percentage' => 15,
-            'grade' => 'B',
+            'grade'           => 'B',
             'adjusted_rating' => 4.1,
-            'reviews' => json_encode([
+            'reviews'         => json_encode([
                 ['text' => 'Good product', 'rating' => 4],
-                ['text' => 'Excellent quality', 'rating' => 5]
-            ])
+                ['text' => 'Excellent quality', 'rating' => 5],
+            ]),
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -137,8 +137,8 @@ class SEOServiceTest extends TestCase
     {
         // High trust product (Grade A, low fake percentage)
         $highTrustProduct = AsinData::factory()->create([
-            'grade' => 'A',
-            'fake_percentage' => 5
+            'grade'           => 'A',
+            'fake_percentage' => 5,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($highTrustProduct);
@@ -146,8 +146,8 @@ class SEOServiceTest extends TestCase
 
         // Low trust product (Grade F, high fake percentage)
         $lowTrustProduct = AsinData::factory()->create([
-            'grade' => 'F',
-            'fake_percentage' => 80
+            'grade'           => 'F',
+            'fake_percentage' => 80,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($lowTrustProduct);
@@ -159,8 +159,8 @@ class SEOServiceTest extends TestCase
     {
         // Product with many reviews
         $manyReviewsProduct = AsinData::factory()->create([
-            'reviews' => json_encode(array_fill(0, 150, ['text' => 'Review', 'rating' => 4])),
-            'have_product_data' => true
+            'reviews'           => json_encode(array_fill(0, 150, ['text' => 'Review', 'rating' => 4])),
+            'have_product_data' => true,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($manyReviewsProduct);
@@ -168,8 +168,8 @@ class SEOServiceTest extends TestCase
 
         // Product with few reviews
         $fewReviewsProduct = AsinData::factory()->create([
-            'reviews' => json_encode([['text' => 'Single review', 'rating' => 4]]),
-            'have_product_data' => false
+            'reviews'           => json_encode([['text' => 'Single review', 'rating' => 4]]),
+            'have_product_data' => false,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($fewReviewsProduct);
@@ -180,16 +180,16 @@ class SEOServiceTest extends TestCase
     public function it_generates_valid_product_schema()
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0987654321',
-            'product_title' => 'Schema Test Product',
+            'asin'              => 'B0987654321',
+            'product_title'     => 'Schema Test Product',
             'product_image_url' => 'https://example.com/product.jpg',
-            'adjusted_rating' => 4.3,
-            'fake_percentage' => 20,
-            'grade' => 'B',
-            'reviews' => json_encode([
+            'adjusted_rating'   => 4.3,
+            'fake_percentage'   => 20,
+            'grade'             => 'B',
+            'reviews'           => json_encode([
                 ['text' => 'Good', 'rating' => 4],
-                ['text' => 'Great', 'rating' => 5]
-            ])
+                ['text' => 'Great', 'rating' => 5],
+            ]),
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -216,8 +216,8 @@ class SEOServiceTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'fake_percentage' => 35,
-            'grade' => 'D',
-            'adjusted_rating' => 3.2
+            'grade'           => 'D',
+            'adjusted_rating' => 3.2,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -240,12 +240,12 @@ class SEOServiceTest extends TestCase
     public function it_generates_valid_dataset_schema()
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0DATASET123',
-            'country' => 'ca',
-            'product_title' => 'Dataset Test Product',
+            'asin'            => 'B0DATASET123',
+            'country'         => 'ca',
+            'product_title'   => 'Dataset Test Product',
             'fake_percentage' => 42,
-            'grade' => 'C',
-            'adjusted_rating' => 3.8
+            'grade'           => 'C',
+            'adjusted_rating' => 3.8,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -294,12 +294,12 @@ class SEOServiceTest extends TestCase
     public function it_handles_missing_product_data_gracefully()
     {
         $asinData = AsinData::factory()->create([
-            'product_title' => null,
+            'product_title'     => null,
             'product_image_url' => null,
-            'fake_percentage' => null,
-            'grade' => null,
-            'adjusted_rating' => null,
-            'reviews' => null
+            'fake_percentage'   => null,
+            'grade'             => null,
+            'adjusted_rating'   => null,
+            'reviews'           => null,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -350,7 +350,7 @@ class SEOServiceTest extends TestCase
     public function it_includes_price_analysis_in_product_schema()
     {
         $asinData = AsinData::factory()->withPriceAnalysis()->create([
-            'price' => 29.99,
+            'price'    => 29.99,
             'currency' => 'USD',
         ]);
 
@@ -392,7 +392,7 @@ class SEOServiceTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'price_analysis_status' => 'pending',
-            'price_analysis' => null,
+            'price_analysis'        => null,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);

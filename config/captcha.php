@@ -35,5 +35,4 @@ return [
         'verify_url' => 'https://hcaptcha.com/siteverify',
     ],
 
-
 ];

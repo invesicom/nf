@@ -6,8 +6,8 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Docker Configuration Validation Tests
- * 
+ * Docker Configuration Validation Tests.
+ *
  * These tests validate Docker configuration files without requiring Docker to be running.
  * They ensure that all configuration files are properly structured and contain required settings.
  */
@@ -17,11 +17,11 @@ class DockerConfigurationTest extends TestCase
     public function docker_compose_file_exists_and_contains_required_sections()
     {
         $dockerComposePath = base_path('docker/docker-compose.yml');
-        
+
         $this->assertFileExists($dockerComposePath);
-        
+
         $content = file_get_contents($dockerComposePath);
-        
+
         // Check for essential YAML structure without parsing
         $this->assertStringContainsString('services:', $content);
         $this->assertStringContainsString('networks:', $content);
@@ -34,9 +34,9 @@ class DockerConfigurationTest extends TestCase
     {
         $dockerComposePath = base_path('docker/docker-compose.yml');
         $content = file_get_contents($dockerComposePath);
-        
+
         $requiredServices = ['app:', 'nginx:', 'db:', 'queue:', 'ollama:'];
-        
+
         foreach ($requiredServices as $service) {
             $this->assertStringContainsString($service, $content, "Missing required service: {$service}");
         }
@@ -47,17 +47,17 @@ class DockerConfigurationTest extends TestCase
     {
         $dockerComposePath = base_path('docker/docker-compose.yml');
         $content = file_get_contents($dockerComposePath);
-        
+
         // App service validation
         $this->assertStringContainsString('build:', $content);
         $this->assertStringContainsString('volumes:', $content);
         $this->assertStringContainsString('networks:', $content);
         $this->assertStringContainsString('depends_on:', $content);
-        
+
         // Database service validation
         $this->assertStringContainsString('mariadb:10.11', $content);
         $this->assertStringContainsString('MARIADB_DATABASE:', $content);
-        
+
         // Nginx service validation
         $this->assertStringContainsString('nginx:alpine', $content);
         $this->assertStringContainsString('ports:', $content);
@@ -67,11 +67,11 @@ class DockerConfigurationTest extends TestCase
     public function dockerfile_exists_and_contains_required_instructions()
     {
         $dockerfilePath = base_path('docker/Dockerfile');
-        
+
         $this->assertFileExists($dockerfilePath);
-        
+
         $content = file_get_contents($dockerfilePath);
-        
+
         // Check for essential Dockerfile instructions
         $this->assertStringContainsString('FROM php:8.3-fpm', $content);
         $this->assertStringContainsString('WORKDIR /var/www/html', $content);
@@ -87,11 +87,11 @@ class DockerConfigurationTest extends TestCase
     public function entrypoint_script_exists_and_is_properly_structured()
     {
         $entrypointPath = base_path('docker/entrypoint.sh');
-        
+
         $this->assertFileExists($entrypointPath);
-        
+
         $content = file_get_contents($entrypointPath);
-        
+
         // Check for essential entrypoint functionality
         $this->assertStringContainsString('#!/bin/bash', $content);
         $this->assertStringContainsString('set -e', $content);
@@ -106,11 +106,11 @@ class DockerConfigurationTest extends TestCase
     public function nginx_configuration_is_properly_structured()
     {
         $nginxConfigPath = base_path('docker/nginx/default.conf');
-        
+
         $this->assertFileExists($nginxConfigPath);
-        
+
         $content = file_get_contents($nginxConfigPath);
-        
+
         // Check for essential nginx configuration
         $this->assertStringContainsString('server {', $content);
         $this->assertStringContainsString('listen 80;', $content);
@@ -125,11 +125,11 @@ class DockerConfigurationTest extends TestCase
     public function php_configuration_has_appropriate_settings()
     {
         $phpConfigPath = base_path('docker/php/local.ini');
-        
+
         $this->assertFileExists($phpConfigPath);
-        
+
         $content = file_get_contents($phpConfigPath);
-        
+
         // Check for essential PHP settings for Laravel
         $this->assertStringContainsString('memory_limit=512M', $content);
         $this->assertStringContainsString('upload_max_filesize=100M', $content);
@@ -142,11 +142,11 @@ class DockerConfigurationTest extends TestCase
     public function env_example_contains_all_required_variables_for_docker()
     {
         $envExamplePath = base_path('.env.example');
-        
+
         $this->assertFileExists($envExamplePath);
-        
+
         $content = file_get_contents($envExamplePath);
-        
+
         // Essential variables for Docker deployment
         $requiredVars = [
             'APP_NAME=',
@@ -177,11 +177,11 @@ class DockerConfigurationTest extends TestCase
     public function docker_test_script_exists_and_has_proper_structure()
     {
         $testScriptPath = base_path('docker/test-docker.sh');
-        
+
         $this->assertFileExists($testScriptPath);
-        
+
         $content = file_get_contents($testScriptPath);
-        
+
         // Check for essential test script functionality
         $this->assertStringContainsString('#!/bin/bash', $content);
         $this->assertStringContainsString('set -e', $content);
@@ -197,11 +197,11 @@ class DockerConfigurationTest extends TestCase
     {
         $dockerComposePath = base_path('docker/docker-compose.yml');
         $content = file_get_contents($dockerComposePath);
-        
+
         $requiredVolumes = ['db_data:', 'ollama_data:', 'vendor_data:', 'node_modules_data:'];
-        
+
         $this->assertStringContainsString('volumes:', $content);
-        
+
         foreach ($requiredVolumes as $volume) {
             $this->assertStringContainsString($volume, $content, "Missing required volume: {$volume}");
         }
@@ -212,7 +212,7 @@ class DockerConfigurationTest extends TestCase
     {
         $dockerComposePath = base_path('docker/docker-compose.yml');
         $content = file_get_contents($dockerComposePath);
-        
+
         $this->assertStringContainsString('networks:', $content);
         $this->assertStringContainsString('nullfake:', $content);
         $this->assertStringContainsString('driver: bridge', $content);
@@ -223,13 +223,13 @@ class DockerConfigurationTest extends TestCase
     {
         $dockerComposePath = base_path('docker/docker-compose.yml');
         $content = file_get_contents($dockerComposePath);
-        
+
         // Check nginx ports
         $this->assertStringContainsString('8080:80', $content);
-        
+
         // Check database ports
         $this->assertStringContainsString('3307:3306', $content);
-        
+
         // Check Ollama ports
         $this->assertStringContainsString('11434:11434', $content);
     }
@@ -239,11 +239,11 @@ class DockerConfigurationTest extends TestCase
     {
         $dockerComposePath = base_path('docker/docker-compose.yml');
         $content = file_get_contents($dockerComposePath);
-        
+
         // Check app environment variables
         $this->assertStringContainsString('DB_HOST=db', $content);
         $this->assertStringContainsString('OLLAMA_BASE_URL=http://ollama:11434', $content);
-        
+
         // Check database environment variables
         $this->assertStringContainsString('MARIADB_DATABASE: faker', $content);
         $this->assertStringContainsString('MARIADB_USER: faker', $content);

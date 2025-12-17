@@ -24,7 +24,7 @@ class AsinDataPriceAnalysisTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'price_analysis_status' => 'pending',
-            'price_analysis' => null,
+            'price_analysis'        => null,
         ]);
 
         $this->assertFalse($asinData->hasPriceAnalysis());
@@ -42,10 +42,10 @@ class AsinDataPriceAnalysisTest extends TestCase
     public function needs_price_analysis_returns_true_for_eligible_product(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
+            'status'                => 'completed',
+            'have_product_data'     => true,
             'price_analysis_status' => 'pending',
-            'price_analysis' => null,
+            'price_analysis'        => null,
         ]);
 
         $this->assertTrue($asinData->needsPriceAnalysis());
@@ -82,9 +82,9 @@ class AsinDataPriceAnalysisTest extends TestCase
     {
         // Create eligible product
         AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
-            'product_title' => 'Eligible Product',
+            'status'                => 'completed',
+            'have_product_data'     => true,
+            'product_title'         => 'Eligible Product',
             'price_analysis_status' => 'pending',
         ]);
 
@@ -105,11 +105,11 @@ class AsinDataPriceAnalysisTest extends TestCase
     {
         $priceData = [
             'msrp_analysis' => ['estimated_msrp' => '$50'],
-            'summary' => 'Test summary',
+            'summary'       => 'Test summary',
         ];
 
         $asinData = AsinData::factory()->create([
-            'price_analysis' => $priceData,
+            'price_analysis'        => $priceData,
             'price_analysis_status' => 'completed',
         ]);
 
@@ -127,4 +127,3 @@ class AsinDataPriceAnalysisTest extends TestCase
         $this->assertInstanceOf(\Illuminate\Support\Carbon::class, $asinData->price_analyzed_at);
     }
 }
-

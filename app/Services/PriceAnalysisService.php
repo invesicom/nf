@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\AsinData;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Service for analyzing product pricing using AI.
@@ -62,9 +61,10 @@ class PriceAnalysisService
      * Analyze pricing for a product.
      *
      * @param AsinData $asinData The product to analyze
-     * @return array The price analysis results
      *
      * @throws \Exception If analysis fails
+     *
+     * @return array The price analysis results
      */
     public function analyzePricing(AsinData $asinData): array
     {
@@ -107,7 +107,6 @@ class PriceAnalysisService
             ]);
 
             return $analysisData;
-
         } catch (\Exception $e) {
             // Mark as failed but don't break the main flow
             $asinData->update([
@@ -137,7 +136,7 @@ class PriceAnalysisService
 
         // Truncate description to save tokens
         if (strlen($productDescription) > 300) {
-            $productDescription = substr($productDescription, 0, 300) . '...';
+            $productDescription = substr($productDescription, 0, 300).'...';
         }
 
         // Include actual price if available
@@ -185,7 +184,7 @@ PROMPT;
         }
 
         $currencySymbol = $this->getCurrencySymbol($asinData->currency ?? 'USD');
-        $formattedPrice = $currencySymbol . number_format($asinData->price, 2);
+        $formattedPrice = $currencySymbol.number_format($asinData->price, 2);
 
         return "Current Amazon Price: {$formattedPrice}\n";
     }
@@ -228,12 +227,12 @@ PROMPT;
     {
         $endpoint = $this->baseUrl;
         if (!str_ends_with($endpoint, '/chat/completions')) {
-            $endpoint = rtrim($endpoint, '/') . '/chat/completions';
+            $endpoint = rtrim($endpoint, '/').'/chat/completions';
         }
 
         $headers = ['Content-Type' => 'application/json'];
         if (!empty($this->apiKey)) {
-            $headers['Authorization'] = 'Bearer ' . $this->apiKey;
+            $headers['Authorization'] = 'Bearer '.$this->apiKey;
         }
 
         $response = Http::withHeaders($headers)->timeout(60)->post($endpoint, [
@@ -253,7 +252,7 @@ PROMPT;
         ]);
 
         if (!$response->successful()) {
-            throw new \Exception('Price analysis API request failed: ' . $response->status());
+            throw new \Exception('Price analysis API request failed: '.$response->status());
         }
 
         return $response->json('choices.0.message.content', '');
@@ -264,14 +263,14 @@ PROMPT;
      */
     private function callOllama(string $prompt): string
     {
-        $endpoint = rtrim($this->baseUrl, '/') . '/api/generate';
+        $endpoint = rtrim($this->baseUrl, '/').'/api/generate';
 
         $systemPrompt = 'You are a pricing analyst helping consumers understand product pricing. Provide practical, actionable insights in JSON format. Be concise and helpful.';
 
         $response = Http::timeout(120)->post($endpoint, [
-            'model'  => $this->model,
-            'prompt' => $systemPrompt . "\n\n" . $prompt,
-            'stream' => false,
+            'model'   => $this->model,
+            'prompt'  => $systemPrompt."\n\n".$prompt,
+            'stream'  => false,
             'options' => [
                 'temperature' => 0.3,
                 'num_predict' => 800,
@@ -279,7 +278,7 @@ PROMPT;
         ]);
 
         if (!$response->successful()) {
-            throw new \Exception('Price analysis API request failed: ' . $response->status());
+            throw new \Exception('Price analysis API request failed: '.$response->status());
         }
 
         return $response->json('response', '');
@@ -311,9 +310,9 @@ PROMPT;
                     'amazon_price_assessment' => 'Unable to compare',
                 ],
                 'market_comparison' => [
-                    'price_positioning'         => 'Unknown',
+                    'price_positioning'          => 'Unknown',
                     'typical_alternatives_range' => 'N/A',
-                    'value_proposition'         => 'Analysis could not be completed.',
+                    'value_proposition'          => 'Analysis could not be completed.',
                 ],
                 'price_insights'    => [
                     'seasonal_consideration' => 'N/A',
@@ -386,6 +385,7 @@ PROMPT;
      * Analyze multiple products concurrently using HTTP pool.
      *
      * @param array $products Array of AsinData models
+     *
      * @return array Results keyed by product ID with 'success' and 'error' keys
      */
     public function analyzeBatchConcurrently(array $products): array
@@ -452,7 +452,7 @@ PROMPT;
             }
 
             if (!$response->successful()) {
-                throw new \Exception('API request failed: ' . $response->status());
+                throw new \Exception('API request failed: '.$response->status());
             }
 
             $content = $this->extractResponseContent($response);
@@ -465,7 +465,6 @@ PROMPT;
             ]);
 
             return ['success' => true, 'error' => null];
-
         } catch (\Exception $e) {
             $product->update(['price_analysis_status' => 'failed']);
 
@@ -497,12 +496,12 @@ PROMPT;
     {
         $endpoint = $this->baseUrl;
         if (!str_ends_with($endpoint, '/chat/completions')) {
-            $endpoint = rtrim($endpoint, '/') . '/chat/completions';
+            $endpoint = rtrim($endpoint, '/').'/chat/completions';
         }
 
         $headers = ['Content-Type' => 'application/json'];
         if (!empty($this->apiKey)) {
-            $headers['Authorization'] = 'Bearer ' . $this->apiKey;
+            $headers['Authorization'] = 'Bearer '.$this->apiKey;
         }
 
         $responses = Http::pool(function ($pool) use ($productPrompts, $endpoint, $headers) {
@@ -537,7 +536,7 @@ PROMPT;
      */
     private function executeOllamaConcurrent(array $productPrompts): array
     {
-        $endpoint = rtrim($this->baseUrl, '/') . '/api/generate';
+        $endpoint = rtrim($this->baseUrl, '/').'/api/generate';
         $systemPrompt = 'You are a pricing analyst helping consumers understand product pricing. Provide practical, actionable insights in JSON format. Be concise and helpful.';
 
         $responses = Http::pool(function ($pool) use ($productPrompts, $endpoint, $systemPrompt) {
@@ -545,9 +544,9 @@ PROMPT;
                 $pool->as($productId)
                     ->timeout(120)
                     ->post($endpoint, [
-                        'model'  => $this->model,
-                        'prompt' => $systemPrompt . "\n\n" . $data['prompt'],
-                        'stream' => false,
+                        'model'   => $this->model,
+                        'prompt'  => $systemPrompt."\n\n".$data['prompt'],
+                        'stream'  => false,
                         'options' => [
                             'temperature' => 0.3,
                             'num_predict' => 800,
@@ -571,4 +570,3 @@ PROMPT;
         return $response->json('choices.0.message.content', '');
     }
 }
-

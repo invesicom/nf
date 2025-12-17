@@ -39,42 +39,42 @@ class ExtensionController extends Controller
         if (!app()->environment(['local', 'testing']) && config('services.extension.require_api_key', true) && !$this->validateApiKey($request)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Invalid or missing API key',
+                'error'   => 'Invalid or missing API key',
             ], 401);
         }
 
         // Validate the JSON structure
         $rules = [
-            'asin' => 'required|string|regex:/^[A-Z0-9]{10}$/',
-            'country' => 'required|string|size:2',
-            'product_url' => 'required|url',
+            'asin'                 => 'required|string|regex:/^[A-Z0-9]{10}$/',
+            'country'              => 'required|string|size:2',
+            'product_url'          => 'required|url',
             'extraction_timestamp' => 'required|date_format:Y-m-d\TH:i:s.v\Z',
-            'extension_version' => 'required|string',
-            'reviews' => 'present|array',
+            'extension_version'    => 'required|string',
+            'reviews'              => 'present|array',
             // Product information from Chrome extension (replaces backend scraping)
-            'product_info' => 'required|array',
-            'product_info.title' => 'required|string|max:500',
-            'product_info.description' => 'nullable|string|max:2000',
-            'product_info.image_url' => 'nullable|url|max:500',
-            'product_info.amazon_rating' => 'nullable|numeric|min:0|max:5',
+            'product_info'                         => 'required|array',
+            'product_info.title'                   => 'required|string|max:500',
+            'product_info.description'             => 'nullable|string|max:2000',
+            'product_info.image_url'               => 'nullable|url|max:500',
+            'product_info.amazon_rating'           => 'nullable|numeric|min:0|max:5',
             'product_info.total_reviews_on_amazon' => 'required|integer|min:0',
-            'product_info.price' => 'nullable|string|max:50',
-            'product_info.availability' => 'nullable|string|max:100',
+            'product_info.price'                   => 'nullable|string|max:50',
+            'product_info.availability'            => 'nullable|string|max:100',
         ];
 
         // Only add review validation rules if reviews array is not empty
         if (!empty($request->input('reviews'))) {
             $rules = array_merge($rules, [
-                'reviews.*.author' => 'required|string',
-                'reviews.*.content' => 'required|string',
-                'reviews.*.date' => 'required|date_format:Y-m-d',
-                'reviews.*.extraction_index' => 'required|integer|min:1',
-                'reviews.*.helpful_votes' => 'required|integer|min:0',
-                'reviews.*.rating' => 'required|integer|min:1|max:5',
-                'reviews.*.review_id' => 'required|string',
-                'reviews.*.title' => 'required|string',
+                'reviews.*.author'            => 'required|string',
+                'reviews.*.content'           => 'required|string',
+                'reviews.*.date'              => 'required|date_format:Y-m-d',
+                'reviews.*.extraction_index'  => 'required|integer|min:1',
+                'reviews.*.helpful_votes'     => 'required|integer|min:0',
+                'reviews.*.rating'            => 'required|integer|min:1|max:5',
+                'reviews.*.review_id'         => 'required|string',
+                'reviews.*.title'             => 'required|string',
                 'reviews.*.verified_purchase' => 'required|boolean',
-                'reviews.*.vine_customer' => 'required|boolean',
+                'reviews.*.vine_customer'     => 'required|boolean',
             ]);
         }
 
@@ -83,18 +83,18 @@ class ExtensionController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'error' => 'Invalid data format',
+                'error'   => 'Invalid data format',
                 'details' => $validator->errors(),
             ], 422);
         }
 
         try {
             $data = $request->all();
-            
+
             LoggingService::log('Chrome extension data received', [
-                'asin' => $data['asin'],
-                'country' => $data['country'],
-                'review_count' => count($data['reviews']),
+                'asin'              => $data['asin'],
+                'country'           => $data['country'],
+                'review_count'      => count($data['reviews']),
                 'extension_version' => $data['extension_version'],
             ]);
 
@@ -106,41 +106,41 @@ class ExtensionController extends Controller
 
             if ($existingAnalysis && $existingAnalysis->isAnalyzed()) {
                 LoggingService::log('Product already analyzed - returning existing analysis', [
-                    'asin' => $data['asin'],
+                    'asin'    => $data['asin'],
                     'country' => $data['country'],
-                    'grade' => $existingAnalysis->grade,
-                    'status' => $existingAnalysis->status,
+                    'grade'   => $existingAnalysis->grade,
+                    'status'  => $existingAnalysis->status,
                 ]);
 
                 // Build redirect URL
-                $productSlug = $existingAnalysis->product_title 
-                    ? \Illuminate\Support\Str::slug($existingAnalysis->product_title) 
+                $productSlug = $existingAnalysis->product_title
+                    ? \Illuminate\Support\Str::slug($existingAnalysis->product_title)
                     : null;
-                $redirectUrl = $productSlug 
+                $redirectUrl = $productSlug
                     ? route('amazon.product.show.slug', [
                         'country' => $data['country'],
-                        'asin' => $data['asin'],
-                        'slug' => $productSlug,
+                        'asin'    => $data['asin'],
+                        'slug'    => $productSlug,
                     ])
                     : route('amazon.product.show', [
-                        'asin' => $data['asin'],
+                        'asin'    => $data['asin'],
                         'country' => $data['country'],
                     ]);
 
                 return response()->json([
-                    'success' => true,
-                    'asin' => $data['asin'],
-                    'country' => $data['country'],
-                    'analysis_id' => $existingAnalysis->id,
+                    'success'           => true,
+                    'asin'              => $data['asin'],
+                    'country'           => $data['country'],
+                    'analysis_id'       => $existingAnalysis->id,
                     'analysis_complete' => true,
-                    'already_analyzed' => true,
-                    'redirect_url' => $redirectUrl,
-                    'view_url' => $redirectUrl,
-                    'fake_percentage' => $existingAnalysis->fake_percentage,
-                    'grade' => $existingAnalysis->grade,
-                    'adjusted_rating' => $existingAnalysis->adjusted_rating,
-                    'amazon_rating' => $existingAnalysis->amazon_rating,
-                    'explanation' => $existingAnalysis->explanation,
+                    'already_analyzed'  => true,
+                    'redirect_url'      => $redirectUrl,
+                    'view_url'          => $redirectUrl,
+                    'fake_percentage'   => $existingAnalysis->fake_percentage,
+                    'grade'             => $existingAnalysis->grade,
+                    'adjusted_rating'   => $existingAnalysis->adjusted_rating,
+                    'amazon_rating'     => $existingAnalysis->amazon_rating,
+                    'explanation'       => $existingAnalysis->explanation,
                 ]);
             }
 
@@ -157,13 +157,12 @@ class ExtensionController extends Controller
 
             // Synchronous processing (existing behavior)
             return $this->handleSyncAnalysis($data);
-
         } catch (\Exception $e) {
             LoggingService::handleException($e, 'Chrome extension data processing failed');
 
             return response()->json([
                 'success' => false,
-                'error' => 'Failed to process review data: ' . $e->getMessage(),
+                'error'   => 'Failed to process review data: '.$e->getMessage(),
             ], 500);
         }
     }
@@ -176,7 +175,7 @@ class ExtensionController extends Controller
         if (!app()->environment(['local', 'testing']) && config('services.extension.require_api_key', true) && !$this->validateApiKey($request)) {
             return response()->json([
                 'success' => false,
-                'error' => 'Invalid or missing API key',
+                'error'   => 'Invalid or missing API key',
             ], 401);
         }
 
@@ -184,8 +183,8 @@ class ExtensionController extends Controller
 
         if (!$session) {
             return response()->json([
-                'success' => false,
-                'error' => 'Analysis session not found',
+                'success'           => false,
+                'error'             => 'Analysis session not found',
                 'analysis_complete' => false,
             ], 404);
         }
@@ -215,7 +214,7 @@ class ExtensionController extends Controller
 
     /**
      * Get analysis status for extension.
-     * 
+     *
      * Returns data DIRECTLY without wrapper - extension API client adds its own wrapper.
      */
     public function getAnalysisStatus(Request $request, string $asin, string $country): JsonResponse
@@ -232,22 +231,22 @@ class ExtensionController extends Controller
 
         if (!$asinData) {
             return response()->json([
-                'error' => 'No analysis found',
-                'asin' => $asin,
+                'error'   => 'No analysis found',
+                'asin'    => $asin,
                 'country' => $country,
             ], 404);
         }
 
         // Build the product URL with slug for better SEO
         $productSlug = $asinData->product_title ? \Illuminate\Support\Str::slug($asinData->product_title) : null;
-        $redirectUrl = $productSlug 
+        $redirectUrl = $productSlug
             ? route('amazon.product.show.slug', [
                 'country' => $country,
-                'asin' => $asin,
-                'slug' => $productSlug,
+                'asin'    => $asin,
+                'slug'    => $productSlug,
             ])
             : route('amazon.product.show', [
-                'asin' => $asin,
+                'asin'    => $asin,
                 'country' => $country,
             ]);
 
@@ -256,21 +255,21 @@ class ExtensionController extends Controller
 
         // Return data DIRECTLY - extension API client wraps in {success, exists, data}
         return response()->json([
-            'asin' => $asin,
-            'country' => $country,
-            'status' => $isAnalyzed ? 'completed' : ($asinData->status ?? 'processing'),
-            'analysis_complete' => $isAnalyzed,
-            'redirect_url' => $redirectUrl,
-            'view_url' => $redirectUrl,
-            'fake_percentage' => $asinData->fake_percentage,
-            'grade' => $asinData->grade,
-            'adjusted_rating' => $asinData->adjusted_rating,
-            'amazon_rating' => $asinData->amazon_rating,
-            'explanation' => $asinData->explanation,
-            'product_title' => $asinData->product_title,
-            'product_image_url' => $asinData->product_image_url,
+            'asin'                    => $asin,
+            'country'                 => $country,
+            'status'                  => $isAnalyzed ? 'completed' : ($asinData->status ?? 'processing'),
+            'analysis_complete'       => $isAnalyzed,
+            'redirect_url'            => $redirectUrl,
+            'view_url'                => $redirectUrl,
+            'fake_percentage'         => $asinData->fake_percentage,
+            'grade'                   => $asinData->grade,
+            'adjusted_rating'         => $asinData->adjusted_rating,
+            'amazon_rating'           => $asinData->amazon_rating,
+            'explanation'             => $asinData->explanation,
+            'product_title'           => $asinData->product_title,
+            'product_image_url'       => $asinData->product_image_url,
             'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon,
-            'analyzed_at' => $asinData->last_analyzed_at?->toISOString(),
+            'analyzed_at'             => $asinData->last_analyzed_at?->toISOString(),
         ]);
     }
 
@@ -284,6 +283,7 @@ class ExtensionController extends Controller
 
         if (!$validApiKey) {
             LoggingService::log('Extension API key not configured');
+
             return false;
         }
 
@@ -300,7 +300,7 @@ class ExtensionController extends Controller
 
         // Create analysis session for progress tracking
         $session = AnalysisSession::create([
-            'user_session'    => 'extension_' . $data['asin'] . '_' . $data['country'],
+            'user_session'    => 'extension_'.$data['asin'].'_'.$data['country'],
             'asin'            => $data['asin'],
             'product_url'     => $data['product_url'],
             'status'          => 'pending',
@@ -317,25 +317,25 @@ class ExtensionController extends Controller
             ->onConnection('database');
 
         LoggingService::log('Chrome extension async analysis started', [
-            'asin' => $data['asin'],
-            'country' => $data['country'],
+            'asin'       => $data['asin'],
+            'country'    => $data['country'],
             'session_id' => $session->id,
         ]);
 
         return response()->json([
-            'success' => true,
-            'asin' => $data['asin'],
-            'country' => $data['country'],
+            'success'     => true,
+            'asin'        => $data['asin'],
+            'country'     => $data['country'],
             'analysis_id' => $asinData->id,
-            'session_id' => $session->id,
-            'status' => 'processing',
-            'message' => 'Analysis started - use session_id to track progress',
-            'progress' => [
+            'session_id'  => $session->id,
+            'status'      => 'processing',
+            'message'     => 'Analysis started - use session_id to track progress',
+            'progress'    => [
                 'percentage' => 33.3,
-                'message' => 'Analyzing reviews with AI...',
-                'stage' => 'processing',
+                'message'    => 'Analyzing reviews with AI...',
+                'stage'      => 'processing',
             ],
-            'progress_url' => route('extension.progress', ['sessionId' => $session->id]),
+            'progress_url'         => route('extension.progress', ['sessionId' => $session->id]),
             'estimated_completion' => now()->addMinutes(2)->toISOString(),
         ]);
     }
@@ -351,27 +351,27 @@ class ExtensionController extends Controller
         // Perform analysis
         $asinData = $this->analysisService->analyzeWithLLM($asinData);
         $metrics = $this->analysisService->calculateFinalMetrics($asinData);
-        
+
         // Get updated model with final metrics
         $asinData = $asinData->fresh();
 
         // Check if analysis actually succeeded
         if (is_null($asinData->fake_percentage) || is_null($asinData->grade)) {
             LoggingService::log('Chrome extension analysis failed - no valid results', [
-                'asin' => $data['asin'],
+                'asin'            => $data['asin'],
                 'fake_percentage' => $asinData->fake_percentage,
-                'grade' => $asinData->grade,
-                'status' => $asinData->status,
+                'grade'           => $asinData->grade,
+                'status'          => $asinData->status,
             ]);
 
             return response()->json([
-                'success' => false,
-                'error' => 'Analysis failed - unable to process reviews',
-                'error_details' => 'All LLM providers failed or returned invalid results. Please try again later.',
-                'asin' => $data['asin'],
-                'country' => $data['country'],
+                'success'           => false,
+                'error'             => 'Analysis failed - unable to process reviews',
+                'error_details'     => 'All LLM providers failed or returned invalid results. Please try again later.',
+                'asin'              => $data['asin'],
+                'country'           => $data['country'],
                 'processed_reviews' => count($asinData->getReviewsArray()),
-                'retry_suggested' => true,
+                'retry_suggested'   => true,
             ], 500);
         }
 
@@ -380,47 +380,47 @@ class ExtensionController extends Controller
         $fakeReviewCount = round(($asinData->fake_percentage / 100) * $reviewsAnalyzed);
         $genuineReviewCount = $reviewsAnalyzed - $fakeReviewCount;
         $ratingDifference = ($asinData->adjusted_rating ?? 0) - ($asinData->amazon_rating ?? 0);
-        
+
         $response = [
-            'success' => true,
-            'asin' => $data['asin'],
-            'country' => $data['country'],
-            'analysis_id' => $asinData->id,
+            'success'           => true,
+            'asin'              => $data['asin'],
+            'country'           => $data['country'],
+            'analysis_id'       => $asinData->id,
             'processed_reviews' => $reviewsAnalyzed,
             'analysis_complete' => true,
-            'results' => [
-                'fake_percentage' => $asinData->fake_percentage ?? 0,
-                'grade' => $asinData->grade,
-                'explanation' => $asinData->explanation,
-                'amazon_rating' => $asinData->amazon_rating ?? 0,
-                'adjusted_rating' => $asinData->adjusted_rating ?? 0,
+            'results'           => [
+                'fake_percentage'   => $asinData->fake_percentage ?? 0,
+                'grade'             => $asinData->grade,
+                'explanation'       => $asinData->explanation,
+                'amazon_rating'     => $asinData->amazon_rating ?? 0,
+                'adjusted_rating'   => $asinData->adjusted_rating ?? 0,
                 'rating_difference' => round($ratingDifference, 2),
             ],
             'statistics' => [
                 'total_reviews_on_amazon' => $asinData->total_reviews_on_amazon ?? null,
-                'reviews_analyzed' => $reviewsAnalyzed,
-                'genuine_reviews' => $genuineReviewCount,
-                'fake_reviews' => $fakeReviewCount,
+                'reviews_analyzed'        => $reviewsAnalyzed,
+                'genuine_reviews'         => $genuineReviewCount,
+                'fake_reviews'            => $fakeReviewCount,
             ],
             'product_info' => [
-                'title' => $asinData->product_title,
+                'title'       => $asinData->product_title,
                 'description' => $asinData->product_description,
-                'image_url' => $asinData->product_image_url,
+                'image_url'   => $asinData->product_image_url,
             ],
             'view_url' => route('amazon.product.show', [
-                'asin' => $data['asin'],
+                'asin'    => $data['asin'],
                 'country' => $data['country'],
             ]),
             'redirect_url' => route('amazon.product.show', [
-                'asin' => $data['asin'],
+                'asin'    => $data['asin'],
                 'country' => $data['country'],
             ]),
         ];
 
         LoggingService::log('Chrome extension analysis completed', [
-            'asin' => $data['asin'],
+            'asin'            => $data['asin'],
             'fake_percentage' => $asinData->fake_percentage,
-            'grade' => $asinData->grade,
+            'grade'           => $asinData->grade,
         ]);
 
         // Dispatch price analysis job (independent, non-blocking)

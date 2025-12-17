@@ -105,7 +105,7 @@ class AnalyzePrices extends Command
         $batches = ceil($total / $concurrent);
         $estimatedSeconds = $batches * 5; // ~5s per batch including overhead
         $this->info("Processing {$total} products with {$concurrent} concurrent requests");
-        $this->info("Estimated time: " . gmdate('H:i:s', (int) $estimatedSeconds) . " ({$batches} batches)");
+        $this->info('Estimated time: '.gmdate('H:i:s', (int) $estimatedSeconds)." ({$batches} batches)");
         $this->newLine();
 
         $progressBar = $this->output->createProgressBar($total);
@@ -260,7 +260,6 @@ class AnalyzePrices extends Command
             return 'N/A';
         }
 
-        return strlen($title) > 40 ? substr($title, 0, 40) . '...' : $title;
+        return strlen($title) > 40 ? substr($title, 0, 40).'...' : $title;
     }
 }
-

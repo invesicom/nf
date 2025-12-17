@@ -31,11 +31,11 @@ class AnalyzePricesCommandTest extends TestCase
     public function it_supports_dry_run_mode(): void
     {
         AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
-            'product_title' => 'Test Product',
+            'status'                => 'completed',
+            'have_product_data'     => true,
+            'product_title'         => 'Test Product',
             'price_analysis_status' => 'pending',
-            'first_analyzed_at' => now(),
+            'first_analyzed_at'     => now(),
         ]);
 
         $this->artisan('analyze:prices', ['--dry-run' => true])
@@ -47,10 +47,10 @@ class AnalyzePricesCommandTest extends TestCase
     public function it_processes_specific_asin(): void
     {
         $content = json_encode([
-            'msrp_analysis' => ['estimated_msrp' => '$49.99'],
+            'msrp_analysis'     => ['estimated_msrp' => '$49.99'],
             'market_comparison' => ['price_positioning' => 'Mid-range'],
-            'price_insights' => ['seasonal_consideration' => 'N/A'],
-            'summary' => 'Good price.',
+            'price_insights'    => ['seasonal_consideration' => 'N/A'],
+            'summary'           => 'Good price.',
         ]);
 
         Http::fake([
@@ -63,16 +63,16 @@ class AnalyzePricesCommandTest extends TestCase
         ]);
 
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST1234',
-            'country' => 'us',
-            'status' => 'completed',
-            'have_product_data' => true,
-            'product_title' => 'Test Product',
+            'asin'                  => 'B0TEST1234',
+            'country'               => 'us',
+            'status'                => 'completed',
+            'have_product_data'     => true,
+            'product_title'         => 'Test Product',
             'price_analysis_status' => 'pending',
         ]);
 
         $this->artisan('analyze:prices', [
-            '--asin' => 'B0TEST1234',
+            '--asin'    => 'B0TEST1234',
             '--country' => 'us',
         ])
             ->assertExitCode(0);
@@ -86,20 +86,20 @@ class AnalyzePricesCommandTest extends TestCase
     {
         // Product analyzed 10 days ago (should be included with --days=15)
         AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
-            'product_title' => 'Recent Product',
+            'status'                => 'completed',
+            'have_product_data'     => true,
+            'product_title'         => 'Recent Product',
             'price_analysis_status' => 'pending',
-            'first_analyzed_at' => now()->subDays(10),
+            'first_analyzed_at'     => now()->subDays(10),
         ]);
 
         // Product analyzed 20 days ago (should be excluded with --days=15)
         AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
-            'product_title' => 'Old Product',
+            'status'                => 'completed',
+            'have_product_data'     => true,
+            'product_title'         => 'Old Product',
             'price_analysis_status' => 'pending',
-            'first_analyzed_at' => now()->subDays(20),
+            'first_analyzed_at'     => now()->subDays(20),
         ]);
 
         $this->artisan('analyze:prices', ['--days' => 15, '--dry-run' => true])
@@ -111,10 +111,10 @@ class AnalyzePricesCommandTest extends TestCase
     public function it_respects_limit_option(): void
     {
         AsinData::factory()->count(5)->create([
-            'status' => 'completed',
-            'have_product_data' => true,
+            'status'                => 'completed',
+            'have_product_data'     => true,
             'price_analysis_status' => 'pending',
-            'first_analyzed_at' => now(),
+            'first_analyzed_at'     => now(),
         ]);
 
         $this->artisan('analyze:prices', ['--limit' => 2, '--dry-run' => true])
@@ -146,4 +146,3 @@ class AnalyzePricesCommandTest extends TestCase
             ->assertExitCode(0);
     }
 }
-

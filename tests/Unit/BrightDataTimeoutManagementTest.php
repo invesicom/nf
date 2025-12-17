@@ -22,11 +22,11 @@ class BrightDataTimeoutManagementTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->mockHandler = new MockHandler();
         $handlerStack = HandlerStack::create($this->mockHandler);
         $mockClient = new Client(['handler' => $handlerStack]);
-        
+
         $this->service = new BrightDataScraperService(
             httpClient: $mockClient,
             apiKey: 'test-api-key',
@@ -45,15 +45,15 @@ class BrightDataTimeoutManagementTest extends TestCase
 
         // Mock job trigger response
         $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test-job-123'])));
-        
+
         // Mock polling responses - all running
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
-        
+
         // Mock final progress check
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
-        
+
         // Mock job cancellation response
         $this->mockHandler->append(new Response(200, [], 'OK'));
 
@@ -62,7 +62,7 @@ class BrightDataTimeoutManagementTest extends TestCase
         // Should return empty results due to timeout
         $this->assertEmpty($result['reviews']);
         $this->assertEquals(0, $result['total_reviews']);
-        
+
         // Verify all requests were made (concurrent check + trigger + 3 polls + progress check + cancel)
         $this->assertEquals(0, $this->mockHandler->count());
     }
@@ -71,9 +71,9 @@ class BrightDataTimeoutManagementTest extends TestCase
     public function it_alerts_when_running_jobs_exceed_threshold()
     {
         // Mock the snapshots API to return 75 running jobs
-        $runningJobs = array_fill(0, 75, ['id' => 'job-' . uniqid(), 'status' => 'running']);
+        $runningJobs = array_fill(0, 75, ['id' => 'job-'.uniqid(), 'status' => 'running']);
         $this->mockHandler->append(new Response(200, [], json_encode($runningJobs)));
-        
+
         // Mock job trigger to be blocked due to high count
         $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test-job-456'])));
 
@@ -86,7 +86,7 @@ class BrightDataTimeoutManagementTest extends TestCase
                 'HIGH_CONCURRENT_JOBS',
                 'High number of running BrightData jobs: 75/100 limit',
                 \Mockery::on(function ($context) {
-                    return $context['current_running_jobs'] === 75 
+                    return $context['current_running_jobs'] === 75
                         && $context['alert_threshold'] === 70
                         && $context['max_limit'] === 100;
                 })
@@ -96,9 +96,9 @@ class BrightDataTimeoutManagementTest extends TestCase
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('canCreateNewJob');
         $method->setAccessible(true);
-        
+
         $canCreate = $method->invoke($this->service);
-        
+
         // Should still allow job creation (75 < 90 limit) but alert should be triggered
         $this->assertTrue($canCreate);
     }
@@ -107,7 +107,7 @@ class BrightDataTimeoutManagementTest extends TestCase
     public function it_does_not_alert_when_running_jobs_below_threshold()
     {
         // Mock the snapshots API to return 50 running jobs (below 70 threshold)
-        $runningJobs = array_fill(0, 50, ['id' => 'job-' . uniqid(), 'status' => 'running']);
+        $runningJobs = array_fill(0, 50, ['id' => 'job-'.uniqid(), 'status' => 'running']);
         $this->mockHandler->append(new Response(200, [], json_encode($runningJobs)));
 
         // Mock AlertManager - should NOT be called
@@ -117,9 +117,9 @@ class BrightDataTimeoutManagementTest extends TestCase
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('canCreateNewJob');
         $method->setAccessible(true);
-        
+
         $canCreate = $method->invoke($this->service);
-        
+
         $this->assertTrue($canCreate);
     }
 
@@ -127,7 +127,7 @@ class BrightDataTimeoutManagementTest extends TestCase
     public function it_blocks_job_creation_when_at_max_concurrent_limit()
     {
         // Mock the snapshots API to return 95 running jobs (above 90 limit)
-        $runningJobs = array_fill(0, 95, ['id' => 'job-' . uniqid(), 'status' => 'running']);
+        $runningJobs = array_fill(0, 95, ['id' => 'job-'.uniqid(), 'status' => 'running']);
         $this->mockHandler->append(new Response(200, [], json_encode($runningJobs)));
 
         // Mock AlertManager - should be called for high job count
@@ -137,9 +137,9 @@ class BrightDataTimeoutManagementTest extends TestCase
         $reflection = new \ReflectionClass($this->service);
         $method = $reflection->getMethod('canCreateNewJob');
         $method->setAccessible(true);
-        
+
         $canCreate = $method->invoke($this->service);
-        
+
         // Should block job creation when at limit
         $this->assertFalse($canCreate);
     }
@@ -149,15 +149,15 @@ class BrightDataTimeoutManagementTest extends TestCase
     {
         // Mock job trigger response
         $this->mockHandler->append(new Response(200, [], json_encode(['snapshot_id' => 'test-job-789'])));
-        
+
         // Mock polling responses - all running (timeout scenario)
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
-        
+
         // Mock final progress check
         $this->mockHandler->append(new Response(200, [], json_encode(['status' => 'running', 'records' => 0])));
-        
+
         // Mock job cancellation failure
         $this->mockHandler->append(new Response(404, [], 'Job not found'));
 

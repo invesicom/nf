@@ -32,9 +32,10 @@ class OllamaProvider implements LLMProviderInterface
         // - Small/medium sets (≤80): Single request (existing behavior, optimal performance)
         // - Large sets (80+): Internal chunking (prevents timeouts, invisible to API consumers)
         $reviewCount = count($reviews);
-        
+
         if ($reviewCount > $this->chunkingThreshold) {
             LoggingService::log("Large review set detected ({$reviewCount} reviews > {$this->chunkingThreshold}), using adaptive chunking (transparent to API)");
+
             return $this->analyzeReviewsInChunks($reviews);
         }
 
@@ -64,13 +65,13 @@ class OllamaProvider implements LLMProviderInterface
             // Enhanced error handling for common Ollama issues
             $statusCode = $response->status();
             $body = $response->body();
-            
+
             // Check if we're getting HTML instead of JSON (common when Ollama is down)
             if (str_starts_with(trim($body), '<html') || str_starts_with(trim($body), '<!DOCTYPE')) {
                 throw new \Exception("Ollama service is returning HTML instead of JSON (HTTP {$statusCode}). This usually means Ollama is down or misconfigured. Check if Ollama is running on {$this->baseUrl}");
             }
-            
-            throw new \Exception("Ollama API request failed (HTTP {$statusCode}): " . substr($body, 0, 200));
+
+            throw new \Exception("Ollama API request failed (HTTP {$statusCode}): ".substr($body, 0, 200));
         } catch (\Exception $e) {
             LoggingService::log('Ollama analysis failed: '.mb_convert_encoding($e->getMessage(), 'UTF-8', 'UTF-8'));
 
@@ -136,17 +137,17 @@ class OllamaProvider implements LLMProviderInterface
         $chunks = array_chunk($reviews, $chunkSize);
         $allResults = [];
         $failedChunks = 0;
-        
+
         $totalChunks = count($chunks);
         LoggingService::log("Processing {$totalChunks} chunks of {$chunkSize} reviews each for Ollama");
-        
+
         foreach ($chunks as $index => $chunk) {
             $chunkNumber = $index + 1;
-            LoggingService::log("Processing chunk {$chunkNumber}/{$totalChunks} with " . count($chunk) . " reviews");
-            
+            LoggingService::log("Processing chunk {$chunkNumber}/{$totalChunks} with ".count($chunk).' reviews');
+
             try {
                 $prompt = $this->buildOptimizedPrompt($chunk);
-                
+
                 $response = Http::timeout($this->timeout)->post("{$this->baseUrl}/api/generate", [
                     'model'   => $this->model,
                     'prompt'  => $prompt,
@@ -162,41 +163,41 @@ class OllamaProvider implements LLMProviderInterface
                 if ($response->successful()) {
                     $result = $response->json();
                     $chunkResults = $this->parseAnalysisResponse($result['response']);
-                    
+
                     if (isset($chunkResults['detailed_scores'])) {
                         $allResults = array_merge($allResults, $chunkResults['detailed_scores']);
                     }
                 } else {
                     $statusCode = $response->status();
                     $body = $response->body();
-                    
+
                     // Check for HTML response in chunks too
                     if (str_starts_with(trim($body), '<html') || str_starts_with(trim($body), '<!DOCTYPE')) {
                         $errorMsg = "Chunk {$chunkNumber} failed: Ollama returning HTML instead of JSON (HTTP {$statusCode}). Service may be down.";
                     } else {
-                        $errorMsg = "Chunk {$chunkNumber} failed (HTTP {$statusCode}): " . substr($body, 0, 200);
+                        $errorMsg = "Chunk {$chunkNumber} failed (HTTP {$statusCode}): ".substr($body, 0, 200);
                     }
-                    
+
                     LoggingService::log($errorMsg);
+
                     throw new \Exception($errorMsg);
                 }
-                
             } catch (\Exception $e) {
-                LoggingService::log("Error processing chunk {$chunkNumber}: " . $e->getMessage());
+                LoggingService::log("Error processing chunk {$chunkNumber}: ".$e->getMessage());
                 $failedChunks++;
-                
+
                 // If too many chunks fail, throw exception
                 if ($failedChunks > ($totalChunks * 0.5)) {
-                    throw new \Exception("Chunked analysis failed: {$failedChunks}/{$totalChunks} chunks failed. Last error: " . $e->getMessage());
+                    throw new \Exception("Chunked analysis failed: {$failedChunks}/{$totalChunks} chunks failed. Last error: ".$e->getMessage());
                 }
-                
+
                 // Continue with remaining chunks for partial results
                 LoggingService::log("Continuing with remaining chunks ({$failedChunks} failures so far)");
             }
         }
-        
-        LoggingService::log("Chunked analysis completed. Processed " . count($allResults) . " total reviews");
-        
+
+        LoggingService::log('Chunked analysis completed. Processed '.count($allResults).' total reviews');
+
         return [
             'detailed_scores'   => $allResults,
             'analysis_provider' => $this->getProviderName(),
@@ -232,7 +233,7 @@ class OllamaProvider implements LLMProviderInterface
             if (preg_match($pattern, $response, $matches)) {
                 $jsonString = $matches[1] ?? $matches[0];
                 LoggingService::log('Attempting to parse JSON: '.substr($jsonString, 0, 200).'...');
-                
+
                 $decoded = json_decode($jsonString, true);
 
                 if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {

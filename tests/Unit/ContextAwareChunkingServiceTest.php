@@ -2,8 +2,8 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
 use App\Services\ContextAwareChunkingService;
+use Tests\TestCase;
 
 class ContextAwareChunkingServiceTest extends TestCase
 {
@@ -41,10 +41,10 @@ class ContextAwareChunkingServiceTest extends TestCase
         $suspiciousReviews = [];
         for ($i = 0; $i < 100; $i++) {
             $suspiciousReviews[] = [
-                'id' => $i,
-                'rating' => 5, // All 5-star reviews
-                'text' => 'Great!', // Very short text
-                'meta_data' => ['verified_purchase' => false] // All unverified
+                'id'        => $i,
+                'rating'    => 5, // All 5-star reviews
+                'text'      => 'Great!', // Very short text
+                'meta_data' => ['verified_purchase' => false], // All unverified
             ];
         }
 
@@ -64,7 +64,7 @@ class ContextAwareChunkingServiceTest extends TestCase
         $this->assertStringContainsString('45.2% verified', $summary);
         $this->assertStringContainsString('5% Vine', $summary);
         $this->assertStringContainsString('ALERTS: High fake concentration', $summary);
-        
+
         // Should be compact (roughly 100 tokens or less)
         $this->assertLessThan(500, strlen($summary));
     }
@@ -72,21 +72,21 @@ class ContextAwareChunkingServiceTest extends TestCase
     public function test_it_processes_chunks_with_context_awareness()
     {
         $reviews = $this->createTestReviews(10);
-        
+
         $processedChunks = [];
-        $chunkProcessor = function($chunk, $context) use (&$processedChunks) {
+        $chunkProcessor = function ($chunk, $context) use (&$processedChunks) {
             $processedChunks[] = [
-                'chunk_size' => count($chunk),
+                'chunk_size'       => count($chunk),
                 'context_received' => $context,
-                'fake_percentage' => 25.0,
-                'confidence' => 'medium',
-                'explanation' => 'Test explanation for chunk'
+                'fake_percentage'  => 25.0,
+                'confidence'       => 'medium',
+                'explanation'      => 'Test explanation for chunk',
             ];
-            
+
             return [
                 'fake_percentage' => 25.0,
-                'confidence' => 'medium',
-                'explanation' => 'Test explanation for chunk'
+                'confidence'      => 'medium',
+                'explanation'     => 'Test explanation for chunk',
             ];
         };
 
@@ -101,7 +101,7 @@ class ContextAwareChunkingServiceTest extends TestCase
         $this->assertArrayHasKey('confidence', $result);
         $this->assertArrayHasKey('explanation', $result);
         $this->assertArrayHasKey('global_context', $result);
-        
+
         // Verify context was passed to chunks
         foreach ($processedChunks as $chunk) {
             $this->assertArrayHasKey('total_reviews', $chunk['context_received']);
@@ -113,19 +113,19 @@ class ContextAwareChunkingServiceTest extends TestCase
     public function test_it_handles_chunk_failures_gracefully()
     {
         $reviews = $this->createTestReviews(10);
-        
-        $chunkProcessor = function($chunk, $context) {
+
+        $chunkProcessor = function ($chunk, $context) {
             static $callCount = 0;
             $callCount++;
-            
+
             if ($callCount === 1) {
                 throw new \Exception('Simulated chunk failure');
             }
-            
+
             return [
                 'fake_percentage' => 30.0,
-                'confidence' => 'high',
-                'explanation' => 'Successful chunk analysis'
+                'confidence'      => 'high',
+                'explanation'     => 'Successful chunk analysis',
             ];
         };
 
@@ -143,8 +143,8 @@ class ContextAwareChunkingServiceTest extends TestCase
     public function test_it_fails_when_too_many_chunks_fail()
     {
         $reviews = $this->createTestReviews(10);
-        
-        $chunkProcessor = function($chunk, $context) {
+
+        $chunkProcessor = function ($chunk, $context) {
             throw new \Exception('All chunks fail');
         };
 
@@ -164,32 +164,32 @@ class ContextAwareChunkingServiceTest extends TestCase
         $chunkResults = [
             [
                 'fake_percentage' => 20.0,
-                'confidence' => 'high',
-                'explanation' => 'First chunk shows low fake percentage',
-                'review_count' => 5,
-                'fake_examples' => [
+                'confidence'      => 'high',
+                'explanation'     => 'First chunk shows low fake percentage',
+                'review_count'    => 5,
+                'fake_examples'   => [
                     ['text' => 'Great product!', 'reason' => 'Too generic'],
-                    ['text' => 'Love it!', 'reason' => 'Very short']
+                    ['text' => 'Love it!', 'reason' => 'Very short'],
                 ],
-                'key_patterns' => ['pattern1', 'short reviews']
+                'key_patterns' => ['pattern1', 'short reviews'],
             ],
             [
                 'fake_percentage' => 40.0,
-                'confidence' => 'medium',
-                'explanation' => 'Second chunk shows higher fake percentage',
-                'review_count' => 5,
-                'fake_examples' => [
+                'confidence'      => 'medium',
+                'explanation'     => 'Second chunk shows higher fake percentage',
+                'review_count'    => 5,
+                'fake_examples'   => [
                     ['text' => 'Great product!', 'reason' => 'Too generic'], // Duplicate
-                    ['text' => 'Amazing quality', 'reason' => 'Generic praise']
+                    ['text' => 'Amazing quality', 'reason' => 'Generic praise'],
                 ],
-                'key_patterns' => ['pattern2', 'short reviews'] // Duplicate pattern
-            ]
+                'key_patterns' => ['pattern2', 'short reviews'], // Duplicate pattern
+            ],
         ];
 
         $globalContext = [
-            'total_reviews' => 10,
+            'total_reviews'        => 10,
             'five_star_percentage' => 80.0,
-            'suspicious_patterns' => ['High 5-star concentration']
+            'suspicious_patterns'  => ['High 5-star concentration'],
         ];
 
         $result = $this->service->aggregateChunkResults($chunkResults, $globalContext);
@@ -200,13 +200,13 @@ class ContextAwareChunkingServiceTest extends TestCase
         $this->assertStringContainsString('Analysis of 10 reviews across 2 chunks', $result['explanation']);
         $this->assertEquals(2, $result['chunks_processed']);
         $this->assertArrayHasKey('global_context', $result);
-        
+
         // Test deduplication of fake_examples (should have 3 unique examples, not 4)
         $this->assertCount(3, $result['fake_examples']);
         $this->assertEquals('Great product!', $result['fake_examples'][0]['text']); // First occurrence kept
         $this->assertEquals('Love it!', $result['fake_examples'][1]['text']);
         $this->assertEquals('Amazing quality', $result['fake_examples'][2]['text']);
-        
+
         // Test deduplication of key_patterns (should have 3 unique patterns, not 4)
         $this->assertCount(3, $result['key_patterns']);
         $this->assertContains('pattern1', $result['key_patterns']);
@@ -219,17 +219,17 @@ class ContextAwareChunkingServiceTest extends TestCase
         $explanations = [
             'The review set shows a very high concentration of 5-star ratings. This is suspicious.',
             'High concentration of 5-star ratings detected. The pattern suggests manipulation.',
-            'Reviews show balanced criticism and specific complaints. This indicates authenticity.'
+            'Reviews show balanced criticism and specific complaints. This indicates authenticity.',
         ];
 
         $method = new \ReflectionMethod($this->service, 'extractUniqueInsights');
         $method->setAccessible(true);
-        
+
         $insights = $method->invoke($this->service, $explanations);
 
         // Should extract unique insights and avoid repetition
         $this->assertLessThanOrEqual(2, count($insights)); // Limited to prevent bloat
-        
+
         // Should not repeat the same concept about 5-star concentration
         $insightsText = implode(' ', $insights);
         $this->assertLessThanOrEqual(1, substr_count(strtolower($insightsText), '5-star'));
@@ -238,7 +238,7 @@ class ContextAwareChunkingServiceTest extends TestCase
     public function test_it_generates_context_header()
     {
         $globalContext = [
-            'context_summary' => 'GLOBAL CONTEXT: 85.0% 5-star, 60.0% verified, 5.0% Vine. ALERTS: High concentration detected.'
+            'context_summary' => 'GLOBAL CONTEXT: 85.0% 5-star, 60.0% verified, 5.0% Vine. ALERTS: High concentration detected.',
         ];
 
         $header = $this->service->generateContextHeader($globalContext);
@@ -248,7 +248,7 @@ class ContextAwareChunkingServiceTest extends TestCase
 
     public function test_it_handles_empty_reviews_array()
     {
-        $chunkProcessor = function($chunk, $context) {
+        $chunkProcessor = function ($chunk, $context) {
             return ['fake_percentage' => 0];
         };
 
@@ -261,12 +261,12 @@ class ContextAwareChunkingServiceTest extends TestCase
     {
         $reviews = $this->createTestReviews(4);
         $startTime = microtime(true);
-        
-        $chunkProcessor = function($chunk, $context) {
+
+        $chunkProcessor = function ($chunk, $context) {
             return [
                 'fake_percentage' => 25.0,
-                'confidence' => 'medium',
-                'explanation' => 'Test chunk'
+                'confidence'      => 'medium',
+                'explanation'     => 'Test chunk',
             ];
         };
 
@@ -289,15 +289,16 @@ class ContextAwareChunkingServiceTest extends TestCase
         $reviews = [];
         for ($i = 1; $i <= $count; $i++) {
             $reviews[] = [
-                'id' => $i,
-                'rating' => ($i % 5) + 1, // Ratings 1-5
-                'text' => "This is review number {$i} with some content.",
+                'id'        => $i,
+                'rating'    => ($i % 5) + 1, // Ratings 1-5
+                'text'      => "This is review number {$i} with some content.",
                 'meta_data' => [
                     'verified_purchase' => $i % 2 === 0, // Alternate verified/unverified
-                    'is_vine_voice' => $i % 10 === 0 // Every 10th is Vine
-                ]
+                    'is_vine_voice'     => $i % 10 === 0, // Every 10th is Vine
+                ],
             ];
         }
+
         return $reviews;
     }
 }

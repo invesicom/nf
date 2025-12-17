@@ -44,7 +44,7 @@ class MetricsCalculationServiceAggregate
 
         // Generate grade using existing service
         $grade = $this->gradeService->calculateGrade($fakePercentage);
-        
+
         // Use LLM's explanation or generate fallback
         $explanation = $aggregateData['explanation'] ?? $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
 
@@ -55,11 +55,11 @@ class MetricsCalculationServiceAggregate
 
         if ($needsUpdate) {
             $asinData->update([
-                'fake_percentage' => $fakePercentage,
-                'grade' => $grade,
-                'explanation' => $explanation,
-                'adjusted_rating' => $adjustedRating,
-                'status' => 'completed',
+                'fake_percentage'  => $fakePercentage,
+                'grade'            => $grade,
+                'explanation'      => $explanation,
+                'adjusted_rating'  => $adjustedRating,
+                'status'           => 'completed',
                 'last_analyzed_at' => now(),
             ]);
 
@@ -68,15 +68,15 @@ class MetricsCalculationServiceAggregate
 
         return [
             'fake_percentage' => $fakePercentage,
-            'grade' => $grade,
-            'explanation' => $explanation,
+            'grade'           => $grade,
+            'explanation'     => $explanation,
             'adjusted_rating' => $adjustedRating,
-            'total_reviews' => $totalReviews,
-            'fake_count' => $fakeCount,
-            'genuine_count' => $totalReviews - $fakeCount,
-            'confidence' => $aggregateData['confidence'] ?? 'medium',
-            'key_patterns' => $aggregateData['key_patterns'] ?? [],
-            'fake_examples' => $aggregateData['fake_examples'] ?? [],
+            'total_reviews'   => $totalReviews,
+            'fake_count'      => $fakeCount,
+            'genuine_count'   => $totalReviews - $fakeCount,
+            'confidence'      => $aggregateData['confidence'] ?? 'medium',
+            'key_patterns'    => $aggregateData['key_patterns'] ?? [],
+            'fake_examples'   => $aggregateData['fake_examples'] ?? [],
         ];
     }
 

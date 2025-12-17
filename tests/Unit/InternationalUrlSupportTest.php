@@ -24,16 +24,16 @@ class InternationalUrlSupportTest extends TestCase
     public function it_extracts_asin_from_international_urls()
     {
         $testCases = [
-            'https://www.amazon.de/-/en/TRAPANO-BATTERIA-PERCUSSIONE-GSB12-BOSCH/dp/B00YYBBUBY/' => 'B00YYBBUBY',
-            'https://www.amazon.ca/Dr-Scholls-Womens-Sneaker-Pebbled/dp/B0F5RQDJD3/'             => 'B0F5RQDJD3',
-            'https://www.amazon.co.uk/Vax-Smartwash-Pet-Design/dp/B0BHF3NKLK/'                   => 'B0BHF3NKLK',
-            'https://www.amazon.fr/-/en/Bluetooth-Earphones-Wireless/dp/B0FCS5ZRB4'              => 'B0FCS5ZRB4',
-            'https://www.amazon.in/Daikin-Inverter-Display-Technology-MTKL50U/dp/B0BK1KS6ZD/'    => 'B0BK1KS6ZD',
+            'https://www.amazon.de/-/en/TRAPANO-BATTERIA-PERCUSSIONE-GSB12-BOSCH/dp/B00YYBBUBY/'  => 'B00YYBBUBY',
+            'https://www.amazon.ca/Dr-Scholls-Womens-Sneaker-Pebbled/dp/B0F5RQDJD3/'              => 'B0F5RQDJD3',
+            'https://www.amazon.co.uk/Vax-Smartwash-Pet-Design/dp/B0BHF3NKLK/'                    => 'B0BHF3NKLK',
+            'https://www.amazon.fr/-/en/Bluetooth-Earphones-Wireless/dp/B0FCS5ZRB4'               => 'B0FCS5ZRB4',
+            'https://www.amazon.in/Daikin-Inverter-Display-Technology-MTKL50U/dp/B0BK1KS6ZD/'     => 'B0BK1KS6ZD',
             'https://www.amazon.ie/Celestron-11069-Computerised-Schmidt-Cassegrain/dp/B000GUFOC8' => 'B000GUFOC8',
-            'https://www.amazon.co.jp/-/en/Bagasin-Shockproof-Laptop/dp/B0BLNHG168'              => 'B0BLNHG168',
-            'https://www.amazon.com.mx/SAMSUNG-Galaxy-Negro-Onyx/dp/B0CQ84BYDC/'                 => 'B0CQ84BYDC',
-            'https://www.amazon.com.br/Controle-Dualshock-PlayStation-4-Preto/dp/B07FN1MZBH/'    => 'B07FN1MZBH',
-            'https://www.amazon.es/-/en/Cordless-Cleaner-Filtration/dp/B0CZRTHM6T/'              => 'B0CZRTHM6T',
+            'https://www.amazon.co.jp/-/en/Bagasin-Shockproof-Laptop/dp/B0BLNHG168'               => 'B0BLNHG168',
+            'https://www.amazon.com.mx/SAMSUNG-Galaxy-Negro-Onyx/dp/B0CQ84BYDC/'                  => 'B0CQ84BYDC',
+            'https://www.amazon.com.br/Controle-Dualshock-PlayStation-4-Preto/dp/B07FN1MZBH/'     => 'B07FN1MZBH',
+            'https://www.amazon.es/-/en/Cordless-Cleaner-Filtration/dp/B0CZRTHM6T/'               => 'B0CZRTHM6T',
         ];
 
         foreach ($testCases as $url => $expectedAsin) {
