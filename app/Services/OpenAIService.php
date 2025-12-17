@@ -4,7 +4,6 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use App\Services\PromptGenerationService;
 
 class OpenAIService
 {
@@ -276,7 +275,7 @@ class OpenAIService
 
     /**
      * Build an optimized prompt that uses fewer tokens while maintaining accuracy.
-     * 
+     *
      * This prompt is designed to be BALANCED - recognizing genuine reviews as the norm.
      */
     private function buildOptimizedPrompt($reviews): string

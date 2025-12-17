@@ -103,7 +103,6 @@ class ProcessPriceAnalysis implements ShouldQueue
             LoggingService::log('Price analysis job completed successfully', [
                 'asin' => $asinData->asin,
             ]);
-
         } catch (\Exception $e) {
             LoggingService::log('Price analysis job failed', [
                 'asin'    => $asinData->asin,
@@ -148,7 +147,6 @@ class ProcessPriceAnalysis implements ShouldQueue
      */
     public function tags(): array
     {
-        return ['price-analysis', 'asin:' . $this->asinDataId];
+        return ['price-analysis', 'asin:'.$this->asinDataId];
     }
 }
-

@@ -15,9 +15,9 @@ class AsinDataProcessingTest extends TestCase
     public function is_processing_returns_true_for_fetched_status(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'fetched',
+            'status'          => 'fetched',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $this->assertTrue($asinData->isProcessing());
@@ -27,9 +27,9 @@ class AsinDataProcessingTest extends TestCase
     public function is_processing_returns_true_for_pending_status(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'pending',
+            'status'          => 'pending',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $this->assertTrue($asinData->isProcessing());
@@ -39,9 +39,9 @@ class AsinDataProcessingTest extends TestCase
     public function is_processing_returns_true_for_pending_analysis_status(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'pending_analysis',
+            'status'          => 'pending_analysis',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $this->assertTrue($asinData->isProcessing());
@@ -51,9 +51,9 @@ class AsinDataProcessingTest extends TestCase
     public function is_processing_returns_true_for_processing_status(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $this->assertTrue($asinData->isProcessing());
@@ -63,9 +63,9 @@ class AsinDataProcessingTest extends TestCase
     public function is_processing_returns_false_for_completed_status(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'          => 'completed',
             'fake_percentage' => 25.5,
-            'grade' => 'B',
+            'grade'           => 'B',
         ]);
 
         $this->assertFalse($asinData->isProcessing());
@@ -75,9 +75,9 @@ class AsinDataProcessingTest extends TestCase
     public function is_processing_returns_false_for_failed_status(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'failed',
+            'status'          => 'failed',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $this->assertFalse($asinData->isProcessing());
@@ -87,7 +87,7 @@ class AsinDataProcessingTest extends TestCase
     public function get_estimated_processing_time_returns_base_time_for_small_review_count(): void
     {
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'  => 'processing',
             'reviews' => array_fill(0, 10, ['content' => 'test']),
         ]);
 
@@ -102,7 +102,7 @@ class AsinDataProcessingTest extends TestCase
     {
         // 150 reviews: 150/50 = 3, so 2 + 3 = 5 minutes
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'  => 'processing',
             'reviews' => array_fill(0, 150, ['content' => 'test']),
         ]);
 
@@ -116,7 +116,7 @@ class AsinDataProcessingTest extends TestCase
     {
         // 1000 reviews would calculate to 2 + 20 = 22, but should cap at 10
         $asinData = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'  => 'processing',
             'reviews' => array_fill(0, 1000, ['content' => 'test']),
         ]);
 
@@ -139,14 +139,14 @@ class AsinDataProcessingTest extends TestCase
     public function check_processing_session_returns_true_when_pending_session_exists(): void
     {
         AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440000',
-            'user_session' => 'test_session_pending',
-            'asin' => 'B0TESTPEND',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTPEND',
-            'status' => 'pending',
-            'current_step' => 0,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440000',
+            'user_session'        => 'test_session_pending',
+            'asin'                => 'B0TESTPEND',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTPEND',
+            'status'              => 'pending',
+            'current_step'        => 0,
             'progress_percentage' => 0,
-            'total_steps' => 5,
+            'total_steps'         => 5,
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0TESTPEND');
@@ -161,15 +161,15 @@ class AsinDataProcessingTest extends TestCase
     public function check_processing_session_returns_true_when_processing_session_exists(): void
     {
         AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440001',
-            'user_session' => 'test_session_processing',
-            'asin' => 'B0TESTPROC',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTPROC',
-            'status' => 'processing',
-            'current_step' => 2,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440001',
+            'user_session'        => 'test_session_processing',
+            'asin'                => 'B0TESTPROC',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTPROC',
+            'status'              => 'processing',
+            'current_step'        => 2,
             'progress_percentage' => 40,
-            'total_steps' => 5,
-            'started_at' => now()->subMinute(),
+            'total_steps'         => 5,
+            'started_at'          => now()->subMinute(),
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0TESTPROC');
@@ -184,15 +184,15 @@ class AsinDataProcessingTest extends TestCase
     {
         // Session started 2 minutes ago, so estimate should be 3 - 2 = 1 minute
         AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440002',
-            'user_session' => 'test_session_elapsed',
-            'asin' => 'B0TESTELAP',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTELAP',
-            'status' => 'processing',
-            'current_step' => 3,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440002',
+            'user_session'        => 'test_session_elapsed',
+            'asin'                => 'B0TESTELAP',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTELAP',
+            'status'              => 'processing',
+            'current_step'        => 3,
             'progress_percentage' => 60,
-            'total_steps' => 5,
-            'started_at' => now()->subMinutes(2),
+            'total_steps'         => 5,
+            'started_at'          => now()->subMinutes(2),
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0TESTELAP');
@@ -206,15 +206,15 @@ class AsinDataProcessingTest extends TestCase
     {
         // Session started 5 minutes ago (more than expected 3 minutes)
         AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440003',
-            'user_session' => 'test_session_long',
-            'asin' => 'B0TESTLONG',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTLONG',
-            'status' => 'processing',
-            'current_step' => 4,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440003',
+            'user_session'        => 'test_session_long',
+            'asin'                => 'B0TESTLONG',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTLONG',
+            'status'              => 'processing',
+            'current_step'        => 4,
             'progress_percentage' => 80,
-            'total_steps' => 5,
-            'started_at' => now()->subMinutes(5),
+            'total_steps'         => 5,
+            'started_at'          => now()->subMinutes(5),
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0TESTLONG');
@@ -228,29 +228,29 @@ class AsinDataProcessingTest extends TestCase
     {
         // Create older session
         AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440004',
-            'user_session' => 'test_session_mult_old',
-            'asin' => 'B0TESTMULT',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTMULT',
-            'status' => 'processing',
-            'current_step' => 1,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440004',
+            'user_session'        => 'test_session_mult_old',
+            'asin'                => 'B0TESTMULT',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTMULT',
+            'status'              => 'processing',
+            'current_step'        => 1,
             'progress_percentage' => 20,
-            'total_steps' => 5,
-            'created_at' => now()->subMinutes(10),
+            'total_steps'         => 5,
+            'created_at'          => now()->subMinutes(10),
         ]);
 
         // Create newer session
         $newerSession = AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440005',
-            'user_session' => 'test_session_mult_new',
-            'asin' => 'B0TESTMULT',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTMULT',
-            'status' => 'processing',
-            'current_step' => 3,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440005',
+            'user_session'        => 'test_session_mult_new',
+            'asin'                => 'B0TESTMULT',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTMULT',
+            'status'              => 'processing',
+            'current_step'        => 3,
             'progress_percentage' => 60,
-            'total_steps' => 5,
-            'created_at' => now()->subMinutes(2),
-            'started_at' => now()->subMinutes(2),
+            'total_steps'         => 5,
+            'created_at'          => now()->subMinutes(2),
+            'started_at'          => now()->subMinutes(2),
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0TESTMULT');
@@ -263,16 +263,16 @@ class AsinDataProcessingTest extends TestCase
     public function check_processing_session_ignores_completed_sessions(): void
     {
         AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440006',
-            'user_session' => 'test_session_completed',
-            'asin' => 'B0TESTCOMP',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTCOMP',
-            'status' => 'completed',
-            'current_step' => 5,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440006',
+            'user_session'        => 'test_session_completed',
+            'asin'                => 'B0TESTCOMP',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTCOMP',
+            'status'              => 'completed',
+            'current_step'        => 5,
             'progress_percentage' => 100,
-            'total_steps' => 5,
-            'started_at' => now()->subMinutes(5),
-            'completed_at' => now(),
+            'total_steps'         => 5,
+            'started_at'          => now()->subMinutes(5),
+            'completed_at'        => now(),
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0TESTCOMP');
@@ -285,17 +285,17 @@ class AsinDataProcessingTest extends TestCase
     public function check_processing_session_ignores_failed_sessions(): void
     {
         AnalysisSession::create([
-            'id' => '550e8400-e29b-41d4-a716-446655440007',
-            'user_session' => 'test_session_failed',
-            'asin' => 'B0TESTFAIL',
-            'product_url' => 'https://www.amazon.com/dp/B0TESTFAIL',
-            'status' => 'failed',
-            'current_step' => 2,
+            'id'                  => '550e8400-e29b-41d4-a716-446655440007',
+            'user_session'        => 'test_session_failed',
+            'asin'                => 'B0TESTFAIL',
+            'product_url'         => 'https://www.amazon.com/dp/B0TESTFAIL',
+            'status'              => 'failed',
+            'current_step'        => 2,
             'progress_percentage' => 40,
-            'total_steps' => 5,
-            'started_at' => now()->subMinutes(3),
-            'completed_at' => now(),
-            'error_message' => 'Test error',
+            'total_steps'         => 5,
+            'started_at'          => now()->subMinutes(3),
+            'completed_at'        => now(),
+            'error_message'       => 'Test error',
         ]);
 
         $processingInfo = AsinData::checkProcessingSession('B0TESTFAIL');
@@ -304,4 +304,3 @@ class AsinDataProcessingTest extends TestCase
         $this->assertNull($processingInfo['session']);
     }
 }
-

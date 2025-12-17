@@ -13,19 +13,19 @@ class PromptGenerationServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        
+
         $this->sampleReviews = [
             [
-                'id' => 'R1',
+                'id'          => 'R1',
                 'review_text' => 'Great product, works as expected. Verified purchase.',
-                'rating' => 5,
-                'meta_data' => ['verified_purchase' => true],
+                'rating'      => 5,
+                'meta_data'   => ['verified_purchase' => true],
             ],
             [
-                'id' => 'R2',
+                'id'          => 'R2',
                 'review_text' => 'Not what I expected, poor quality materials.',
-                'rating' => 2,
-                'meta_data' => ['verified_purchase' => false],
+                'rating'      => 2,
+                'meta_data'   => ['verified_purchase' => false],
             ],
         ];
     }
@@ -66,10 +66,10 @@ class PromptGenerationServiceTest extends TestCase
     public function it_respects_text_length_limits()
     {
         $longReview = [
-            'id' => 'R3',
+            'id'          => 'R3',
             'review_text' => str_repeat('This is a very long review text. ', 50), // ~1500 chars
-            'rating' => 4,
-            'meta_data' => ['verified_purchase' => true],
+            'rating'      => 4,
+            'meta_data'   => ['verified_purchase' => true],
         ];
 
         $result = PromptGenerationService::generateReviewAnalysisPrompt(
@@ -93,8 +93,8 @@ class PromptGenerationServiceTest extends TestCase
     public function it_handles_missing_review_text_gracefully()
     {
         $reviewWithoutText = [
-            'id' => 'R4',
-            'rating' => 3,
+            'id'        => 'R4',
+            'rating'    => 3,
             'meta_data' => ['verified_purchase' => true],
         ];
 
@@ -111,9 +111,9 @@ class PromptGenerationServiceTest extends TestCase
     public function it_handles_alternative_text_field()
     {
         $reviewWithTextField = [
-            'id' => 'R5',
-            'text' => 'Review using text field instead of review_text',
-            'rating' => 4,
+            'id'        => 'R5',
+            'text'      => 'Review using text field instead of review_text',
+            'rating'    => 4,
             'meta_data' => ['verified_purchase' => false],
         ];
 
@@ -160,7 +160,7 @@ class PromptGenerationServiceTest extends TestCase
         $this->assertStringContainsString('expert Amazon review authenticity analyst', $openaiMessage);
         $this->assertStringContainsString('expert Amazon review authenticity analyst', $deepseekMessage);
         $this->assertStringContainsString('expert Amazon review authenticity analyst', $ollamaMessage);
-        
+
         $this->assertStringContainsString('ACCURACY', $openaiMessage);
         $this->assertStringContainsString('JSON', $openaiMessage);
     }
@@ -173,13 +173,13 @@ class PromptGenerationServiceTest extends TestCase
 
         // Missing id
         $invalidReviews = [
-            ['review_text' => 'Text without id', 'rating' => 5]
+            ['review_text' => 'Text without id', 'rating' => 5],
         ];
         $this->assertFalse(PromptGenerationService::validateReviewsStructure($invalidReviews));
 
         // Missing text fields
         $invalidReviews2 = [
-            ['id' => 'R1', 'rating' => 5]
+            ['id' => 'R1', 'rating' => 5],
         ];
         $this->assertFalse(PromptGenerationService::validateReviewsStructure($invalidReviews2));
 
@@ -191,10 +191,10 @@ class PromptGenerationServiceTest extends TestCase
     public function it_cleans_utf8_text_properly()
     {
         $reviewWithBadUtf8 = [
-            'id' => 'R6',
+            'id'          => 'R6',
             'review_text' => "Good product\x00\x1A with null bytes",
-            'rating' => 4,
-            'meta_data' => ['verified_purchase' => true],
+            'rating'      => 4,
+            'meta_data'   => ['verified_purchase' => true],
         ];
 
         $result = PromptGenerationService::generateReviewAnalysisPrompt(
@@ -213,9 +213,9 @@ class PromptGenerationServiceTest extends TestCase
     public function it_handles_missing_meta_data_gracefully()
     {
         $reviewWithoutMetaData = [
-            'id' => 'R7',
+            'id'          => 'R7',
             'review_text' => 'Review without meta_data',
-            'rating' => 3,
+            'rating'      => 3,
         ];
 
         $result = PromptGenerationService::generateReviewAnalysisPrompt(
@@ -231,9 +231,9 @@ class PromptGenerationServiceTest extends TestCase
     public function it_handles_missing_rating_gracefully()
     {
         $reviewWithoutRating = [
-            'id' => 'R8',
+            'id'          => 'R8',
             'review_text' => 'Review without rating',
-            'meta_data' => ['verified_purchase' => true],
+            'meta_data'   => ['verified_purchase' => true],
         ];
 
         $result = PromptGenerationService::generateReviewAnalysisPrompt(

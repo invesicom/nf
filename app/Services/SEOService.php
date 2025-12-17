@@ -8,7 +8,7 @@ use Illuminate\Support\Str;
 class SEOService
 {
     /**
-     * Generate comprehensive SEO data for product pages optimized for AI crawlers
+     * Generate comprehensive SEO data for product pages optimized for AI crawlers.
      */
     public function generateProductSEOData(AsinData $asinData): array
     {
@@ -20,7 +20,7 @@ class SEOService
     }
 
     /**
-     * Generate base SEO metadata
+     * Generate base SEO metadata.
      */
     private function generateBaseSEOData(AsinData $asinData): array
     {
@@ -29,48 +29,48 @@ class SEOService
         $keywords = $this->generateKeywords($asinData);
 
         return [
-            'meta_title' => $title,
-            'meta_description' => $description,
-            'keywords' => $keywords,
-            'canonical_url' => "/analysis/{$asinData->asin}/{$asinData->country}",
-            'social_title' => $this->generateSocialTitle($asinData),
+            'meta_title'         => $title,
+            'meta_description'   => $description,
+            'keywords'           => $keywords,
+            'canonical_url'      => "/analysis/{$asinData->asin}/{$asinData->country}",
+            'social_title'       => $this->generateSocialTitle($asinData),
             'social_description' => $this->generateSocialDescription($asinData),
-            'trust_score' => $this->calculateTrustScore($asinData),
-            'review_summary' => $this->generateReviewSummary($asinData),
+            'trust_score'        => $this->calculateTrustScore($asinData),
+            'review_summary'     => $this->generateReviewSummary($asinData),
         ];
     }
 
     /**
-     * Generate AI-optimized metadata for better AI search visibility
+     * Generate AI-optimized metadata for better AI search visibility.
      */
     private function generateAIOptimizedData(AsinData $asinData): array
     {
         return [
-            'ai_summary' => $this->generateAISummary($asinData),
-            'ai_keywords' => $this->generateAIKeywords($asinData),
-            'question_answers' => $this->generateQuestionAnswers($asinData),
+            'ai_summary'           => $this->generateAISummary($asinData),
+            'ai_keywords'          => $this->generateAIKeywords($asinData),
+            'question_answers'     => $this->generateQuestionAnswers($asinData),
             'analysis_methodology' => $this->getAnalysisMethodology(),
-            'data_freshness' => $asinData->updated_at->toISOString(),
-            'confidence_score' => $this->calculateConfidenceScore($asinData),
+            'data_freshness'       => $asinData->updated_at->toISOString(),
+            'confidence_score'     => $this->calculateConfidenceScore($asinData),
         ];
     }
 
     /**
-     * Generate structured data schemas optimized for AI understanding
+     * Generate structured data schemas optimized for AI understanding.
      */
     private function generateStructuredData(AsinData $asinData): array
     {
         return [
-            'product_schema' => $this->generateProductSchema($asinData),
+            'product_schema'  => $this->generateProductSchema($asinData),
             'analysis_schema' => $this->generateAnalysisSchema($asinData),
-            'dataset_schema' => $this->generateDatasetSchema($asinData),
-            'faq_schema' => $this->generateFAQSchema($asinData),
-            'how_to_schema' => $this->generateHowToSchema($asinData),
+            'dataset_schema'  => $this->generateDatasetSchema($asinData),
+            'faq_schema'      => $this->generateFAQSchema($asinData),
+            'how_to_schema'   => $this->generateHowToSchema($asinData),
         ];
     }
 
     /**
-     * Generate optimized title for search engines and AI
+     * Generate optimized title for search engines and AI.
      */
     private function generateOptimizedTitle(AsinData $asinData): string
     {
@@ -90,7 +90,7 @@ class SEOService
     }
 
     /**
-     * Generate AI-optimized description using enhanced analysis content
+     * Generate AI-optimized description using enhanced analysis content.
      */
     private function generateOptimizedDescription(AsinData $asinData): string
     {
@@ -102,23 +102,23 @@ class SEOService
 
         // Try to extract product insights from enhanced explanation
         $productInsights = $this->extractProductInsights($asinData);
-        
+
         $description = "AI-powered analysis of {$productTitle} reveals {$fakePercentage}% fake reviews out of {$reviewCount} analyzed. ";
         $description .= "Authenticity grade: {$grade}. Adjusted rating: {$adjustedRating}/5 stars after removing suspicious reviews. ";
-        
+
         // Add product insights if available for SEO enhancement
         if ($productInsights) {
-            $description .= $productInsights . " ";
+            $description .= $productInsights.' ';
         }
-        
-        $description .= "Comprehensive review authenticity analysis using machine learning and natural language processing. ";
-        $description .= "Get the real story behind Amazon product reviews with detailed fake review detection and trust scoring.";
+
+        $description .= 'Comprehensive review authenticity analysis using machine learning and natural language processing. ';
+        $description .= 'Get the real story behind Amazon product reviews with detailed fake review detection and trust scoring.';
 
         return $description;
     }
 
     /**
-     * Generate AI-focused summary using enhanced analysis content
+     * Generate AI-focused summary using enhanced analysis content.
      */
     private function generateAISummary(AsinData $asinData): string
     {
@@ -132,17 +132,17 @@ class SEOService
         }
 
         // Fallback to basic summary
-        $summary = "This analysis examines the authenticity of Amazon product reviews using advanced AI techniques. ";
+        $summary = 'This analysis examines the authenticity of Amazon product reviews using advanced AI techniques. ';
         $summary .= "Key findings: {$asinData->fake_percentage}% of reviews identified as potentially fake or manipulated. ";
         $summary .= "Overall authenticity grade: {$asinData->grade}. ";
-        $summary .= "The analysis considers review patterns, language authenticity, reviewer behavior, and statistical anomalies. ";
-        $summary .= "This data helps consumers make informed purchasing decisions based on genuine customer feedback.";
+        $summary .= 'The analysis considers review patterns, language authenticity, reviewer behavior, and statistical anomalies. ';
+        $summary .= 'This data helps consumers make informed purchasing decisions based on genuine customer feedback.';
 
         return $summary;
     }
 
     /**
-     * Generate keywords optimized for AI search
+     * Generate keywords optimized for AI search.
      */
     private function generateKeywords(AsinData $asinData): string
     {
@@ -156,13 +156,13 @@ class SEOService
             'fake review percentage',
             'product review grade',
             'review authenticity check',
-            'amazon product analysis'
+            'amazon product analysis',
         ];
 
         // Add product-specific keywords
         if ($asinData->product_title) {
             $productWords = explode(' ', strtolower($asinData->product_title));
-            $productKeywords = array_filter($productWords, function($word) {
+            $productKeywords = array_filter($productWords, function ($word) {
                 return strlen($word) > 3 && !in_array($word, ['the', 'and', 'for', 'with']);
             });
             $baseKeywords = array_merge($baseKeywords, array_slice($productKeywords, 0, 5));
@@ -172,14 +172,14 @@ class SEOService
         $countryKeywords = [
             "amazon {$asinData->country} reviews",
             "amazon {$asinData->country} analysis",
-            "fake reviews {$asinData->country}"
+            "fake reviews {$asinData->country}",
         ];
 
         return implode(', ', array_merge($baseKeywords, $countryKeywords));
     }
 
     /**
-     * Generate AI-specific keywords for better discoverability
+     * Generate AI-specific keywords for better discoverability.
      */
     private function generateAIKeywords(AsinData $asinData): array
     {
@@ -193,36 +193,36 @@ class SEOService
             'computational review analysis',
             'data-driven product evaluation',
             'statistical review anomaly detection',
-            'intelligent review filtering'
+            'intelligent review filtering',
         ];
     }
 
     /**
-     * Generate question-answer pairs for AI understanding
+     * Generate question-answer pairs for AI understanding.
      */
     private function generateQuestionAnswers(AsinData $asinData): array
     {
         $questions = [
             [
                 'question' => 'What percentage of reviews are fake for this product?',
-                'answer' => "{$asinData->fake_percentage}% of the analyzed reviews appear to be fake or inauthentic."
+                'answer'   => "{$asinData->fake_percentage}% of the analyzed reviews appear to be fake or inauthentic.",
             ],
             [
                 'question' => 'What is the authenticity grade for this product?',
-                'answer' => "The product receives a grade of {$asinData->grade} based on review authenticity analysis."
+                'answer'   => "The product receives a grade of {$asinData->grade} based on review authenticity analysis.",
             ],
             [
                 'question' => 'How many reviews were analyzed?',
-                'answer' => count($asinData->getReviewsArray()) . " reviews were analyzed for authenticity patterns."
+                'answer'   => count($asinData->getReviewsArray()).' reviews were analyzed for authenticity patterns.',
             ],
             [
                 'question' => 'What is the adjusted rating after removing fake reviews?',
-                'answer' => "After removing suspicious reviews, the adjusted rating is {$asinData->adjusted_rating} out of 5 stars."
+                'answer'   => "After removing suspicious reviews, the adjusted rating is {$asinData->adjusted_rating} out of 5 stars.",
             ],
             [
                 'question' => 'How does this analysis help consumers?',
-                'answer' => 'This analysis helps consumers identify products with manipulated reviews, enabling more informed purchasing decisions based on genuine customer feedback.'
-            ]
+                'answer'   => 'This analysis helps consumers identify products with manipulated reviews, enabling more informed purchasing decisions based on genuine customer feedback.',
+            ],
         ];
 
         // Add price-related Q&A if price analysis is available
@@ -232,21 +232,21 @@ class SEOService
             if (!empty($priceAnalysis['msrp_analysis']['amazon_price_assessment'])) {
                 $questions[] = [
                     'question' => 'Is this product priced fairly on Amazon?',
-                    'answer' => "Based on AI price analysis, this product is {$priceAnalysis['msrp_analysis']['amazon_price_assessment']}."
+                    'answer'   => "Based on AI price analysis, this product is {$priceAnalysis['msrp_analysis']['amazon_price_assessment']}.",
                 ];
             }
 
             if (!empty($priceAnalysis['market_comparison']['price_positioning'])) {
                 $questions[] = [
                     'question' => 'How is this product positioned in the market?',
-                    'answer' => "This product is positioned as a {$priceAnalysis['market_comparison']['price_positioning']} option in its category."
+                    'answer'   => "This product is positioned as a {$priceAnalysis['market_comparison']['price_positioning']} option in its category.",
                 ];
             }
 
             if (!empty($priceAnalysis['summary'])) {
                 $questions[] = [
                     'question' => 'What does the AI price analysis reveal?',
-                    'answer' => $priceAnalysis['summary']
+                    'answer'   => $priceAnalysis['summary'],
                 ];
             }
         }
@@ -255,7 +255,7 @@ class SEOService
     }
 
     /**
-     * Generate analysis methodology description
+     * Generate analysis methodology description.
      */
     private function getAnalysisMethodology(): array
     {
@@ -266,119 +266,126 @@ class SEOService
                 'Statistical Pattern Analysis',
                 'Reviewer Behavior Analysis',
                 'Temporal Pattern Detection',
-                'Linguistic Authenticity Scoring'
+                'Linguistic Authenticity Scoring',
             ],
             'data_sources' => [
                 'Amazon product reviews',
                 'Reviewer profiles and history',
                 'Review timing patterns',
                 'Language and sentiment analysis',
-                'Cross-product review patterns'
+                'Cross-product review patterns',
             ],
-            'accuracy' => 'High confidence scoring based on multiple validation techniques',
-            'update_frequency' => 'Analysis updated when new reviews are detected'
+            'accuracy'         => 'High confidence scoring based on multiple validation techniques',
+            'update_frequency' => 'Analysis updated when new reviews are detected',
         ];
     }
 
     /**
-     * Calculate trust score for the product
+     * Calculate trust score for the product.
      */
     private function calculateTrustScore(AsinData $asinData): int
     {
         $fakePercentage = $asinData->fake_percentage ?? 0;
         $grade = $asinData->grade ?? 'F';
-        
+
         // Convert grade to numeric score
         $gradeScores = ['A' => 95, 'B' => 85, 'C' => 75, 'D' => 65, 'F' => 45, 'U' => 0];
         $gradeScore = $gradeScores[$grade] ?? 50;
-        
+
         // Adjust based on fake percentage
         $trustScore = max(0, $gradeScore - ($fakePercentage * 0.5));
-        
+
         return (int) round($trustScore);
     }
 
     /**
-     * Calculate confidence score for the analysis
+     * Calculate confidence score for the analysis.
      */
     private function calculateConfidenceScore(AsinData $asinData): int
     {
         $reviewCount = count($asinData->getReviewsArray());
         $hasProductData = $asinData->have_product_data;
-        
+
         $baseConfidence = 70;
-        
+
         // More reviews = higher confidence
-        if ($reviewCount > 100) $baseConfidence += 20;
-        elseif ($reviewCount > 50) $baseConfidence += 15;
-        elseif ($reviewCount > 20) $baseConfidence += 10;
-        elseif ($reviewCount > 10) $baseConfidence += 5;
-        
+        if ($reviewCount > 100) {
+            $baseConfidence += 20;
+        } elseif ($reviewCount > 50) {
+            $baseConfidence += 15;
+        } elseif ($reviewCount > 20) {
+            $baseConfidence += 10;
+        } elseif ($reviewCount > 10) {
+            $baseConfidence += 5;
+        }
+
         // Product data availability increases confidence
-        if ($hasProductData) $baseConfidence += 10;
-        
+        if ($hasProductData) {
+            $baseConfidence += 10;
+        }
+
         return min(100, $baseConfidence);
     }
 
     /**
-     * Generate product schema for structured data with enhanced content
+     * Generate product schema for structured data with enhanced content.
      */
     private function generateProductSchema(AsinData $asinData): array
     {
         $reviewCount = count($asinData->getReviewsArray());
-        
+
         $schema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'Product',
-            'name' => $asinData->product_title ?? 'Amazon Product',
-            'description' => $this->generateEnhancedProductDescription($asinData),
-            'image' => $asinData->product_image_url,
-            'sku' => $asinData->asin,
-            'gtin' => $asinData->asin,
-            'brand' => ['@type' => 'Brand', 'name' => 'Amazon'],
-            'additionalProperty' => $this->generateProductProperties($asinData)
+            '@context'           => 'https://schema.org',
+            '@type'              => 'Product',
+            'name'               => $asinData->product_title ?? 'Amazon Product',
+            'description'        => $this->generateEnhancedProductDescription($asinData),
+            'image'              => $asinData->product_image_url,
+            'sku'                => $asinData->asin,
+            'gtin'               => $asinData->asin,
+            'brand'              => ['@type' => 'Brand', 'name' => 'Amazon'],
+            'additionalProperty' => $this->generateProductProperties($asinData),
         ];
-        
+
         // Only include aggregateRating if there are reviews (Google requires positive values)
         if ($reviewCount > 0) {
             $schema['aggregateRating'] = [
-                '@type' => 'AggregateRating',
+                '@type'       => 'AggregateRating',
                 'ratingValue' => $asinData->adjusted_rating ?? 0,
-                'bestRating' => 5,
+                'bestRating'  => 5,
                 'worstRating' => 1,
                 'ratingCount' => $reviewCount,
-                'reviewCount' => $reviewCount
+                'reviewCount' => $reviewCount,
             ];
         }
 
         // Add price/offers if we have price data
         if (!empty($asinData->price)) {
             $schema['offers'] = [
-                '@type' => 'Offer',
-                'price' => $asinData->price,
+                '@type'         => 'Offer',
+                'price'         => $asinData->price,
                 'priceCurrency' => $asinData->currency ?? 'USD',
-                'availability' => 'https://schema.org/InStock',
-                'url' => "https://www.amazon.{$this->getAmazonDomain($asinData->country)}/dp/{$asinData->asin}"
+                'availability'  => 'https://schema.org/InStock',
+                'url'           => "https://www.amazon.{$this->getAmazonDomain($asinData->country)}/dp/{$asinData->asin}",
             ];
         }
 
         // Add enhanced analysis as a review for better AI understanding
         if (!empty($asinData->explanation)) {
             $schema['review'] = [
-                '@type' => 'Review',
+                '@type'        => 'Review',
                 'reviewRating' => [
-                    '@type' => 'Rating',
+                    '@type'       => 'Rating',
                     'ratingValue' => $this->gradeToNumericRating($asinData->grade ?? 'N/A'),
-                    'bestRating' => 5,
-                    'worstRating' => 1
+                    'bestRating'  => 5,
+                    'worstRating' => 1,
                 ],
                 'author' => [
                     '@type' => 'Organization',
-                    'name' => 'Null Fake - AI Review Analysis'
+                    'name'  => 'Null Fake - AI Review Analysis',
                 ],
-                'reviewBody' => $this->formatExplanationForAI($asinData->explanation),
+                'reviewBody'    => $this->formatExplanationForAI($asinData->explanation),
                 'datePublished' => $asinData->updated_at->toISOString(),
-                'headline' => 'AI-Powered Fake Review Analysis - Grade ' . ($asinData->grade ?? 'N/A')
+                'headline'      => 'AI-Powered Fake Review Analysis - Grade '.($asinData->grade ?? 'N/A'),
             ];
         }
 
@@ -386,170 +393,170 @@ class SEOService
     }
 
     /**
-     * Generate analysis schema for AI understanding
+     * Generate analysis schema for AI understanding.
      */
     private function generateAnalysisSchema(AsinData $asinData): array
     {
         return [
-            '@context' => 'https://schema.org',
-            '@type' => 'AnalysisNewsArticle',
-            'headline' => $this->generateOptimizedTitle($asinData),
+            '@context'    => 'https://schema.org',
+            '@type'       => 'AnalysisNewsArticle',
+            'headline'    => $this->generateOptimizedTitle($asinData),
             'description' => $this->generateOptimizedDescription($asinData),
-            'author' => [
+            'author'      => [
                 '@type' => 'Organization',
-                'name' => 'Null Fake',
-                'url' => url('/')
+                'name'  => 'Null Fake',
+                'url'   => url('/'),
             ],
             'publisher' => [
                 '@type' => 'Organization',
-                'name' => 'Null Fake',
-                'logo' => [
+                'name'  => 'Null Fake',
+                'logo'  => [
                     '@type' => 'ImageObject',
-                    'url' => url('/img/nullfake.svg')
-                ]
+                    'url'   => url('/img/nullfake.svg'),
+                ],
             ],
             'datePublished' => $asinData->updated_at->toISOString(),
-            'dateModified' => $asinData->updated_at->toISOString(),
-            'about' => [
-                '@type' => 'Product',
-                'name' => $asinData->product_title ?? 'Amazon Product',
-                'identifier' => $asinData->asin
+            'dateModified'  => $asinData->updated_at->toISOString(),
+            'about'         => [
+                '@type'      => 'Product',
+                'name'       => $asinData->product_title ?? 'Amazon Product',
+                'identifier' => $asinData->asin,
             ],
             'mentions' => [
                 ['@type' => 'Thing', 'name' => 'Fake Reviews'],
                 ['@type' => 'Thing', 'name' => 'Review Analysis'],
                 ['@type' => 'Thing', 'name' => 'Amazon Product Reviews'],
                 ['@type' => 'Thing', 'name' => 'Artificial Intelligence'],
-                ['@type' => 'Thing', 'name' => 'Machine Learning']
-            ]
+                ['@type' => 'Thing', 'name' => 'Machine Learning'],
+            ],
         ];
     }
 
     /**
-     * Generate dataset schema for AI crawlers
+     * Generate dataset schema for AI crawlers.
      */
     private function generateDatasetSchema(AsinData $asinData): array
     {
         return [
-            '@context' => 'https://schema.org',
-            '@type' => 'Dataset',
-            'name' => 'Amazon Product Review Analysis Data',
-            'description' => 'Comprehensive fake review analysis dataset for ' . ($asinData->product_title ?? 'Amazon Product'),
-            'creator' => [
-                '@type' => 'Organization',
-                'name' => 'Null Fake',
-                'description' => 'AI-powered Amazon review authenticity analysis platform'
+            '@context'    => 'https://schema.org',
+            '@type'       => 'Dataset',
+            'name'        => 'Amazon Product Review Analysis Data',
+            'description' => 'Comprehensive fake review analysis dataset for '.($asinData->product_title ?? 'Amazon Product'),
+            'creator'     => [
+                '@type'       => 'Organization',
+                'name'        => 'Null Fake',
+                'description' => 'AI-powered Amazon review authenticity analysis platform',
             ],
             'temporalCoverage' => $asinData->updated_at->toISOString(),
-            'spatialCoverage' => strtoupper($asinData->country ?? 'US'),
+            'spatialCoverage'  => strtoupper($asinData->country ?? 'US'),
             'variableMeasured' => [
                 [
-                    '@type' => 'PropertyValue',
-                    'name' => 'fake_review_percentage',
-                    'value' => $asinData->fake_percentage ?? 0,
-                    'unitText' => 'percent',
-                    'description' => 'Percentage of reviews identified as potentially fake or inauthentic'
+                    '@type'       => 'PropertyValue',
+                    'name'        => 'fake_review_percentage',
+                    'value'       => $asinData->fake_percentage ?? 0,
+                    'unitText'    => 'percent',
+                    'description' => 'Percentage of reviews identified as potentially fake or inauthentic',
                 ],
                 [
-                    '@type' => 'PropertyValue',
-                    'name' => 'authenticity_grade',
-                    'value' => $asinData->grade ?? 'N/A',
-                    'description' => 'Letter grade (A-F) representing overall review authenticity'
+                    '@type'       => 'PropertyValue',
+                    'name'        => 'authenticity_grade',
+                    'value'       => $asinData->grade ?? 'N/A',
+                    'description' => 'Letter grade (A-F) representing overall review authenticity',
                 ],
                 [
-                    '@type' => 'PropertyValue',
-                    'name' => 'adjusted_rating',
-                    'value' => $asinData->adjusted_rating ?? 0,
-                    'unitText' => 'stars',
-                    'description' => 'Product rating adjusted for fake review removal'
-                ]
+                    '@type'       => 'PropertyValue',
+                    'name'        => 'adjusted_rating',
+                    'value'       => $asinData->adjusted_rating ?? 0,
+                    'unitText'    => 'stars',
+                    'description' => 'Product rating adjusted for fake review removal',
+                ],
             ],
-            'license' => 'https://creativecommons.org/licenses/by/4.0/',
+            'license'   => 'https://creativecommons.org/licenses/by/4.0/',
             'isBasedOn' => [
-                '@type' => 'Product',
-                'name' => $asinData->product_title ?? 'Amazon Product',
-                'identifier' => $asinData->asin
-            ]
+                '@type'      => 'Product',
+                'name'       => $asinData->product_title ?? 'Amazon Product',
+                'identifier' => $asinData->asin,
+            ],
         ];
     }
 
     /**
-     * Generate FAQ schema for common questions
+     * Generate FAQ schema for common questions.
      */
     private function generateFAQSchema(AsinData $asinData): array
     {
         $qaData = $this->generateQuestionAnswers($asinData);
-        
-        $faqItems = array_map(function($qa) {
+
+        $faqItems = array_map(function ($qa) {
             return [
-                '@type' => 'Question',
-                'name' => $qa['question'],
+                '@type'          => 'Question',
+                'name'           => $qa['question'],
                 'acceptedAnswer' => [
                     '@type' => 'Answer',
-                    'text' => $qa['answer']
-                ]
+                    'text'  => $qa['answer'],
+                ],
             ];
         }, $qaData);
 
         return [
-            '@context' => 'https://schema.org',
-            '@type' => 'FAQPage',
-            'mainEntity' => $faqItems
+            '@context'   => 'https://schema.org',
+            '@type'      => 'FAQPage',
+            'mainEntity' => $faqItems,
         ];
     }
 
     /**
-     * Generate HowTo schema for understanding the analysis process
+     * Generate HowTo schema for understanding the analysis process.
      */
     private function generateHowToSchema(AsinData $asinData): array
     {
         return [
-            '@context' => 'https://schema.org',
-            '@type' => 'HowTo',
-            'name' => 'How to Analyze Amazon Product Reviews for Authenticity',
+            '@context'    => 'https://schema.org',
+            '@type'       => 'HowTo',
+            'name'        => 'How to Analyze Amazon Product Reviews for Authenticity',
             'description' => 'Step-by-step process for detecting fake reviews using AI analysis',
-            'step' => [
+            'step'        => [
                 [
                     '@type' => 'HowToStep',
-                    'name' => 'Data Collection',
-                    'text' => 'Collect product reviews and metadata from Amazon'
+                    'name'  => 'Data Collection',
+                    'text'  => 'Collect product reviews and metadata from Amazon',
                 ],
                 [
                     '@type' => 'HowToStep',
-                    'name' => 'AI Analysis',
-                    'text' => 'Apply machine learning algorithms to detect patterns indicative of fake reviews'
+                    'name'  => 'AI Analysis',
+                    'text'  => 'Apply machine learning algorithms to detect patterns indicative of fake reviews',
                 ],
                 [
                     '@type' => 'HowToStep',
-                    'name' => 'Scoring',
-                    'text' => 'Calculate authenticity scores and assign letter grades based on analysis results'
+                    'name'  => 'Scoring',
+                    'text'  => 'Calculate authenticity scores and assign letter grades based on analysis results',
                 ],
                 [
                     '@type' => 'HowToStep',
-                    'name' => 'Verification',
-                    'text' => 'Cross-validate results using multiple detection techniques for accuracy'
-                ]
+                    'name'  => 'Verification',
+                    'text'  => 'Cross-validate results using multiple detection techniques for accuracy',
+                ],
             ],
             'totalTime' => 'PT5M',
-            'tool' => [
+            'tool'      => [
                 [
                     '@type' => 'HowToTool',
-                    'name' => 'Artificial Intelligence'
+                    'name'  => 'Artificial Intelligence',
                 ],
                 [
                     '@type' => 'HowToTool',
-                    'name' => 'Natural Language Processing'
+                    'name'  => 'Natural Language Processing',
                 ],
                 [
                     '@type' => 'HowToTool',
-                    'name' => 'Machine Learning'
-                ]
-            ]
+                    'name'  => 'Machine Learning',
+                ],
+            ],
         ];
     }
 
     /**
-     * Generate social media optimized title
+     * Generate social media optimized title.
      */
     private function generateSocialTitle(AsinData $asinData): string
     {
@@ -561,18 +568,18 @@ class SEOService
     }
 
     /**
-     * Generate social media optimized description
+     * Generate social media optimized description.
      */
     private function generateSocialDescription(AsinData $asinData): string
     {
         $reviewCount = count($asinData->getReviewsArray());
         $fakePercentage = $asinData->fake_percentage ?? 0;
-        
+
         return "AI analysis of {$reviewCount} reviews reveals {$fakePercentage}% are potentially fake. Get the real story behind Amazon product reviews with our comprehensive authenticity analysis.";
     }
 
     /**
-     * Generate review summary for meta description using enhanced analysis
+     * Generate review summary for meta description using enhanced analysis.
      */
     private function generateReviewSummary(AsinData $asinData): string
     {
@@ -585,9 +592,9 @@ class SEOService
             // Extract first sentence from enhanced explanation for meta description
             $sentences = explode('.', $asinData->explanation);
             $firstSentence = trim($sentences[0] ?? '');
-            
+
             if (strlen($firstSentence) > 20 && strlen($firstSentence) < 150) {
-                return $firstSentence . ". Grade {$grade} authenticity analysis with AI-powered detection.";
+                return $firstSentence.". Grade {$grade} authenticity analysis with AI-powered detection.";
             }
         }
 
@@ -595,50 +602,50 @@ class SEOService
     }
 
     /**
-     * Generate home page SEO data
+     * Generate home page SEO data.
      */
     public function generateHomeSEOData(): array
     {
         return [
-            'meta_title' => 'Null Fake - AI-Powered Amazon Review Analysis | Detect Fake Reviews Instantly',
+            'meta_title'       => 'Null Fake - AI-Powered Amazon Review Analysis | Detect Fake Reviews Instantly',
             'meta_description' => 'Discover fake Amazon reviews with AI analysis across 14+ countries. Get authenticity grades, trust scores, and adjusted ratings. Analyze US, Canada, Germany, France, UK, Japan, and more.',
-            'keywords' => 'amazon review analysis, fake review detector, ai review analysis, amazon authenticity checker, product review trust, amazon international, review analyzer, ai fake review, e-commerce trust, product authenticity',
-            'structured_data' => $this->generateHomeStructuredData(),
-            'ai_summary' => 'Null Fake is an AI-powered platform that analyzes Amazon product reviews for authenticity across multiple countries. Using advanced machine learning and natural language processing, it detects fake, AI-generated, or manipulated reviews to help consumers make informed purchasing decisions.',
+            'keywords'         => 'amazon review analysis, fake review detector, ai review analysis, amazon authenticity checker, product review trust, amazon international, review analyzer, ai fake review, e-commerce trust, product authenticity',
+            'structured_data'  => $this->generateHomeStructuredData(),
+            'ai_summary'       => 'Null Fake is an AI-powered platform that analyzes Amazon product reviews for authenticity across multiple countries. Using advanced machine learning and natural language processing, it detects fake, AI-generated, or manipulated reviews to help consumers make informed purchasing decisions.',
             'question_answers' => [
                 [
                     'question' => 'How does AI detect fake Amazon reviews?',
-                    'answer' => 'Our AI uses natural language processing, pattern recognition, and machine learning to analyze review text, reviewer behavior, timing patterns, and linguistic authenticity markers to identify potentially fake or manipulated reviews.'
+                    'answer'   => 'Our AI uses natural language processing, pattern recognition, and machine learning to analyze review text, reviewer behavior, timing patterns, and linguistic authenticity markers to identify potentially fake or manipulated reviews.',
                 ],
                 [
                     'question' => 'Which Amazon countries are supported?',
-                    'answer' => 'We support Amazon analysis for US, Canada, Germany, France, UK, Italy, Spain, Japan, Australia, Mexico, India, Singapore, Brazil, Netherlands, and more international Amazon domains.'
+                    'answer'   => 'We support Amazon analysis for US, Canada, Germany, France, UK, Italy, Spain, Japan, Australia, Mexico, India, Singapore, Brazil, Netherlands, and more international Amazon domains.',
                 ],
                 [
                     'question' => 'What is a review authenticity grade?',
-                    'answer' => 'Our grading system (A-F) represents overall review authenticity. Grade A indicates highly authentic reviews, while Grade F suggests significant fake review presence. Grade U means unanalyzable due to insufficient data.'
-                ]
-            ]
+                    'answer'   => 'Our grading system (A-F) represents overall review authenticity. Grade A indicates highly authentic reviews, while Grade F suggests significant fake review presence. Grade U means unanalyzable due to insufficient data.',
+                ],
+            ],
         ];
     }
 
     /**
-     * Generate home page structured data
+     * Generate home page structured data.
      */
     private function generateHomeStructuredData(): array
     {
         return [
-            '@context' => 'https://schema.org',
-            '@type' => 'WebApplication',
-            'name' => 'Null Fake - Amazon Review Analysis',
-            'description' => 'AI-powered Amazon review analyzer that detects fake, AI-generated, or suspicious reviews across multiple countries',
-            'url' => url('/'),
+            '@context'            => 'https://schema.org',
+            '@type'               => 'WebApplication',
+            'name'                => 'Null Fake - Amazon Review Analysis',
+            'description'         => 'AI-powered Amazon review analyzer that detects fake, AI-generated, or suspicious reviews across multiple countries',
+            'url'                 => url('/'),
             'applicationCategory' => 'UtilitiesApplication',
-            'operatingSystem' => 'Web Browser',
-            'offers' => [
-                '@type' => 'Offer',
-                'price' => '0',
-                'priceCurrency' => 'USD'
+            'operatingSystem'     => 'Web Browser',
+            'offers'              => [
+                '@type'         => 'Offer',
+                'price'         => '0',
+                'priceCurrency' => 'USD',
             ],
             'featureList' => [
                 'AI-powered fake review detection',
@@ -646,12 +653,12 @@ class SEOService
                 'Authenticity grading system',
                 'Trust score calculation',
                 'Adjusted rating computation',
-                'Real-time analysis'
+                'Real-time analysis',
             ],
             'creator' => [
                 '@type' => 'Organization',
-                'name' => 'Null Fake'
-            ]
+                'name'  => 'Null Fake',
+            ],
         ];
     }
 
@@ -687,22 +694,23 @@ class SEOService
         $formatted = str_replace(["\n\n", "\n"], [' ', ' '], $explanation);
         $formatted = preg_replace('/\s+/', ' ', $formatted); // Normalize whitespace
         $formatted = trim($formatted);
-        
+
         // Limit length for meta descriptions (150-160 chars is optimal)
         if (strlen($formatted) > 300) {
             $sentences = explode('.', $formatted);
             $result = '';
             foreach ($sentences as $sentence) {
                 $sentence = trim($sentence);
-                if (strlen($result . $sentence . '. ') <= 280) {
-                    $result .= $sentence . '. ';
+                if (strlen($result.$sentence.'. ') <= 280) {
+                    $result .= $sentence.'. ';
                 } else {
                     break;
                 }
             }
+
             return trim($result);
         }
-        
+
         return $formatted;
     }
 
@@ -713,11 +721,11 @@ class SEOService
     {
         $baseDescription = $this->generateReviewSummary($asinData);
         $productInsights = $this->extractProductInsights($asinData);
-        
+
         if ($productInsights) {
-            return $baseDescription . ' ' . $productInsights;
+            return $baseDescription.' '.$productInsights;
         }
-        
+
         return $baseDescription;
     }
 
@@ -727,12 +735,12 @@ class SEOService
     private function gradeToNumericRating(string $grade): int
     {
         return match ($grade) {
-            'A' => 5,
-            'B' => 4,
-            'C' => 3,
-            'D' => 2,
-            'F' => 1,
-            'U' => 0,
+            'A'     => 5,
+            'B'     => 4,
+            'C'     => 3,
+            'D'     => 2,
+            'F'     => 1,
+            'U'     => 0,
             default => 3
         };
     }
@@ -757,9 +765,9 @@ class SEOService
     private function getBaseProductProperties(AsinData $asinData): array
     {
         return [
-            ['@type' => 'PropertyValue', 'name' => 'Fake Review Percentage', 'value' => ($asinData->fake_percentage ?? 0) . '%'],
+            ['@type' => 'PropertyValue', 'name' => 'Fake Review Percentage', 'value' => ($asinData->fake_percentage ?? 0).'%'],
             ['@type' => 'PropertyValue', 'name' => 'Authenticity Grade', 'value' => $asinData->grade ?? 'N/A'],
-            ['@type' => 'PropertyValue', 'name' => 'Trust Score', 'value' => $this->calculateTrustScore($asinData) . '/100']
+            ['@type' => 'PropertyValue', 'name' => 'Trust Score', 'value' => $this->calculateTrustScore($asinData).'/100'],
         ];
     }
 

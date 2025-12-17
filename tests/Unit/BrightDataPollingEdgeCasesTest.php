@@ -14,7 +14,7 @@ use Tests\TestCase;
 
 /**
  * Tests for BrightData polling edge cases that could cause undefined variable errors.
- * 
+ *
  * These tests specifically target scenarios that were missed in the original test suite:
  * 1. Unknown/unexpected status values during polling
  * 2. RequestException during polling attempts
@@ -55,14 +55,14 @@ class BrightDataPollingEdgeCasesTest extends TestCase
 
         // Mock unknown status (this triggers the line 508 bug path)
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'unknown_status', // This is the key - not 'running', 'ready', 'failed'
-            'records' => 0
+            'status'  => 'unknown_status', // This is the key - not 'running', 'ready', 'failed'
+            'records' => 0,
         ])));
 
         // Mock second polling attempt with completion
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0
+            'status'  => 'ready',
+            'records' => 0,
         ])));
 
         // Mock empty data fetch
@@ -87,19 +87,19 @@ class BrightDataPollingEdgeCasesTest extends TestCase
 
         // Mock multiple unknown statuses
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'initializing',
-            'records' => 0
+            'status'  => 'initializing',
+            'records' => 0,
         ])));
 
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'pending',
-            'records' => 0
+            'status'  => 'pending',
+            'records' => 0,
         ])));
 
         // Final status check after max attempts
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'timeout',
-            'records' => 0
+            'status'  => 'timeout',
+            'records' => 0,
         ])));
 
         // This should handle multiple unknown statuses without undefined variable errors
@@ -126,8 +126,8 @@ class BrightDataPollingEdgeCasesTest extends TestCase
 
         // Mock second polling attempt with completion
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0
+            'status'  => 'ready',
+            'records' => 0,
         ])));
 
         // Mock empty data fetch
@@ -163,8 +163,8 @@ class BrightDataPollingEdgeCasesTest extends TestCase
 
         // Final status check after max attempts
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'failed',
-            'records' => 0
+            'status'  => 'failed',
+            'records' => 0,
         ])));
 
         // This should handle multiple exceptions without undefined variable errors
@@ -185,8 +185,8 @@ class BrightDataPollingEdgeCasesTest extends TestCase
 
         // Mix of unknown status and exception
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'weird_status',
-            'records' => 0
+            'status'  => 'weird_status',
+            'records' => 0,
         ])));
 
         $this->mockHandler->append(new RequestException(
@@ -196,8 +196,8 @@ class BrightDataPollingEdgeCasesTest extends TestCase
 
         // Final status check
         $this->mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0
+            'status'  => 'ready',
+            'records' => 0,
         ])));
 
         // Mock empty data fetch
@@ -235,14 +235,14 @@ class BrightDataPollingEdgeCasesTest extends TestCase
 
         // Mock unknown status to trigger sleep($this->pollInterval) path
         $mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'unknown',
-            'records' => 0
+            'status'  => 'unknown',
+            'records' => 0,
         ])));
 
         // Final status check
         $mockHandler->append(new Response(200, [], json_encode([
-            'status' => 'ready',
-            'records' => 0
+            'status'  => 'ready',
+            'records' => 0,
         ])));
 
         // Mock empty data fetch

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Jobs\ProcessProductAnalysis;
 use App\Models\AnalysisSession;
-use App\Services\CaptchaService;
 use App\Services\ReviewAnalysisService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;

@@ -49,7 +49,7 @@ class GradeCalculationService
 
     /**
      * Get grade description.
-     * 
+     *
      * Descriptions are framed positively, focusing on authenticity rate.
      *
      * @param string $grade

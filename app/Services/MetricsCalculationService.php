@@ -28,17 +28,17 @@ class MetricsCalculationService
 
         // Check if this is aggregate format (new) or individual format (legacy)
         $aggregateData = $this->extractAggregateData($openaiResult);
-        
+
         if (!empty($aggregateData)) {
             // Use aggregate analysis data directly
             $fakePercentage = (float) $aggregateData['fake_percentage'];
             $totalReviews = count($reviews);
             $fakeCount = round(($fakePercentage / 100) * $totalReviews);
-            
+
             // Calculate ratings (simplified since we don't have per-review scores)
             $averageRating = $this->calculateAverageRating($reviews);
             $adjustedRating = $this->calculateAdjustedRatingFromPercentage($averageRating, $fakePercentage);
-            
+
             // Use LLM's enhanced explanation and add product insights
             $grade = $this->gradeService->calculateGrade($fakePercentage);
             $explanation = $this->buildEnhancedExplanation($aggregateData, $totalReviews, $fakeCount, $fakePercentage);
@@ -80,12 +80,12 @@ class MetricsCalculationService
                 'first_analyzed_at' => $asinData->first_analyzed_at ?? now(),
                 'last_analyzed_at'  => now(),
             ];
-            
+
             // Add product insights if available from aggregate data
             if (!empty($aggregateData) && !empty($aggregateData['product_insights'])) {
                 $updateData['product_insights'] = $aggregateData['product_insights'];
             }
-            
+
             $asinData->update($updateData);
         }
 
@@ -246,7 +246,7 @@ class MetricsCalculationService
 
     /**
      * Generate explanation text for the analysis with proper paragraph breaks.
-     * 
+     *
      * Explanations are designed to be balanced and informative, leading with
      * genuine indicators rather than assuming suspicion.
      */
@@ -254,7 +254,7 @@ class MetricsCalculationService
     {
         $genuinePercentage = 100 - $fakePercentage;
         $genuineCount = $totalReviews - $fakeCount;
-        
+
         $paragraph1 = "Analysis of {$totalReviews} reviews found approximately {$genuineCount} genuine reviews (".round($genuinePercentage, 1).'% authenticity rate). ';
 
         if ($fakePercentage <= 15) {
@@ -279,7 +279,7 @@ class MetricsCalculationService
             $paragraph3 = 'Genuine customer feedback may be present but is overshadowed by suspicious content. We recommend thorough research from multiple sources before making a purchase decision.';
         }
 
-        return $paragraph1 . "\n\n" . $paragraph2 . "\n\n" . $paragraph3;
+        return $paragraph1."\n\n".$paragraph2."\n\n".$paragraph3;
     }
 
     /**
@@ -289,18 +289,18 @@ class MetricsCalculationService
     {
         // Start with LLM's detailed explanation if available
         $explanation = $aggregateData['explanation'] ?? $this->generateExplanation($totalReviews, $fakeCount, $fakePercentage);
-        
+
         // Add product insights if available (for SEO enhancement)
         if (!empty($aggregateData['product_insights'])) {
-            $explanation .= "\n\nProduct Analysis: " . $aggregateData['product_insights'];
+            $explanation .= "\n\nProduct Analysis: ".$aggregateData['product_insights'];
         }
-        
+
         // Add key patterns summary if available
         if (!empty($aggregateData['key_patterns']) && is_array($aggregateData['key_patterns'])) {
             $patterns = implode(', ', array_slice($aggregateData['key_patterns'], 0, 3)); // Limit to 3 patterns
-            $explanation .= "\n\nKey patterns identified in the review analysis include: " . $patterns . ".";
+            $explanation .= "\n\nKey patterns identified in the review analysis include: ".$patterns.'.';
         }
-        
+
         return $explanation;
     }
 }

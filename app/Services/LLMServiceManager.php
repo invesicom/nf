@@ -226,7 +226,7 @@ class LLMServiceManager
             LoggingService::log("Cache operation failed for provider success tracking: {$e->getMessage()}", [
                 'provider' => $provider->getProviderName(),
                 'duration' => $duration,
-                'cost' => $cost
+                'cost'     => $cost,
             ]);
         }
     }
@@ -253,8 +253,8 @@ class LLMServiceManager
         } catch (\Exception $e) {
             // Gracefully handle cache failures - don't let cache issues break LLM functionality
             LoggingService::log("Cache operation failed for provider failure tracking: {$e->getMessage()}", [
-                'provider' => $provider->getProviderName(),
-                'original_error' => $error
+                'provider'       => $provider->getProviderName(),
+                'original_error' => $error,
             ]);
         }
     }

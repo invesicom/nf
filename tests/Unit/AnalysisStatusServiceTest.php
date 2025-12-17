@@ -16,11 +16,11 @@ class AnalysisStatusServiceTest extends TestCase
     public function it_allows_status_change_for_non_completed_analysis(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'processing',
+            'asin'            => 'B0TEST12345',
+            'country'         => 'us',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $this->assertTrue(AnalysisStatusService::canChangeStatus($asinData, 'pending_analysis'));
@@ -31,12 +31,12 @@ class AnalysisStatusServiceTest extends TestCase
     public function it_blocks_status_change_for_completed_analysis(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'completed',
+            'asin'            => 'B0TEST12345',
+            'country'         => 'us',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
-            'reviews' => json_encode([['id' => 1, 'text' => 'Test review']]),
+            'grade'           => 'B',
+            'reviews'         => json_encode([['id' => 1, 'text' => 'Test review']]),
         ]);
 
         $this->assertFalse(AnalysisStatusService::canChangeStatus($asinData, 'pending_analysis'));
@@ -47,12 +47,12 @@ class AnalysisStatusServiceTest extends TestCase
     public function update_status_respects_completion_lock(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'completed',
+            'asin'            => 'B0TEST12345',
+            'country'         => 'us',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
-            'reviews' => json_encode([['id' => 1, 'text' => 'Test review']]),
+            'grade'           => 'B',
+            'reviews'         => json_encode([['id' => 1, 'text' => 'Test review']]),
         ]);
 
         // Attempt to change status should fail
@@ -66,11 +66,11 @@ class AnalysisStatusServiceTest extends TestCase
     public function update_status_works_for_non_completed(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'processing',
+            'asin'            => 'B0TEST12345',
+            'country'         => 'us',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         $result = AnalysisStatusService::updateStatus($asinData, 'pending_analysis');
@@ -83,11 +83,11 @@ class AnalysisStatusServiceTest extends TestCase
     public function mark_completed_requires_metrics(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'processing',
+            'asin'            => 'B0TEST12345',
+            'country'         => 'us',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         // Should fail without required metrics
@@ -100,11 +100,11 @@ class AnalysisStatusServiceTest extends TestCase
     public function mark_completed_succeeds_with_metrics(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'processing',
+            'asin'            => 'B0TEST12345',
+            'country'         => 'us',
+            'status'          => 'processing',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'grade'           => 'B',
         ]);
 
         $result = AnalysisStatusService::markCompleted($asinData);
@@ -118,12 +118,12 @@ class AnalysisStatusServiceTest extends TestCase
     public function mark_failed_does_not_overwrite_completed(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TEST12345',
-            'country' => 'us',
-            'status' => 'completed',
+            'asin'            => 'B0TEST12345',
+            'country'         => 'us',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
-            'reviews' => json_encode([['id' => 1, 'text' => 'Test review']]),
+            'grade'           => 'B',
+            'reviews'         => json_encode([['id' => 1, 'text' => 'Test review']]),
         ]);
 
         $result = AnalysisStatusService::markFailed($asinData, 'Test failure');
@@ -137,18 +137,18 @@ class AnalysisStatusServiceTest extends TestCase
     {
         // Not ready - missing data
         $incomplete = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
         $this->assertFalse(AnalysisStatusService::isReadyForDisplay($incomplete));
 
         // Ready - complete data
         $complete = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
-            'reviews' => json_encode([['id' => 1, 'text' => 'Test review']]),
+            'grade'           => 'B',
+            'reviews'         => json_encode([['id' => 1, 'text' => 'Test review']]),
         ]);
         $this->assertTrue(AnalysisStatusService::isReadyForDisplay($complete));
     }
@@ -158,28 +158,27 @@ class AnalysisStatusServiceTest extends TestCase
     {
         // Completed
         $completed = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
-            'reviews' => json_encode([['id' => 1, 'text' => 'Test review']]),
+            'grade'           => 'B',
+            'reviews'         => json_encode([['id' => 1, 'text' => 'Test review']]),
         ]);
         $this->assertEquals('completed', AnalysisStatusService::getDisplayStatus($completed));
 
         // Failed
         $failed = AsinData::factory()->create([
-            'status' => 'failed',
+            'status'          => 'failed',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
         $this->assertEquals('failed', AnalysisStatusService::getDisplayStatus($failed));
 
         // Processing (various internal states)
         $processing = AsinData::factory()->create([
-            'status' => 'pending_analysis',
+            'status'          => 'pending_analysis',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
         $this->assertEquals('processing', AnalysisStatusService::getDisplayStatus($processing));
     }
 }
-

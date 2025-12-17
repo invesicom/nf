@@ -58,7 +58,7 @@ return [
         'timeout'  => env('OLLAMA_TIMEOUT', 120),
         // Adaptive chunking for large review sets (transparent to API consumers)
         'chunking_threshold' => env('OLLAMA_CHUNKING_THRESHOLD', 80), // Reviews count that triggers chunking
-        'chunk_size' => env('OLLAMA_CHUNK_SIZE', 25), // Reviews per chunk
+        'chunk_size'         => env('OLLAMA_CHUNK_SIZE', 25), // Reviews per chunk
     ],
 
     'llm' => [
@@ -76,7 +76,7 @@ return [
     ],
 
     'extension' => [
-        'api_key' => env('EXTENSION_API_KEY'),
+        'api_key'         => env('EXTENSION_API_KEY'),
         'require_api_key' => env('EXTENSION_REQUIRE_API_KEY', true),
     ],
 

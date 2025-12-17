@@ -172,8 +172,8 @@ class AmazonProductController extends Controller
 
             return redirect()->route('amazon.product.show.slug', [
                 'country' => $country,
-                'asin' => $asin,
-                'slug' => $asinData->slug,
+                'asin'    => $asin,
+                'slug'    => $asinData->slug,
             ], 301);
         }
 

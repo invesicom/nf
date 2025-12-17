@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 /**
  * Test that background jobs never overwrite completed analysis status.
- * 
+ *
  * This prevents the race condition where:
  * 1. Main analysis completes and sets status='completed'
  * 2. Extension polls API and sees analysis_complete=true
@@ -28,12 +28,12 @@ class StatusProtectionTest extends TestCase
     {
         // Create a completed analysis
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0TESTPROT',
-            'country' => 'us',
-            'status' => 'completed',
-            'fake_percentage' => 25.5,
-            'grade' => 'B',
-            'product_title' => 'Protected Product',
+            'asin'              => 'B0TESTPROT',
+            'country'           => 'us',
+            'status'            => 'completed',
+            'fake_percentage'   => 25.5,
+            'grade'             => 'B',
+            'product_title'     => 'Protected Product',
             'have_product_data' => true,
         ]);
 
@@ -42,15 +42,15 @@ class StatusProtectionTest extends TestCase
 
         // Mock BrightData service to return new data
         $mockService = $this->createMock(BrightDataScraperService::class);
-        
+
         // Use reflection to mock the private methods
         $mockResults = [
             [
                 'reviews' => [
                     ['review_id' => '1', 'text' => 'Test review', 'rating' => 5],
                 ],
-                'product_name' => 'New Product Name',
-                'description' => 'New description',
+                'product_name'  => 'New Product Name',
+                'description'   => 'New description',
                 'total_reviews' => 100,
             ],
         ];
@@ -84,12 +84,12 @@ class StatusProtectionTest extends TestCase
     {
         // Create a completed analysis
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0EXTTEST1',
-            'country' => 'us',
-            'status' => 'completed',
-            'fake_percentage' => 30.0,
-            'grade' => 'C',
-            'product_title' => 'Original Title',
+            'asin'              => 'B0EXTTEST1',
+            'country'           => 'us',
+            'status'            => 'completed',
+            'fake_percentage'   => 30.0,
+            'grade'             => 'C',
+            'product_title'     => 'Original Title',
             'have_product_data' => true,
         ]);
 
@@ -98,30 +98,30 @@ class StatusProtectionTest extends TestCase
 
         // Try to process new extension data for the same product
         $extensionData = [
-            'asin' => 'B0EXTTEST1',
-            'country' => 'us',
-            'product_url' => 'https://www.amazon.com/dp/B0EXTTEST1',
-            'extension_version' => '1.0.0',
+            'asin'                 => 'B0EXTTEST1',
+            'country'              => 'us',
+            'product_url'          => 'https://www.amazon.com/dp/B0EXTTEST1',
+            'extension_version'    => '1.0.0',
             'extraction_timestamp' => '2024-01-01T12:00:00.000Z',
-            'reviews' => [
+            'reviews'              => [
                 [
-                    'review_id' => 'R123',
-                    'author' => 'New Reviewer',
-                    'title' => 'New Review',
-                    'content' => 'This is new review content',
-                    'rating' => 4,
-                    'date' => '2024-01-01',
+                    'review_id'         => 'R123',
+                    'author'            => 'New Reviewer',
+                    'title'             => 'New Review',
+                    'content'           => 'This is new review content',
+                    'rating'            => 4,
+                    'date'              => '2024-01-01',
                     'verified_purchase' => true,
-                    'vine_customer' => false,
-                    'helpful_votes' => 0,
-                    'extraction_index' => 1,
+                    'vine_customer'     => false,
+                    'helpful_votes'     => 0,
+                    'extraction_index'  => 1,
                 ],
             ],
             'product_info' => [
-                'title' => 'New Title From Extension',
-                'description' => 'New description',
-                'image_url' => 'https://example.com/new-image.jpg',
-                'amazon_rating' => 4.5,
+                'title'                   => 'New Title From Extension',
+                'description'             => 'New description',
+                'image_url'               => 'https://example.com/new-image.jpg',
+                'amazon_rating'           => 4.5,
                 'total_reviews_on_amazon' => 200,
             ],
         ];
@@ -133,7 +133,7 @@ class StatusProtectionTest extends TestCase
         $this->assertEquals($originalStatus, $result->status);
         $this->assertEquals($originalFakePercentage, $result->fake_percentage);
         $this->assertEquals('completed', $result->status);
-        
+
         // Title should NOT have changed
         $this->assertEquals('Original Title', $result->product_title);
     }
@@ -143,12 +143,12 @@ class StatusProtectionTest extends TestCase
     {
         // Create a completed analysis
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0BDTEST01',
-            'country' => 'us',
-            'status' => 'completed',
-            'fake_percentage' => 15.0,
-            'grade' => 'A',
-            'product_title' => 'Protected from BrightData',
+            'asin'              => 'B0BDTEST01',
+            'country'           => 'us',
+            'status'            => 'completed',
+            'fake_percentage'   => 15.0,
+            'grade'             => 'A',
+            'product_title'     => 'Protected from BrightData',
             'have_product_data' => true,
         ]);
 
@@ -162,7 +162,7 @@ class StatusProtectionTest extends TestCase
         // Status should NOT have changed to 'processing'
         $this->assertEquals($originalStatus, $result->status);
         $this->assertEquals('completed', $result->status);
-        
+
         // Job should not have been dispatched since already completed
         Queue::assertNotPushed(\App\Jobs\TriggerBrightDataScraping::class);
     }
@@ -172,12 +172,12 @@ class StatusProtectionTest extends TestCase
     {
         // Create a completed analysis
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0MULTITEST',
-            'country' => 'us',
-            'status' => 'completed',
-            'fake_percentage' => 20.0,
-            'grade' => 'B',
-            'product_title' => 'Multi Job Protected',
+            'asin'              => 'B0MULTITEST',
+            'country'           => 'us',
+            'status'            => 'completed',
+            'fake_percentage'   => 20.0,
+            'grade'             => 'B',
+            'product_title'     => 'Multi Job Protected',
             'have_product_data' => true,
         ]);
 
@@ -189,20 +189,20 @@ class StatusProtectionTest extends TestCase
 
         // Try extension submission
         $extensionData = [
-            'asin' => 'B0MULTITEST',
-            'country' => 'us',
-            'product_url' => 'https://www.amazon.com/dp/B0MULTITEST',
-            'extension_version' => '1.0.0',
+            'asin'                 => 'B0MULTITEST',
+            'country'              => 'us',
+            'product_url'          => 'https://www.amazon.com/dp/B0MULTITEST',
+            'extension_version'    => '1.0.0',
             'extraction_timestamp' => '2024-01-01T12:00:00.000Z',
-            'reviews' => [],
-            'product_info' => [
-                'title' => 'Should Not Update',
+            'reviews'              => [],
+            'product_info'         => [
+                'title'                   => 'Should Not Update',
                 'total_reviews_on_amazon' => 0,
             ],
         ];
 
         $result1 = $extensionService->processExtensionData($extensionData);
-        
+
         // Try BrightData fetch
         $result2 = $brightDataService->fetchReviewsAsync('B0MULTITEST', 'us');
 
@@ -210,7 +210,7 @@ class StatusProtectionTest extends TestCase
         $this->assertEquals('completed', $result1->status);
         $this->assertEquals('completed', $result2->status);
         $this->assertEquals('Multi Job Protected', $result1->product_title);
-        
+
         // Verify final state
         $asinData->refresh();
         $this->assertEquals('completed', $asinData->status);
@@ -223,36 +223,36 @@ class StatusProtectionTest extends TestCase
     {
         // Create a product that's NOT completed yet
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0NOTDONE1',
-            'country' => 'us',
-            'status' => 'fetched',
+            'asin'            => 'B0NOTDONE1',
+            'country'         => 'us',
+            'status'          => 'fetched',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         // This should be allowed to change status
         $extensionData = [
-            'asin' => 'B0NOTDONE1',
-            'country' => 'us',
-            'product_url' => 'https://www.amazon.com/dp/B0NOTDONE1',
-            'extension_version' => '1.0.0',
+            'asin'                 => 'B0NOTDONE1',
+            'country'              => 'us',
+            'product_url'          => 'https://www.amazon.com/dp/B0NOTDONE1',
+            'extension_version'    => '1.0.0',
             'extraction_timestamp' => '2024-01-01T12:00:00.000Z',
-            'reviews' => [
+            'reviews'              => [
                 [
-                    'review_id' => 'R1',
-                    'author' => 'Test',
-                    'title' => 'Test',
-                    'content' => 'Content',
-                    'rating' => 5,
-                    'date' => '2024-01-01',
+                    'review_id'         => 'R1',
+                    'author'            => 'Test',
+                    'title'             => 'Test',
+                    'content'           => 'Content',
+                    'rating'            => 5,
+                    'date'              => '2024-01-01',
                     'verified_purchase' => true,
-                    'vine_customer' => false,
-                    'helpful_votes' => 0,
-                    'extraction_index' => 1,
+                    'vine_customer'     => false,
+                    'helpful_votes'     => 0,
+                    'extraction_index'  => 1,
                 ],
             ],
             'product_info' => [
-                'title' => 'New Title',
+                'title'                   => 'New Title',
                 'total_reviews_on_amazon' => 10,
             ],
         ];
@@ -270,33 +270,33 @@ class StatusProtectionTest extends TestCase
     {
         // Not completed - missing grade
         $notComplete1 = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => null,
+            'grade'           => null,
         ]);
         $this->assertFalse($notComplete1->isAnalyzed());
 
         // Not completed - missing fake_percentage
         $notComplete2 = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'          => 'completed',
             'fake_percentage' => null,
-            'grade' => 'B',
+            'grade'           => 'B',
         ]);
         $this->assertFalse($notComplete2->isAnalyzed());
 
         // Not completed - wrong status
         $notComplete3 = AsinData::factory()->create([
-            'status' => 'processing',
+            'status'          => 'processing',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'grade'           => 'B',
         ]);
         $this->assertFalse($notComplete3->isAnalyzed());
 
         // Properly completed
         $completed = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'          => 'completed',
             'fake_percentage' => 25.0,
-            'grade' => 'B',
+            'grade'           => 'B',
         ]);
         $this->assertTrue($completed->isAnalyzed());
     }
@@ -305,12 +305,12 @@ class StatusProtectionTest extends TestCase
     public function completed_products_maintain_status_through_refresh(): void
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0REFRESH1',
-            'country' => 'us',
-            'status' => 'completed',
-            'fake_percentage' => 35.0,
-            'grade' => 'D',
-            'product_title' => 'Refresh Test',
+            'asin'              => 'B0REFRESH1',
+            'country'           => 'us',
+            'status'            => 'completed',
+            'fake_percentage'   => 35.0,
+            'grade'             => 'D',
+            'product_title'     => 'Refresh Test',
             'have_product_data' => true,
         ]);
 
@@ -341,18 +341,18 @@ class StatusProtectionTest extends TestCase
 
         // Step 1: Extension submission creates initial record
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0RACECOND',
-            'country' => 'us',
-            'status' => 'fetched',
+            'asin'            => 'B0RACECOND',
+            'country'         => 'us',
+            'status'          => 'fetched',
             'fake_percentage' => null,
-            'grade' => null,
+            'grade'           => null,
         ]);
 
         // Step 2: Main analysis completes
         $asinData->update([
-            'status' => 'completed',
-            'fake_percentage' => 28.0,
-            'grade' => 'C',
+            'status'            => 'completed',
+            'fake_percentage'   => 28.0,
+            'grade'             => 'C',
             'have_product_data' => true,
         ]);
 
@@ -364,14 +364,14 @@ class StatusProtectionTest extends TestCase
 
         // Step 4: Background job tries to update (late arrival)
         $extensionData = [
-            'asin' => 'B0RACECOND',
-            'country' => 'us',
-            'product_url' => 'https://www.amazon.com/dp/B0RACECOND',
-            'extension_version' => '1.0.0',
+            'asin'                 => 'B0RACECOND',
+            'country'              => 'us',
+            'product_url'          => 'https://www.amazon.com/dp/B0RACECOND',
+            'extension_version'    => '1.0.0',
             'extraction_timestamp' => '2024-01-01T12:00:00.000Z',
-            'reviews' => [],
-            'product_info' => [
-                'title' => 'Late Update',
+            'reviews'              => [],
+            'product_info'         => [
+                'title'                   => 'Late Update',
                 'total_reviews_on_amazon' => 50,
             ],
         ];
@@ -383,7 +383,7 @@ class StatusProtectionTest extends TestCase
         $this->assertEquals('completed', $result->status);
         $this->assertEquals(28.0, $result->fake_percentage);
         $this->assertEquals('C', $result->grade);
-        
+
         // Final verification
         $finalCheck = AsinData::where('asin', 'B0RACECOND')->where('country', 'us')->first();
         $this->assertTrue($finalCheck->isAnalyzed());

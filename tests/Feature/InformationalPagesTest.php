@@ -59,12 +59,12 @@ class InformationalPagesTest extends TestCase
             '/free-amazon-fake-review-checker',
             '/how-it-works',
             '/fakespot-alternative',
-            '/faq'
+            '/faq',
         ];
 
         foreach ($pages as $page) {
             $response = $this->get($page);
-            
+
             $response->assertStatus(200);
             $response->assertSee('application/ld+json', false);
             $response->assertSee('@context', false);
@@ -77,21 +77,21 @@ class InformationalPagesTest extends TestCase
     {
         $pages = [
             '/free-amazon-fake-review-checker' => ['Free Amazon Fake Review Checker', 'No sign-up'],
-            '/how-it-works' => ['How Null Fake Detects', 'Analysis Process'],
-            '/fakespot-alternative' => ['Fakespot Alternative', 'Why Choose'],
-            '/faq' => ['Frequently Asked Questions', 'Is Null Fake really free']
+            '/how-it-works'                    => ['How Null Fake Detects', 'Analysis Process'],
+            '/fakespot-alternative'            => ['Fakespot Alternative', 'Why Choose'],
+            '/faq'                             => ['Frequently Asked Questions', 'Is Null Fake really free'],
         ];
 
         foreach ($pages as $url => $expectedContent) {
             $response = $this->get($url);
-            
+
             $response->assertStatus(200);
-            
+
             // Verify core content is present
             foreach ($expectedContent as $content) {
                 $response->assertSee($content);
             }
-            
+
             // Verify standard meta tags
             $response->assertSee('<meta name="description"', false);
             $response->assertSee('<meta name="keywords"', false);
@@ -103,7 +103,7 @@ class InformationalPagesTest extends TestCase
     public function all_informational_pages_are_included_in_sitemap()
     {
         $response = $this->get('/sitemap-static.xml');
-        
+
         $response->assertStatus(200);
         $response->assertSee('/free-amazon-fake-review-checker');
         $response->assertSee('/how-it-works');
@@ -116,14 +116,14 @@ class InformationalPagesTest extends TestCase
     {
         $pages = [
             '/free-amazon-fake-review-checker' => 'Free Amazon Fake Review Checker',
-            '/how-it-works' => 'How It Works',
-            '/fakespot-alternative' => 'Fakespot Alternative',
-            '/faq' => 'FAQ'
+            '/how-it-works'                    => 'How It Works',
+            '/fakespot-alternative'            => 'Fakespot Alternative',
+            '/faq'                             => 'FAQ',
         ];
 
         foreach ($pages as $url => $expectedTitle) {
             $response = $this->get($url);
-            
+
             $response->assertStatus(200);
             $response->assertSee('<meta name="description"', false);
             $response->assertSee('<meta name="robots"', false);
@@ -140,18 +140,18 @@ class InformationalPagesTest extends TestCase
             '/free-amazon-fake-review-checker',
             '/how-it-works',
             '/fakespot-alternative',
-            '/faq'
+            '/faq',
         ];
 
         foreach ($pages as $page) {
             $response = $this->get($page);
-            
+
             $response->assertStatus(200);
             // Check for header navigation
             $response->assertSee('Home');
             $response->assertSee('All Products');
             $response->assertSee('Contact');
-            
+
             // Check for footer
             $response->assertSee('built with');
             $response->assertSee('shift8web.ca');
@@ -162,7 +162,7 @@ class InformationalPagesTest extends TestCase
     public function faq_page_includes_proper_faq_schema()
     {
         $response = $this->get('/faq');
-        
+
         $response->assertStatus(200);
         $response->assertSee('"@type": "FAQPage"', false);
         $response->assertSee('"@type": "Question"', false);
@@ -173,7 +173,7 @@ class InformationalPagesTest extends TestCase
     public function how_it_works_page_includes_howto_schema()
     {
         $response = $this->get('/how-it-works');
-        
+
         $response->assertStatus(200);
         $response->assertSee('"@type": "HowTo"', false);
         $response->assertSee('"@type": "HowToStep"', false);
@@ -183,10 +183,9 @@ class InformationalPagesTest extends TestCase
     public function free_checker_page_includes_software_application_schema()
     {
         $response = $this->get('/free-amazon-fake-review-checker');
-        
+
         $response->assertStatus(200);
         $response->assertSee('"@type": "SoftwareApplication"', false);
         $response->assertSee('"price": "0"', false);
     }
 }
-

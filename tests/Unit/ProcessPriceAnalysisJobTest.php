@@ -22,19 +22,19 @@ class ProcessPriceAnalysisJobTest extends TestCase
     {
         $content = json_encode([
             'msrp_analysis' => [
-                'estimated_msrp' => '$49.99',
-                'msrp_source' => 'Category average',
+                'estimated_msrp'          => '$49.99',
+                'msrp_source'             => 'Category average',
                 'amazon_price_assessment' => 'Below MSRP',
             ],
             'market_comparison' => [
-                'price_positioning' => 'Mid-range',
+                'price_positioning'          => 'Mid-range',
                 'typical_alternatives_range' => '$30-$70',
-                'value_proposition' => 'Good value.',
+                'value_proposition'          => 'Good value.',
             ],
             'price_insights' => [
                 'seasonal_consideration' => 'N/A',
-                'deal_indicators' => 'N/A',
-                'caution_flags' => 'N/A',
+                'deal_indicators'        => 'N/A',
+                'caution_flags'          => 'N/A',
             ],
             'summary' => 'Competitively priced product.',
         ]);
@@ -55,8 +55,8 @@ class ProcessPriceAnalysisJobTest extends TestCase
         Queue::fake();
 
         $asinData = AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
+            'status'                => 'completed',
+            'have_product_data'     => true,
             'price_analysis_status' => 'pending',
         ]);
 
@@ -99,9 +99,9 @@ class ProcessPriceAnalysisJobTest extends TestCase
         $this->mockAllLLMProviders();
 
         $asinData = AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
-            'product_title' => 'Test Product',
+            'status'                => 'completed',
+            'have_product_data'     => true,
+            'product_title'         => 'Test Product',
             'price_analysis_status' => 'pending',
         ]);
 
@@ -131,9 +131,9 @@ class ProcessPriceAnalysisJobTest extends TestCase
         ]);
 
         $asinData = AsinData::factory()->create([
-            'status' => 'completed',
-            'have_product_data' => true,
-            'product_title' => 'Test Product',
+            'status'                => 'completed',
+            'have_product_data'     => true,
+            'product_title'         => 'Test Product',
             'price_analysis_status' => 'pending',
         ]);
 
@@ -156,4 +156,3 @@ class ProcessPriceAnalysisJobTest extends TestCase
         $this->assertContains('asin:123', $tags);
     }
 }
-

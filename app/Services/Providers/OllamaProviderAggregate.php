@@ -24,13 +24,13 @@ class OllamaProviderAggregate implements LLMProviderInterface
     {
         if (empty($reviews)) {
             return [
-                'fake_percentage' => 0.0,
-                'confidence' => 'high',
-                'explanation' => 'No reviews to analyze',
-                'fake_examples' => [],
-                'key_patterns' => [],
-                'analysis_provider' => 'Ollama-' . $this->model,
-                'total_cost' => 0.0
+                'fake_percentage'   => 0.0,
+                'confidence'        => 'high',
+                'explanation'       => 'No reviews to analyze',
+                'fake_examples'     => [],
+                'key_patterns'      => [],
+                'analysis_provider' => 'Ollama-'.$this->model,
+                'total_cost'        => 0.0,
             ];
         }
 
@@ -57,20 +57,22 @@ class OllamaProviderAggregate implements LLMProviderInterface
 
             if ($response->successful()) {
                 $result = $response->json();
+
                 return $this->parseAggregateResponse($result);
             }
 
             $statusCode = $response->status();
             $body = $response->body();
-            
+
             // Enhanced error detection for HTML responses (service down)
             if (str_starts_with(trim($body), '<html') || str_starts_with(trim($body), '<!DOCTYPE')) {
                 throw new \Exception("Ollama service is returning HTML instead of JSON (HTTP {$statusCode}). This usually means Ollama is down or misconfigured. Check if Ollama is running on {$this->baseUrl}");
             }
-            
-            throw new \Exception("Ollama API request failed (HTTP {$statusCode}): " . substr($body, 0, 200));
+
+            throw new \Exception("Ollama API request failed (HTTP {$statusCode}): ".substr($body, 0, 200));
         } catch (\Exception $e) {
             LoggingService::log('Ollama analysis failed: '.$e->getMessage());
+
             throw $e;
         }
     }
@@ -78,13 +80,13 @@ class OllamaProviderAggregate implements LLMProviderInterface
     private function parseAggregateResponse($response): array
     {
         $content = $response['response'] ?? '';
-        
-        LoggingService::log('Ollama raw response: ' . substr($content, 0, 500) . '...');
+
+        LoggingService::log('Ollama raw response: '.substr($content, 0, 500).'...');
 
         try {
             // Try direct JSON decode first
             $result = json_decode($content, true);
-            
+
             // If direct decode fails, try extracting JSON from various formats
             if (!is_array($result)) {
                 // Try extracting from markdown code blocks
@@ -102,7 +104,7 @@ class OllamaProviderAggregate implements LLMProviderInterface
             }
 
             if (!is_array($result)) {
-                throw new \Exception('Invalid JSON response format - expected object, got: ' . gettype($result));
+                throw new \Exception('Invalid JSON response format - expected object, got: '.gettype($result));
             }
 
             // Validate required fields
@@ -110,19 +112,20 @@ class OllamaProviderAggregate implements LLMProviderInterface
                 throw new \Exception('Invalid response format - missing required fields (fake_percentage, confidence, explanation)');
             }
 
-            LoggingService::log('Ollama: Successfully parsed aggregate analysis - ' . $result['fake_percentage'] . '% fake, confidence: ' . $result['confidence']);
-            
+            LoggingService::log('Ollama: Successfully parsed aggregate analysis - '.$result['fake_percentage'].'% fake, confidence: '.$result['confidence']);
+
             return [
-                'fake_percentage' => (float) $result['fake_percentage'],
-                'confidence' => $result['confidence'],
-                'explanation' => $result['explanation'],
-                'fake_examples' => $result['fake_examples'] ?? [],
-                'key_patterns' => $result['key_patterns'] ?? [],
-                'analysis_provider' => 'Ollama-' . $this->model,
-                'total_cost' => 0.0 // Ollama is free
+                'fake_percentage'   => (float) $result['fake_percentage'],
+                'confidence'        => $result['confidence'],
+                'explanation'       => $result['explanation'],
+                'fake_examples'     => $result['fake_examples'] ?? [],
+                'key_patterns'      => $result['key_patterns'] ?? [],
+                'analysis_provider' => 'Ollama-'.$this->model,
+                'total_cost'        => 0.0, // Ollama is free
             ];
         } catch (\Exception $e) {
             LoggingService::log('Failed to parse Ollama response: '.$e->getMessage());
+
             throw new \Exception('Failed to parse Ollama response');
         }
     }
@@ -131,6 +134,7 @@ class OllamaProviderAggregate implements LLMProviderInterface
     {
         try {
             $response = Http::timeout(5)->get("{$this->baseUrl}/api/tags");
+
             return $response->successful();
         } catch (\Exception $e) {
             return false;
@@ -139,7 +143,7 @@ class OllamaProviderAggregate implements LLMProviderInterface
 
     public function getProviderName(): string
     {
-        return 'Ollama-' . $this->model;
+        return 'Ollama-'.$this->model;
     }
 
     public function getOptimizedMaxTokens(int $reviewCount): int

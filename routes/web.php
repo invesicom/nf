@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     $seoService = app(\App\Services\SEOService::class);
     $seoData = $seoService->generateHomeSEOData();
-    
+
     return view('home', compact('seoData'));
 })->name('home');
 

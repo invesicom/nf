@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\AsinData;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class SitemapControllerTest extends TestCase
 {
@@ -18,7 +18,7 @@ class SitemapControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/xml');
-        
+
         $content = $response->getContent();
         $this->assertStringContainsString('<?xml version="1.0" encoding="UTF-8"?>', $content);
         $this->assertStringContainsString('<sitemapindex', $content);
@@ -34,12 +34,12 @@ class SitemapControllerTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/xml');
-        
+
         $content = $response->getContent();
         $this->assertStringContainsString('<urlset', $content);
-        $this->assertStringContainsString('<loc>' . url('/') . '</loc>', $content);
-        $this->assertStringContainsString('<loc>' . url('/privacy') . '</loc>', $content);
-        $this->assertStringContainsString('<loc>' . url('/contact') . '</loc>', $content);
+        $this->assertStringContainsString('<loc>'.url('/').'</loc>', $content);
+        $this->assertStringContainsString('<loc>'.url('/privacy').'</loc>', $content);
+        $this->assertStringContainsString('<loc>'.url('/contact').'</loc>', $content);
         $this->assertStringContainsString('<priority>1.0</priority>', $content);
     }
 
@@ -48,56 +48,56 @@ class SitemapControllerTest extends TestCase
     {
         // Create test products
         $product1 = AsinData::factory()->create([
-            'asin' => 'B0123456789',
-            'country' => 'us',
-            'status' => 'completed',
+            'asin'              => 'B0123456789',
+            'country'           => 'us',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product One',
+            'product_title'     => 'Test Product One',
             'product_image_url' => 'https://example.com/image1.jpg',
-            'fake_percentage' => 25,
-            'grade' => 'B'
+            'fake_percentage'   => 25,
+            'grade'             => 'B',
         ]);
 
         $product2 = AsinData::factory()->create([
-            'asin' => 'B0987654321',
-            'country' => 'ca',
-            'status' => 'completed',
+            'asin'              => 'B0987654321',
+            'country'           => 'ca',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product Two',
+            'product_title'     => 'Test Product Two',
             'product_image_url' => 'https://example.com/image2.jpg',
-            'fake_percentage' => 10,
-            'grade' => 'A'
+            'fake_percentage'   => 10,
+            'grade'             => 'A',
         ]);
 
         // Create incomplete product (should not appear)
         AsinData::factory()->create([
-            'asin' => 'B0INCOMPLETE',
-            'status' => 'processing',
-            'have_product_data' => false
+            'asin'              => 'B0INCOMPLETE',
+            'status'            => 'processing',
+            'have_product_data' => false,
         ]);
 
         $response = $this->get('/sitemap-products.xml');
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/xml');
-        
+
         $content = $response->getContent();
         $this->assertStringContainsString('<urlset', $content);
         $this->assertStringContainsString('xmlns:image=', $content);
         $this->assertStringContainsString('xmlns:news=', $content);
-        
+
         // Check product URLs are included
-        $this->assertStringContainsString("/analysis/B0123456789/us", $content);
-        $this->assertStringContainsString("/analysis/B0987654321/ca", $content);
-        
+        $this->assertStringContainsString('/analysis/B0123456789/us', $content);
+        $this->assertStringContainsString('/analysis/B0987654321/ca', $content);
+
         // Check incomplete product is not included
-        $this->assertStringNotContainsString("B0INCOMPLETE", $content);
-        
+        $this->assertStringNotContainsString('B0INCOMPLETE', $content);
+
         // Check image data is included
         $this->assertStringContainsString('<image:image>', $content);
         $this->assertStringContainsString('https://example.com/image1.jpg', $content);
         $this->assertStringContainsString('Test Product One', $content);
-        
+
         // Check news data is included
         $this->assertStringContainsString('<news:news>', $content);
         $this->assertStringContainsString('<news:title>Review Analysis: Test Product One</news:title>', $content);
@@ -107,31 +107,31 @@ class SitemapControllerTest extends TestCase
     public function it_returns_analysis_sitemap_with_ai_metadata()
     {
         $analysis = AsinData::factory()->create([
-            'asin' => 'B0ANALYSIS01',
-            'country' => 'uk',
-            'status' => 'completed',
-            'explanation' => 'Detailed analysis of review authenticity patterns.',
+            'asin'            => 'B0ANALYSIS01',
+            'country'         => 'uk',
+            'status'          => 'completed',
+            'explanation'     => 'Detailed analysis of review authenticity patterns.',
             'fake_percentage' => 35,
-            'grade' => 'C',
-            'reviews' => json_encode([
+            'grade'           => 'C',
+            'reviews'         => json_encode([
                 ['text' => 'Great product!', 'rating' => 5],
                 ['text' => 'Good value', 'rating' => 4],
-                ['text' => 'Average quality', 'rating' => 3]
-            ])
+                ['text' => 'Average quality', 'rating' => 3],
+            ]),
         ]);
 
         $response = $this->get('/sitemap-analysis.xml');
 
         $response->assertStatus(200);
         $response->assertHeader('Content-Type', 'application/xml');
-        
+
         $content = $response->getContent();
         $this->assertStringContainsString('<urlset', $content);
         $this->assertStringContainsString('xmlns:ai=', $content);
-        
+
         // Check analysis URL is included
-        $this->assertStringContainsString("/analysis/B0ANALYSIS01/uk", $content);
-        
+        $this->assertStringContainsString('/analysis/B0ANALYSIS01/uk', $content);
+
         // Check AI metadata is included (allowing for decimal formatting)
         $this->assertStringContainsString('<ai:analysis>', $content);
         $this->assertStringContainsString('<ai:fake_percentage>35', $content);
@@ -146,16 +146,16 @@ class SitemapControllerTest extends TestCase
     {
         // Create complete analysis
         AsinData::factory()->create([
-            'asin' => 'B0COMPLETE01',
-            'status' => 'completed',
-            'explanation' => 'Complete analysis'
+            'asin'        => 'B0COMPLETE01',
+            'status'      => 'completed',
+            'explanation' => 'Complete analysis',
         ]);
 
         // Create incomplete analysis
         AsinData::factory()->create([
-            'asin' => 'B0INCOMPLETE',
-            'status' => 'processing',
-            'explanation' => null
+            'asin'        => 'B0INCOMPLETE',
+            'status'      => 'processing',
+            'explanation' => null,
         ]);
 
         $response = $this->get('/sitemap-analysis.xml');
@@ -170,24 +170,24 @@ class SitemapControllerTest extends TestCase
     {
         // High priority product (many reviews, recent, high fake percentage)
         $highPriorityProduct = AsinData::factory()->create([
-            'asin' => 'B0HIGHPRI001',
-            'status' => 'completed',
+            'asin'              => 'B0HIGHPRI001',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'High Priority Product',
-            'fake_percentage' => 60,
-            'reviews' => json_encode(array_fill(0, 150, ['text' => 'Review', 'rating' => 4])),
-            'updated_at' => now()->subHours(2)
+            'product_title'     => 'High Priority Product',
+            'fake_percentage'   => 60,
+            'reviews'           => json_encode(array_fill(0, 150, ['text' => 'Review', 'rating' => 4])),
+            'updated_at'        => now()->subHours(2),
         ]);
 
         // Low priority product (few reviews, old, low fake percentage)
         $lowPriorityProduct = AsinData::factory()->create([
-            'asin' => 'B0LOWPRI0001',
-            'status' => 'completed',
+            'asin'              => 'B0LOWPRI0001',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Low Priority Product',
-            'fake_percentage' => 2,
-            'reviews' => json_encode([['text' => 'Single review', 'rating' => 4]]),
-            'updated_at' => now()->subDays(60)
+            'product_title'     => 'Low Priority Product',
+            'fake_percentage'   => 2,
+            'reviews'           => json_encode([['text' => 'Single review', 'rating' => 4]]),
+            'updated_at'        => now()->subDays(60),
         ]);
 
         $response = $this->get('/sitemap-products.xml');
@@ -195,9 +195,9 @@ class SitemapControllerTest extends TestCase
 
         // Extract priorities using regex
         preg_match_all('/<priority>([0-9.]+)<\/priority>/', $content, $priorities);
-        
+
         $this->assertGreaterThan(0, count($priorities[1]));
-        
+
         // High priority product should have higher priority value
         $this->assertStringContainsString('B0HIGHPRI001', $content);
         $this->assertStringContainsString('B0LOWPRI0001', $content);
@@ -240,14 +240,14 @@ class SitemapControllerTest extends TestCase
         // Test with no products in database
         $response = $this->get('/sitemap-products.xml');
         $response->assertStatus(200);
-        
+
         $content = $response->getContent();
         $this->assertStringContainsString('<urlset', $content);
         $this->assertStringContainsString('</urlset>', $content);
 
         $response = $this->get('/sitemap-analysis.xml');
         $response->assertStatus(200);
-        
+
         $content = $response->getContent();
         $this->assertStringContainsString('<urlset', $content);
         $this->assertStringContainsString('</urlset>', $content);
@@ -257,10 +257,10 @@ class SitemapControllerTest extends TestCase
     public function it_generates_valid_xml_structure()
     {
         AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'XML Test Product',
-            'explanation' => 'Test explanation'
+            'product_title'     => 'XML Test Product',
+            'explanation'       => 'Test explanation',
         ]);
 
         $sitemaps = ['/sitemap.xml', '/sitemap-static.xml', '/sitemap-products.xml', '/sitemap-analysis.xml'];
@@ -282,9 +282,9 @@ class SitemapControllerTest extends TestCase
     public function it_includes_lastmod_timestamps()
     {
         $product = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'updated_at' => now()->subDays(5)
+            'updated_at'        => now()->subDays(5),
         ]);
 
         $response = $this->get('/sitemap-products.xml');
@@ -300,16 +300,16 @@ class SitemapControllerTest extends TestCase
         // Create more products than the limit (50000)
         // We'll create a smaller number for testing performance
         AsinData::factory()->count(100)->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Bulk Test Product'
+            'product_title'     => 'Bulk Test Product',
         ]);
 
         $response = $this->get('/sitemap-products.xml');
         $response->assertStatus(200);
 
         $content = $response->getContent();
-        
+
         // Count URL entries
         $urlCount = substr_count($content, '<url>');
         $this->assertLessThanOrEqual(50000, $urlCount);
@@ -320,11 +320,11 @@ class SitemapControllerTest extends TestCase
     public function it_generates_keywords_for_news_entries()
     {
         $product = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Keyword Test Product',
-            'fake_percentage' => 45,
-            'grade' => 'D'
+            'product_title'     => 'Keyword Test Product',
+            'fake_percentage'   => 45,
+            'grade'             => 'D',
         ]);
 
         $response = $this->get('/sitemap-products.xml');
@@ -340,10 +340,10 @@ class SitemapControllerTest extends TestCase
     public function it_handles_special_characters_in_product_titles()
     {
         $product = AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Product with "Quotes" & Ampersands <Tags>',
-            'product_image_url' => 'https://example.com/image.jpg'
+            'product_title'     => 'Product with "Quotes" & Ampersands <Tags>',
+            'product_image_url' => 'https://example.com/image.jpg',
         ]);
 
         $response = $this->get('/sitemap-products.xml');
@@ -351,7 +351,7 @@ class SitemapControllerTest extends TestCase
 
         // XML should be properly escaped
         $this->assertStringContainsString('Product with &quot;Quotes&quot; &amp; Ampersands &lt;Tags&gt;', $content);
-        
+
         // Should still be valid XML
         $xml = simplexml_load_string($content);
         $this->assertNotFalse($xml);
@@ -361,9 +361,9 @@ class SitemapControllerTest extends TestCase
     public function it_caches_sitemap_responses()
     {
         AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Cache Test Product'
+            'product_title'     => 'Cache Test Product',
         ]);
 
         // Clear cache before test
@@ -375,7 +375,7 @@ class SitemapControllerTest extends TestCase
 
         // Second request should use cached result
         $response2 = $this->get('/sitemap-products.xml');
-        
+
         // Both should return the same content
         $this->assertEquals($response1->getContent(), $response2->getContent());
     }
@@ -408,9 +408,9 @@ class SitemapControllerTest extends TestCase
     public function it_warms_cache_with_all_sitemaps()
     {
         AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Warm Cache Test Product'
+            'product_title'     => 'Warm Cache Test Product',
         ]);
 
         // Clear cache first

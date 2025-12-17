@@ -4,9 +4,9 @@ namespace Tests\Unit;
 
 use App\Models\AsinData;
 use App\Services\SEOService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class StructuredDataValidationTest extends TestCase
 {
@@ -24,16 +24,16 @@ class StructuredDataValidationTest extends TestCase
     public function product_schema_follows_schema_org_specification()
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0SCHEMA123',
-            'product_title' => 'Schema Validation Product',
+            'asin'              => 'B0SCHEMA123',
+            'product_title'     => 'Schema Validation Product',
             'product_image_url' => 'https://example.com/product.jpg',
-            'adjusted_rating' => 4.2,
-            'fake_percentage' => 20,
-            'grade' => 'B',
-            'reviews' => json_encode([
+            'adjusted_rating'   => 4.2,
+            'fake_percentage'   => 20,
+            'grade'             => 'B',
+            'reviews'           => json_encode([
                 ['text' => 'Good product', 'rating' => 4],
-                ['text' => 'Great quality', 'rating' => 5]
-            ])
+                ['text' => 'Great quality', 'rating' => 5],
+            ]),
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -64,7 +64,7 @@ class StructuredDataValidationTest extends TestCase
         // Test PropertyValue schemas
         $this->assertArrayHasKey('additionalProperty', $schema);
         $this->assertIsArray($schema['additionalProperty']);
-        
+
         foreach ($schema['additionalProperty'] as $property) {
             $this->assertEquals('PropertyValue', $property['@type']);
             $this->assertArrayHasKey('name', $property);
@@ -77,7 +77,7 @@ class StructuredDataValidationTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'product_title' => 'Analysis Schema Test',
-            'explanation' => 'Detailed analysis explanation'
+            'explanation'   => 'Detailed analysis explanation',
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -96,7 +96,7 @@ class StructuredDataValidationTest extends TestCase
         // Test Organization schemas
         $this->assertEquals('Organization', $schema['author']['@type']);
         $this->assertEquals('Organization', $schema['publisher']['@type']);
-        
+
         // Test ImageObject schema in publisher
         $this->assertArrayHasKey('logo', $schema['publisher']);
         $this->assertEquals('ImageObject', $schema['publisher']['logo']['@type']);
@@ -104,7 +104,7 @@ class StructuredDataValidationTest extends TestCase
         // Test mentions array
         $this->assertArrayHasKey('mentions', $schema);
         $this->assertIsArray($schema['mentions']);
-        
+
         foreach ($schema['mentions'] as $mention) {
             $this->assertEquals('Thing', $mention['@type']);
             $this->assertArrayHasKey('name', $mention);
@@ -115,12 +115,12 @@ class StructuredDataValidationTest extends TestCase
     public function dataset_schema_follows_specification()
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0DATASET123',
-            'country' => 'ca',
-            'product_title' => 'Dataset Schema Test',
+            'asin'            => 'B0DATASET123',
+            'country'         => 'ca',
+            'product_title'   => 'Dataset Schema Test',
             'fake_percentage' => 35,
-            'grade' => 'C',
-            'adjusted_rating' => 3.5
+            'grade'           => 'C',
+            'adjusted_rating' => 3.5,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -160,8 +160,8 @@ class StructuredDataValidationTest extends TestCase
     {
         $asinData = AsinData::factory()->create([
             'fake_percentage' => 25,
-            'grade' => 'B',
-            'adjusted_rating' => 4.1
+            'grade'           => 'B',
+            'adjusted_rating' => 4.1,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -261,30 +261,30 @@ class StructuredDataValidationTest extends TestCase
     public function all_schemas_have_valid_iso_dates()
     {
         $asinData = AsinData::factory()->create([
-            'updated_at' => now()->subDays(5)
+            'updated_at' => now()->subDays(5),
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
 
         $schemasWithDates = [
             'analysis_schema' => ['datePublished', 'dateModified'],
-            'dataset_schema' => ['temporalCoverage']
+            'dataset_schema'  => ['temporalCoverage'],
         ];
 
         foreach ($schemasWithDates as $schemaKey => $dateFields) {
             $schema = $seoData[$schemaKey];
-            
+
             foreach ($dateFields as $dateField) {
                 if (isset($schema[$dateField])) {
                     $dateValue = $schema[$dateField];
-                    
+
                     // Test ISO 8601 format (allowing microseconds)
                     $this->assertMatchesRegularExpression(
                         '/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3,6})?Z$/',
                         $dateValue,
                         "Date field {$dateField} in {$schemaKey} should be in ISO 8601 format"
                     );
-                    
+
                     // Test that date can be parsed (try multiple formats)
                     $parsedDate = \DateTime::createFromFormat(\DateTime::ATOM, $dateValue);
                     if ($parsedDate === false) {
@@ -301,19 +301,19 @@ class StructuredDataValidationTest extends TestCase
     public function schemas_handle_null_values_gracefully()
     {
         $asinData = AsinData::factory()->create([
-            'product_title' => null,
+            'product_title'     => null,
             'product_image_url' => null,
-            'fake_percentage' => null,
-            'grade' => null,
-            'adjusted_rating' => null,
-            'reviews' => null
+            'fake_percentage'   => null,
+            'grade'             => null,
+            'adjusted_rating'   => null,
+            'reviews'           => null,
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
 
         // All schemas should still be valid arrays
         $schemaKeys = ['product_schema', 'analysis_schema', 'dataset_schema', 'faq_schema', 'how_to_schema'];
-        
+
         foreach ($schemaKeys as $schemaKey) {
             $this->assertIsArray($seoData[$schemaKey]);
             $this->assertArrayHasKey('@context', $seoData[$schemaKey]);
@@ -332,10 +332,10 @@ class StructuredDataValidationTest extends TestCase
         $asinData = AsinData::factory()->create([
             'fake_percentage' => 42,
             'adjusted_rating' => 3.7,
-            'reviews' => json_encode([
+            'reviews'         => json_encode([
                 ['text' => 'Review 1', 'rating' => 4],
-                ['text' => 'Review 2', 'rating' => 5]
-            ])
+                ['text' => 'Review 2', 'rating' => 5],
+            ]),
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -362,8 +362,8 @@ class StructuredDataValidationTest extends TestCase
     public function urls_are_properly_formatted()
     {
         $asinData = AsinData::factory()->create([
-            'asin' => 'B0URLTEST123',
-            'country' => 'de'
+            'asin'    => 'B0URLTEST123',
+            'country' => 'de',
         ]);
 
         $seoData = $this->seoService->generateProductSEOData($asinData);
@@ -385,7 +385,7 @@ class StructuredDataValidationTest extends TestCase
 
         $datasetSchema = $seoData['dataset_schema'];
         $this->assertEquals('https://creativecommons.org/licenses/by/4.0/', $datasetSchema['license']);
-        
+
         // Verify it's a valid URL format
         $this->assertMatchesRegularExpression('/^https:\/\//', $datasetSchema['license']);
     }

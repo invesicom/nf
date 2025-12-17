@@ -471,11 +471,11 @@ class CompleteAnalysisWorkflowTest extends TestCase
         // Step 6: Simulate session completion with redirect URL (this should now work)
         $session = AnalysisSession::find($sessionId);
         $redirectUrl = route('amazon.product.show', [
-            'country' => 'us', 
-            'asin' => 'B0NOREVIEW',
-            'slug' => $asinData->slug
+            'country' => 'us',
+            'asin'    => 'B0NOREVIEW',
+            'slug'    => $asinData->slug,
         ]);
-        
+
         $session->markAsCompleted([
             'success'         => true,
             'asin_data'       => $asinData,
@@ -499,14 +499,14 @@ class CompleteAnalysisWorkflowTest extends TestCase
 
         $productPageResponse = $this->followingRedirects()->get($redirectUrl);
         $productPageResponse->assertStatus(200);
-        
+
         // Verify the page shows the product (not "Product Not Found")
         $productPageResponse->assertSee('Product With No Reviews');
         $productPageResponse->assertSee('Grade U');
-        
+
         // Verify it shows appropriate message for no reviews
         $productPageResponse->assertSee('No reviews could be extracted for analysis');
-        
+
         // Should NOT see "Product Not Found" or "We haven't analyzed this Amazon product yet"
         $productPageResponse->assertDontSee('Product Not Found');
         $productPageResponse->assertDontSee('We haven\'t analyzed this Amazon product yet');
@@ -532,7 +532,7 @@ class CompleteAnalysisWorkflowTest extends TestCase
 
         $recentProduct = AsinData::factory()->create([
             'asin'              => 'B0RECENT01',
-            'country'           => 'us', 
+            'country'           => 'us',
             'status'            => 'completed',
             'grade'             => 'U',
             'fake_percentage'   => 0.00,
@@ -545,7 +545,7 @@ class CompleteAnalysisWorkflowTest extends TestCase
         $analyzedProduct = AsinData::factory()->create([
             'asin'              => 'B0ANALYZED1',
             'country'           => 'us',
-            'status'            => 'completed', 
+            'status'            => 'completed',
             'grade'             => 'B',
             'fake_percentage'   => 25.0,
             'have_product_data' => true,
@@ -570,7 +570,7 @@ class CompleteAnalysisWorkflowTest extends TestCase
 
         // Test actual execution (without dry-run)
         Queue::fake(); // Prevent actual job execution in test
-        
+
         $this->artisan('analysis:manage', ['action' => 'retry', '--limit' => 10, '--force' => true])
             ->expectsOutput('Found 1 products to retry:')
             ->expectsOutput('Retrying ASIN: B0OLD00001 (us)')

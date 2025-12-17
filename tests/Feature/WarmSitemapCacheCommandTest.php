@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\AsinData;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class WarmSitemapCacheCommandTest extends TestCase
 {
@@ -16,9 +16,9 @@ class WarmSitemapCacheCommandTest extends TestCase
     public function it_warms_sitemap_cache_successfully()
     {
         AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product'
+            'product_title'     => 'Test Product',
         ]);
 
         Cache::forget('sitemap.index');
@@ -57,9 +57,9 @@ class WarmSitemapCacheCommandTest extends TestCase
     public function it_verifies_cache_when_flag_provided()
     {
         AsinData::factory()->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Test Product'
+            'product_title'     => 'Test Product',
         ]);
 
         $this->artisan('sitemap:warm --verify')
@@ -92,7 +92,7 @@ class WarmSitemapCacheCommandTest extends TestCase
         $this->artisan('sitemap:warm')
             ->expectsOutput('Warming sitemap cache...')
             ->assertExitCode(0);
-        
+
         // Verify cache was populated (which means command completed successfully)
         $this->assertTrue(Cache::has('sitemap.index'));
     }
@@ -101,9 +101,9 @@ class WarmSitemapCacheCommandTest extends TestCase
     public function it_works_with_large_product_dataset()
     {
         AsinData::factory()->count(100)->create([
-            'status' => 'completed',
+            'status'            => 'completed',
             'have_product_data' => true,
-            'product_title' => 'Bulk Test Product'
+            'product_title'     => 'Bulk Test Product',
         ]);
 
         Cache::forget('sitemap.products');
@@ -112,10 +112,9 @@ class WarmSitemapCacheCommandTest extends TestCase
             ->assertExitCode(0);
 
         $this->assertTrue(Cache::has('sitemap.products'));
-        
+
         $cachedContent = Cache::get('sitemap.products');
         $urlCount = substr_count($cachedContent, '<url>');
         $this->assertEquals(100, $urlCount);
     }
 }
-

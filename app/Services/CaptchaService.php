@@ -59,6 +59,4 @@ class CaptchaService
         // Both APIs return 'success' boolean
         return $data['success'] ?? false;
     }
-
-
 }

@@ -76,8 +76,6 @@ class ReviewAnalyzer extends Component
         $this->currentlyProcessing = '';
         $this->loading = false;
         $this->totalReviewsFound = 0;
-        
-
     }
 
     public function analyze()
@@ -177,7 +175,7 @@ class ReviewAnalyzer extends Component
                     if (!$captchaResponse || !$captchaService->verify($captchaResponse)) {
                         throw new \Exception('Captcha verification failed. Please try again.');
                     }
-                    
+
                     $this->captcha_passed = true;
                 }
             }
@@ -200,8 +198,6 @@ class ReviewAnalyzer extends Component
 
             $analysisResult = $analysisService->calculateFinalMetrics($asinData);
             $this->setResults($analysisResult);
-
-
 
             // Sync mode: Use original behavior - redirect if product data exists, otherwise show in-place
             if ($asinData->have_product_data) {
@@ -478,6 +474,4 @@ class ReviewAnalyzer extends Component
 
         LoggingService::log('Async analysis results set successfully');
     }
-
-
 }

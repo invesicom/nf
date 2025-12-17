@@ -30,7 +30,7 @@ class WarmSitemapCache extends Command
     public function handle(): int
     {
         $this->info('Warming sitemap cache...');
-        
+
         $startTime = microtime(true);
 
         if ($this->option('clear')) {
@@ -41,7 +41,7 @@ class WarmSitemapCache extends Command
         try {
             // Warm the cache
             SitemapController::warmCache();
-            
+
             $duration = round(microtime(true) - $startTime, 2);
             $this->info("Cache warmed successfully in {$duration} seconds");
 
@@ -51,23 +51,24 @@ class WarmSitemapCache extends Command
 
             return Command::SUCCESS;
         } catch (\Exception $e) {
-            $this->error('Failed to warm sitemap cache: ' . $e->getMessage());
+            $this->error('Failed to warm sitemap cache: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }
 
     /**
-     * Verify that cache was populated
+     * Verify that cache was populated.
      */
     private function verifyCache(): void
     {
         $this->info('Verifying cache...');
-        
+
         $keys = [
             'sitemap.index',
             'sitemap.static',
             'sitemap.products',
-            'sitemap.analysis'
+            'sitemap.analysis',
         ];
 
         $allCached = true;
@@ -75,7 +76,7 @@ class WarmSitemapCache extends Command
             $isCached = Cache::has($key);
             $status = $isCached ? 'CACHED' : 'MISSING';
             $this->line("  {$key}: {$status}");
-            
+
             if (!$isCached) {
                 $allCached = false;
             }
@@ -88,4 +89,3 @@ class WarmSitemapCache extends Command
         }
     }
 }
-
