@@ -7,7 +7,7 @@
           <path d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z"/>
         </svg>
       </span>
-      by&nbsp;<a href="https://shift8web.ca" class="text-indigo-600 hover:underline" target="_blank" rel="noopener">shift8 web</a>
+      by&nbsp;<a href="https://shift8web.ca" class="text-indigo-600 hover:underline" target="_blank" rel="noopener">web design toronto</a>
     </span>
     <span class="mx-2">•</span>
     protected by &nbsp;<a href="https://atomicedge.io" class="text-indigo-600 hover:underline" target="_blank" rel="noopener">atomic edge firewall</a>
