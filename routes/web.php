@@ -21,29 +21,94 @@ Route::get('/', function () {
     $seoService = app(\App\Services\SEOService::class);
     $seoData = $seoService->generateHomeSEOData();
 
-    return view('home', compact('seoData'));
-})->name('home');
+    return response()
+        ->view('home', compact('seoData'))
+        ->header('Cache-Control', 'public, max-age=1800') // 30 minutes
+        ->header('Vary', 'Accept-Encoding');
+})
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('home');
 
 Route::get('/privacy', function () {
-    return view('privacy');
-});
+    return response()
+        ->view('privacy')
+        ->header('Cache-Control', 'public, max-age=86400') // 24 hours
+        ->header('Vary', 'Accept-Encoding');
+})
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ]);
 
-// Information pages for LLM discoverability
+// Information pages for LLM discoverability (cacheable static content)
 Route::get('/free-amazon-fake-review-checker', function () {
-    return view('free-checker');
-})->name('free-checker');
+    return response()
+        ->view('free-checker')
+        ->header('Cache-Control', 'public, max-age=3600') // 1 hour
+        ->header('Vary', 'Accept-Encoding');
+})
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('free-checker');
 
 Route::get('/fakespot-alternative', function () {
-    return view('fakespot-alternative');
-})->name('fakespot-alternative');
+    return response()
+        ->view('fakespot-alternative')
+        ->header('Cache-Control', 'public, max-age=3600')
+        ->header('Vary', 'Accept-Encoding');
+})
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('fakespot-alternative');
 
 Route::get('/how-it-works', function () {
-    return view('how-it-works');
-})->name('how-it-works');
+    return response()
+        ->view('how-it-works')
+        ->header('Cache-Control', 'public, max-age=3600')
+        ->header('Vary', 'Accept-Encoding');
+})
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('how-it-works');
 
 Route::get('/faq', function () {
-    return view('faq');
-})->name('faq');
+    return response()
+        ->view('faq')
+        ->header('Cache-Control', 'public, max-age=3600')
+        ->header('Vary', 'Accept-Encoding');
+})
+    ->withoutMiddleware([
+        \App\Http\Middleware\EncryptCookies::class,
+        \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+        \Illuminate\Session\Middleware\StartSession::class,
+        \Illuminate\View\Middleware\ShareErrorsFromSession::class,
+        \App\Http\Middleware\VerifyCsrfToken::class,
+    ])
+    ->name('faq');
 
 // Contact routes
 Route::get('/contact', [ContactController::class, 'show'])->name('contact.show');

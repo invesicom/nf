@@ -28,3 +28,6 @@ sync_prod.sh
 # Ignore GitHub workflows and Codacy configuration
 .github/workflows
 .codacy
+
+# Snyk Security Extension - AI Rules (auto-generated)
+.cursor/rules/snyk_rules.mdc
